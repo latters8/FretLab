@@ -1,29 +1,69 @@
-:root {
-  --bg-primary: #0b0e14;
-  --bg-secondary: #11161f;
-  --bg-panel: #141a24;
-  --bg-hover: #1e2633;
-  --border-color: #2a3340;
-  --text-primary: #e8edf5;
-  --text-secondary: #8a9bb5;
-  --text-muted: #6a7b95;
-  --accent: #f0a030;
-  --accent-blue: #30b0f0;
+/* =========================================
+   ТЕМА 1: NEBULA GRAPHITE (Default)
+   Темно-графитовый, фиолетовые и мятные акценты
+========================================= */
+:root, [data-theme="nebula-graphite"] {
+  --bg-primary: #0e0f12;
+  --bg-secondary: #15171c;
+  --bg-panel: #1a1c23;
+  --bg-hover: #232630;
+  --border-color: #2b2e38;
+  --text-primary: #f0f2f5;
+  --text-secondary: #9ba1b0;
+  --text-muted: #646a7a;
+  --accent: #a374ff; /* Неоновый фиолетовый */
+  --accent-blue: #00e6a8; /* Мятно-зеленый */
   --radius: 8px;
   --radius-sm: 4px;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+/* =========================================
+   ТЕМА 2: TITANIUM CITRINE
+   Матовый серый титан, лимонный и голубой
+========================================= */
+[data-theme="titanium-citrine"] {
+  --bg-primary: #191919;
+  --bg-secondary: #222222;
+  --bg-panel: #2a2a2a;
+  --bg-hover: #333333;
+  --border-color: #3f3f3f;
+  --text-primary: #ffffff;
+  --text-secondary: #aaaaaa;
+  --text-muted: #777777;
+  --accent: #c4d700; /* Яркий цитрин / лимонный */
+  --accent-blue: #00d2ff;
+  --radius: 6px;
+  --radius-sm: 3px;
 }
 
+/* =========================================
+   ТЕМА 3: CRIMSON ONYX
+   Тотальный черный оникс, багровый неон
+========================================= */
+[data-theme="crimson-onyx"] {
+  --bg-primary: #000000;
+  --bg-secondary: #0a0a0a;
+  --bg-panel: #111111;
+  --bg-hover: #1a1a1a;
+  --border-color: #222222;
+  --text-primary: #ffffff;
+  --text-secondary: #888888;
+  --text-muted: #555555;
+  --accent: #ff3333; /* Багровый неон */
+  --accent-blue: #00c3ff;
+  --radius: 4px;
+  --radius-sm: 2px;
+}
+
+/* Глобальные стили */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
 body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
   background: var(--bg-primary);
   color: var(--text-primary);
   height: 100vh;
   overflow: hidden;
   user-select: none;
+  transition: background 0.3s ease, color 0.3s ease; /* Плавная смена тем */
 }

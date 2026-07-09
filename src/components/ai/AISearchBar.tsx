@@ -5,43 +5,26 @@ const AISearchBar: React.FC = () => {
 
   const handleSearch = () => {
     if (!query.trim()) return;
-    
-    // Заглушка ответов AI (в будущем здесь будет реальный API-запрос к LLM)
-    const responses = [
-      "🎵 The circle of fifths shows your current key perfectly. Try exploring the relative minor!",
-      "🎶 A classic progression here would be I - IV - V. Try playing it with a shuffle feel!",
-      "🎸 For faster picking in this scale, practice alternate picking starting slow."
-    ];
-    const reply = responses[Math.floor(Math.random() * responses.length)];
-    
-    alert(`🤖 AI Assistant:\n\n${reply}\n\n💡 (В будущих спринтах AI будет генерировать табы прямо на гриф!)`);
+    alert(`🤖 AI Module:\n\nProcessing request: "${query}"\n\n(AI will auto-configure Tone and Tabs soon!)`);
     setQuery('');
   };
 
   return (
-    <div style={{ display: 'flex', gap: '10px', width: '100%', marginBottom: '4px' }}>
+    <div style={{ display: 'flex', alignItems: 'center', width: '100%', maxWidth: '450px', position: 'relative' }}>
+      <div style={{ position: 'absolute', left: '12px', color: 'var(--text-muted)' }}>🧠</div>
       <input
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-        placeholder="🧠 Ask AI to generate a lick, explain chords, or suggest a tone..."
+        placeholder="Ask AI for tones, chords, or licks..."
         style={{
-          flex: 1, padding: '10px 20px', borderRadius: '30px', 
-          border: '1px solid var(--border-color)', background: 'var(--bg-panel)', 
-          color: 'var(--text-primary)', fontSize: '13px', outline: 'none'
+          width: '100%', padding: '8px 12px 8px 36px', borderRadius: '20px', 
+          border: '1px solid var(--border-color)', background: 'var(--bg-primary)', 
+          color: 'var(--text-primary)', fontSize: '12px', outline: 'none',
+          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)'
         }}
       />
-      <button
-        onClick={handleSearch}
-        style={{
-          padding: '0 20px', borderRadius: '30px', background: 'var(--accent)', 
-          color: 'var(--bg-primary)', border: 'none', fontWeight: 'bold', 
-          cursor: 'pointer'
-        }}
-      >
-        Ask AI
-      </button>
     </div>
   );
 };
