@@ -1,0 +1,29 @@
+:root {
+  --bg-primary: #0b0e14;
+  --bg-secondary: #11161f;
+  --bg-panel: #141a24;
+  --bg-hover: #1e2633;
+  --border-color: #2a3340;
+  --text-primary: #e8edf5;
+  --text-secondary: #8a9bb5;
+  --text-muted: #6a7b95;
+  --accent: #f0a030;
+  --accent-blue: #30b0f0;
+  --radius: 8px;
+  --radius-sm: 4px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100vh;
+  overflow: hidden;
+  user-select: none;
+}
