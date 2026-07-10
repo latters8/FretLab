@@ -5,10 +5,10 @@ import CircleOfFifths from '../tools/CircleOfFifths';
 import Fretboard from '../fretboard/Fretboard';
 import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
-import ChordDictionary from '../tools/ChordDictionary'; // Подключаем Справочник
+import ChordDictionary from '../tools/ChordDictionary';
+import AISearchBar from '../ai/AISearchBar';
 
 const AppShell: React.FC = () => {
-  // Состояние активного экрана (модуля)
   const [activeModule, setActiveModule] = useState<'engine' | 'dictionary'>('engine');
 
   return (
@@ -19,7 +19,6 @@ const AppShell: React.FC = () => {
         
         {/* Left Sidebar - MENU */}
         <aside style={{ width: '120px', padding: '20px 0', borderRight: '1px solid var(--border-color)', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
-            {/* Кнопка "Студия" */}
             <div 
               onClick={() => setActiveModule('engine')}
               style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} 
@@ -32,7 +31,6 @@ const AppShell: React.FC = () => {
               📝
             </div>
             
-            {/* Кнопка "Словарь" */}
             <div 
               onClick={() => setActiveModule('dictionary')}
               style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} 
@@ -50,10 +48,15 @@ const AppShell: React.FC = () => {
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           
           {activeModule === 'engine' ? (
-            // РЕЖИМ 1: Основной Fretboard Engine (Плеер, Гриф, Круг)
             <>
               <main style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '-10px' }}>
+                      <AISearchBar />
+                  </div>
+                  
+                  {/* Теперь здесь точно Плеер */}
                   <Player />
+                  
                   <Fretboard />
                   <Tablature />
               </main>
@@ -63,7 +66,6 @@ const AppShell: React.FC = () => {
               </aside>
             </>
           ) : (
-            // РЕЖИМ 2: Полноэкранный справочник аккордов
             <main style={{ flex: 1, padding: '24px 32px', overflowY: 'hidden' }}>
                 <ChordDictionary />
             </main>

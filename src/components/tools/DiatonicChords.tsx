@@ -7,7 +7,7 @@ const DiatonicChords: React.FC = () => {
   const { getDiatonicChords, mode } = useMusic();
   const chords = getDiatonicChords();
   
-  // Состояние теперь хранит и аккорд, и конкретное обращение (чип)
+  // Состояние хранит аккорд и конкретное обращение (чип)
   const [modalConfig, setModalConfig] = useState<{chord: string, voicing?: string} | null>(null);
 
   // 🎵 ЗВУКОВОЙ ДВИЖОК
@@ -47,7 +47,7 @@ const DiatonicChords: React.FC = () => {
     <>
       <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
         <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '20px', textAlign: 'center' }}>
-          🎹 Diatonic Chords & Voicings
+          🎹 Suggested Chords
         </div>
         
         {chords.length > 0 ? (
@@ -63,7 +63,6 @@ const DiatonicChords: React.FC = () => {
                     boxShadow: isTonic ? 'inset 3px 0 0 var(--accent)' : 'none'
                   }}>
                   
-                  {/* Клик по названию аккорда открывает модалку без акцента на конкретной форме */}
                   <div 
                     onClick={() => setModalConfig({ chord: c.chord })}
                     style={{ display: 'flex', alignItems: 'center', width: '80px', cursor: 'pointer' }}
@@ -73,15 +72,14 @@ const DiatonicChords: React.FC = () => {
                     <span style={{ color: isTonic ? 'var(--accent)' : 'var(--text-primary)', fontWeight: 800, fontSize: '14px' }}>{c.chord}</span>
                   </div>
 
-                  {/* Чипы с формами аккордов */}
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
                     {voicings.slice(0, 3).map((v, idx) => (
                       <div 
                         key={idx}
                         onClick={(e) => {
                           e.stopPropagation(); 
-                          playChord(v); // 🔊 Звук!
-                          setModalConfig({ chord: c.chord, voicing: v.name }); // 👁 Открываем схему!
+                          playChord(v);
+                          setModalConfig({ chord: c.chord, voicing: v.name }); 
                         }}
                         style={{
                           background: 'var(--bg-secondary)', color: 'var(--text-secondary)',
@@ -103,7 +101,6 @@ const DiatonicChords: React.FC = () => {
                       </div>
                     ))}
                     
-                    {/* Кнопка "еще N", открывает общую модалку */}
                     {voicings.length > 3 && (
                       <div 
                         onClick={() => setModalConfig({ chord: c.chord })}
@@ -123,7 +120,7 @@ const DiatonicChords: React.FC = () => {
         ) : (
           <div style={{ background: 'var(--bg-primary)', padding: '24px 16px', borderRadius: '4px', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
             <span style={{ color: 'var(--text-muted)', fontSize: '12px', lineHeight: '1.6' }}>
-              No strict diatonic mapping defined for <br/>
+              No suggested chords defined for <br/>
               <span style={{ color: 'var(--accent)', fontWeight: 800, textTransform: 'uppercase' }}>{mode}</span> mode yet.
             </span>
           </div>
@@ -133,7 +130,7 @@ const DiatonicChords: React.FC = () => {
       {modalConfig && (
         <ChordDictionaryModal 
           chord={modalConfig.chord} 
-          highlightVoicing={modalConfig.voicing} // Передаем целевой чип
+          highlightVoicing={modalConfig.voicing} 
           onClose={() => setModalConfig(null)} 
         />
       )}

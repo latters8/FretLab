@@ -1,13 +1,12 @@
 import { createContext, useState, useContext, useRef, useEffect, useCallback, type ReactNode } from 'react';
 
-type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
+export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
 
 export interface DiatonicChord {
   roman: string;
   chord: string;
 }
 
-// Платформы для видео
 export type VideoPlatform = 'youtube' | 'rutube' | 'vk';
 
 export interface TrackInfo {
@@ -22,11 +21,11 @@ interface MusicContextType {
   bpm: number;
   isPlaying: boolean;
   activeStep: number;
-  currentTrack: TrackInfo; // НОВОЕ: Текущий трек
+  currentTrack: TrackInfo;
   setKeyNote: (key: string) => void;
   setMode: (mode: Mode) => void;
   setBpm: (bpm: number) => void;
-  setCurrentTrack: (track: TrackInfo) => void; // НОВОЕ: Управление треком
+  setCurrentTrack: (track: TrackInfo) => void;
   togglePlay: () => void;
   getScaleNotes: () => string[];
   getDiatonicChords: () => DiatonicChord[];
@@ -56,13 +55,12 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [mode, setMode] = useState<Mode>('aeolian');
   const [bpm, setBpm] = useState<number>(120);
   
-  // Дефолтный трек: Fusion Jam in E Minor (YouTube)
   const [currentTrack, setCurrentTrack] = useState<TrackInfo>({
     platform: 'youtube',
-    id: 'fX1D_S2YkXo', // Замените на любой ID реального Fusion Em трека
+    id: 'OebA4GfO8wU', 
     title: 'Fusion Backing Track (E Minor)'
   });
-  
+
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [activeStep, setActiveStep] = useState<number>(-1);
 
@@ -88,7 +86,7 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const current = stepRef.current;
       if (current % 4 === 0) playClick(nextNoteTime.current, current % 16 === 0);
       setActiveStep(current);
-      nextNoteTime.current += (60.0 / bpm) / 4; 
+      nextNoteTime.current += (60.0 / bpm) / 4;
       stepRef.current = (current + 1) % 32;
     }
     timerID.current = requestAnimationFrame(scheduler);
@@ -117,6 +115,7 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return modeIntervals.map(interval => ALL_NOTES[(rootIndex + interval) % 12]);
   };
 
+  // 🔥 ОБНОВЛЕННЫЙ АЛГОРИТМ ДИАТОНИКИ С СЕПТАККОРДАМИ
   const getDiatonicChords = (): DiatonicChord[] => {
     const scale = getScaleNotes();
     if (scale.length < 7) return [];
@@ -129,21 +128,31 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const root = scale[i];
       const third = scale[(i + 2) % 7];
       const fifth = scale[(i + 4) % 7];
+      const seventh = scale[(i + 6) % 7]; // Вычисляем 7-ю ступень
 
       const rootIdx = ALL_NOTES.indexOf(root);
       const thirdIdx = ALL_NOTES.indexOf(third);
       const fifthIdx = ALL_NOTES.indexOf(fifth);
+      const seventhIdx = ALL_NOTES.indexOf(seventh);
 
       const int3 = (thirdIdx - rootIdx + 12) % 12;
       const int5 = (fifthIdx - rootIdx + 12) % 12;
+      const int7 = (seventhIdx - rootIdx + 12) % 12;
 
       let quality = '';
       let roman = '';
 
-      if (int3 === 4 && int5 === 7) { quality = ''; roman = romanMaj[i]; } 
-      else if (int3 === 3 && int5 === 7) { quality = 'm'; roman = romanMin[i]; } 
-      else if (int3 === 3 && int5 === 6) { quality = 'dim'; roman = romanMin[i] + '°'; } 
-      else if (int3 === 4 && int5 === 8) { quality = 'aug'; roman = romanMaj[i] + '+'; } 
+      // Логика распознавания септаккордов:
+      if (int3 === 4 && int5 === 7 && int7 === 11) { quality = 'maj7'; roman = romanMaj[i] + 'maj7'; }
+      else if (int3 === 4 && int5 === 7 && int7 === 10) { quality = '7'; roman = romanMaj[i] + '7'; }
+      else if (int3 === 3 && int5 === 7 && int7 === 10) { quality = 'm7'; roman = romanMin[i] + '7'; }
+      else if (int3 === 3 && int5 === 6 && int7 === 10) { quality = 'm7b5'; roman = romanMin[i] + '7b5'; }
+      else if (int3 === 3 && int5 === 6 && int7 === 9) { quality = 'dim7'; roman = romanMin[i] + '°7'; }
+      // Фолбэк на трезвучия, если лад нестандартный (например, блюзовый)
+      else if (int3 === 4 && int5 === 7) { quality = ''; roman = romanMaj[i]; }
+      else if (int3 === 3 && int5 === 7) { quality = 'm'; roman = romanMin[i]; }
+      else if (int3 === 3 && int5 === 6) { quality = 'dim'; roman = romanMin[i] + '°'; }
+      else if (int3 === 4 && int5 === 8) { quality = 'aug'; roman = romanMaj[i] + '+'; }
       else { quality = '5'; roman = romanMaj[i] + '5'; }
 
       chords.push({ roman, chord: root + quality });
