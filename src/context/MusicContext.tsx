@@ -1,10 +1,17 @@
-import { createContext, useState, useContext, useRef, useEffect, useCallback, type ReactNode } from 'react';
+import { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 
 export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
 
 export interface DiatonicChord {
-  roman: string;
-  chord: string;
+  baseRoman: string;
+  triad: string;
+  seventhRoman: string;
+  seventhChord: string;
+  ninthRoman: string;
+  ninthChord: string;
+  eleventhRoman: string;
+  eleventhChord: string;
 }
 
 export type VideoPlatform = 'youtube' | 'rutube' | 'vk';
@@ -57,8 +64,8 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   
   const [currentTrack, setCurrentTrack] = useState<TrackInfo>({
     platform: 'youtube',
-    id: 'OebA4GfO8wU', 
-    title: 'Fusion Backing Track (E Minor)'
+    id: 'HdsP-KYQZDQ', 
+    title: 'Liquid Groove Fusion Backing Track - Em'
   });
 
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
@@ -115,7 +122,7 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return modeIntervals.map(interval => ALL_NOTES[(rootIndex + interval) % 12]);
   };
 
-  // 🔥 ОБНОВЛЕННЫЙ АЛГОРИТМ ДИАТОНИКИ С СЕПТАККОРДАМИ
+  // 🔥 СТРОГАЯ ДИАТОНИЧЕСКАЯ ГЕНЕРАЦИЯ: Трезвучия -> 7 -> 9 -> 11
   const getDiatonicChords = (): DiatonicChord[] => {
     const scale = getScaleNotes();
     if (scale.length < 7) return [];
@@ -126,36 +133,99 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     for (let i = 0; i < 7; i++) {
       const root = scale[i];
-      const third = scale[(i + 2) % 7];
-      const fifth = scale[(i + 4) % 7];
-      const seventh = scale[(i + 6) % 7]; // Вычисляем 7-ю ступень
+      const third = scale[(i + 2) % scale.length];
+      const fifth = scale[(i + 4) % scale.length];
+      const seventh = scale[(i + 6) % scale.length];
+      const ninth = scale[(i + 1) % scale.length];
+      const eleventh = scale[(i + 3) % scale.length];
 
       const rootIdx = ALL_NOTES.indexOf(root);
       const thirdIdx = ALL_NOTES.indexOf(third);
       const fifthIdx = ALL_NOTES.indexOf(fifth);
       const seventhIdx = ALL_NOTES.indexOf(seventh);
+      const ninthIdx = ALL_NOTES.indexOf(ninth);
+      const eleventhIdx = ALL_NOTES.indexOf(eleventh);
 
       const int3 = (thirdIdx - rootIdx + 12) % 12;
       const int5 = (fifthIdx - rootIdx + 12) % 12;
       const int7 = (seventhIdx - rootIdx + 12) % 12;
+      const int9 = (ninthIdx - rootIdx + 12) % 12;
+      const int11 = (eleventhIdx - rootIdx + 12) % 12;
 
-      let quality = '';
-      let roman = '';
+      // 1. Формируем трезвучие
+      let triadQuality = '';
+      let baseRoman = romanMaj[i];
+      let isMinor = false;
 
-      // Логика распознавания септаккордов:
-      if (int3 === 4 && int5 === 7 && int7 === 11) { quality = 'maj7'; roman = romanMaj[i] + 'maj7'; }
-      else if (int3 === 4 && int5 === 7 && int7 === 10) { quality = '7'; roman = romanMaj[i] + '7'; }
-      else if (int3 === 3 && int5 === 7 && int7 === 10) { quality = 'm7'; roman = romanMin[i] + '7'; }
-      else if (int3 === 3 && int5 === 6 && int7 === 10) { quality = 'm7b5'; roman = romanMin[i] + '7b5'; }
-      else if (int3 === 3 && int5 === 6 && int7 === 9) { quality = 'dim7'; roman = romanMin[i] + '°7'; }
-      // Фолбэк на трезвучия, если лад нестандартный (например, блюзовый)
-      else if (int3 === 4 && int5 === 7) { quality = ''; roman = romanMaj[i]; }
-      else if (int3 === 3 && int5 === 7) { quality = 'm'; roman = romanMin[i]; }
-      else if (int3 === 3 && int5 === 6) { quality = 'dim'; roman = romanMin[i] + '°'; }
-      else if (int3 === 4 && int5 === 8) { quality = 'aug'; roman = romanMaj[i] + '+'; }
-      else { quality = '5'; roman = romanMaj[i] + '5'; }
+      if (int3 === 4 && int5 === 7) { triadQuality = ''; baseRoman = romanMaj[i]; }
+      else if (int3 === 3 && int5 === 7) { triadQuality = 'm'; baseRoman = romanMin[i]; isMinor = true; }
+      else if (int3 === 3 && int5 === 6) { triadQuality = 'dim'; baseRoman = romanMin[i] + '°'; isMinor = true; }
+      else if (int3 === 4 && int5 === 8) { triadQuality = 'aug'; baseRoman = romanMaj[i] + '+'; }
+      else { triadQuality = '5'; baseRoman = romanMaj[i] + '5'; }
 
-      chords.push({ roman, chord: root + quality });
+      const triad = root + triadQuality;
+
+      // 2. Добавляем 7 ступень
+      let seventhQuality = triadQuality;
+      let seventhRoman = baseRoman;
+
+      if (int3 === 4 && int5 === 7 && int7 === 11) { seventhQuality = 'maj7'; seventhRoman = romanMaj[i] + 'maj7'; }
+      else if (int3 === 4 && int5 === 7 && int7 === 10) { seventhQuality = '7'; seventhRoman = romanMaj[i] + '7'; }
+      else if (int3 === 3 && int5 === 7 && int7 === 10) { seventhQuality = 'm7'; seventhRoman = romanMin[i] + '7'; }
+      else if (int3 === 3 && int5 === 6 && int7 === 10) { seventhQuality = 'm7b5'; seventhRoman = romanMin[i] + '7b5'; }
+      else if (int3 === 3 && int5 === 6 && int7 === 9) { seventhQuality = 'dim7'; seventhRoman = romanMin[i] + '°7'; }
+      else { seventhQuality = triadQuality + '(add7)'; seventhRoman = baseRoman + '7'; }
+
+      const seventhChord = root + seventhQuality;
+
+      // 3. Добавляем 9 ступень
+      let ninthQuality = seventhQuality;
+      let ninthRoman = seventhRoman;
+
+      if (seventhQuality === 'maj7') {
+         if (int9 === 2) { ninthQuality = 'maj9'; ninthRoman = romanMaj[i] + 'maj9'; }
+         else if (int9 === 1) { ninthQuality = 'maj7b9'; ninthRoman = romanMaj[i] + 'maj7b9'; }
+         else { ninthQuality = 'maj7'; ninthRoman = romanMaj[i] + 'maj7'; }
+      } else if (seventhQuality === '7') {
+         if (int9 === 2) { ninthQuality = '9'; ninthRoman = romanMaj[i] + '9'; }
+         else if (int9 === 1) { ninthQuality = '7b9'; ninthRoman = romanMaj[i] + '7b9'; }
+         else if (int9 === 3) { ninthQuality = '7#9'; ninthRoman = romanMaj[i] + '7#9'; }
+         else { ninthQuality = '7'; ninthRoman = romanMaj[i] + '7'; }
+      } else if (seventhQuality === 'm7') {
+         if (int9 === 2) { ninthQuality = 'm9'; ninthRoman = romanMin[i] + '9'; }
+         else if (int9 === 1) { ninthQuality = 'm7b9'; ninthRoman = romanMin[i] + '7b9'; }
+         else { ninthQuality = 'm7'; ninthRoman = romanMin[i] + '7'; }
+      } else if (seventhQuality === 'm7b5') {
+         if (int9 === 2) { ninthQuality = 'm9b5'; ninthRoman = romanMin[i] + '9b5'; }
+         else if (int9 === 1) { ninthQuality = 'm7b5b9'; ninthRoman = romanMin[i] + '7b5b9'; }
+         else { ninthQuality = 'm7b5'; ninthRoman = romanMin[i] + '7b5'; }
+      }
+
+      const ninthChord = root + ninthQuality;
+
+      // 4. Добавляем 11 ступень (ALT)
+      let eleventhQuality = ninthQuality;
+      let eleventhRoman = ninthRoman;
+
+      if (ninthQuality.includes('maj9') || ninthQuality.includes('maj7')) {
+         if (int11 === 6) { eleventhQuality = 'maj9#11'; eleventhRoman = romanMaj[i] + 'maj9#11'; }
+         else if (int11 === 5) { eleventhQuality = 'maj11'; eleventhRoman = romanMaj[i] + 'maj11'; }
+      } else if (ninthQuality.includes('m9') || ninthQuality.includes('m7')) {
+         eleventhQuality = 'm11'; eleventhRoman = romanMin[i] + '11';
+      } else if (ninthQuality.includes('9') && !isMinor) {
+         eleventhQuality = '11'; eleventhRoman = romanMaj[i] + '11';
+      } else if (seventhQuality.includes('m7b5')) {
+         eleventhQuality = 'm11b5'; eleventhRoman = romanMin[i] + '11b5';
+      }
+
+      const eleventhChord = root + eleventhQuality;
+
+      chords.push({
+         baseRoman, triad,
+         seventhRoman, seventhChord,
+         ninthRoman, ninthChord,
+         eleventhRoman, eleventhChord
+      });
     }
     return chords;
   };

@@ -3,73 +3,28 @@ import { useMusic } from '../../context/MusicContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 
-type FilterType = 'DIA' | '7TH' | 'DIM' | 'ALT';
+type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
 
 const DiatonicChords: React.FC = () => {
-  const { getDiatonicChords, getScaleNotes, mode } = useMusic();
+  const { getDiatonicChords, mode } = useMusic();
   const [activeFilter, setActiveFilter] = useState<FilterType>('DIA');
   const [modalConfig, setModalConfig] = useState<{chord: string, voicing?: string} | null>(null);
 
-  // 🧠 УМНЫЙ ГЕНЕРАТОР ГАРМОНИИ В ЗАВИСИМОСТИ ОТ ФИЛЬТРА
+  const baseChords = getDiatonicChords();
+
+  // 🧠 МАГИЯ ТЕОРИИ: Забираем строго то расширение, которое посчитал контекст!
   const getDisplayedChords = () => {
-    const baseChords = getDiatonicChords();
-    const scale = getScaleNotes();
-    if (baseChords.length === 0 || scale.length < 7) return [];
-
-    if (activeFilter === 'DIA') return baseChords;
-
-    const romanMaj = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'];
-    const romanMin = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii'];
-
-    return baseChords.map((base, i) => {
-      // Извлекаем корень (C, D#, Bb и т.д.)
-      const rootMatch = base.chord.match(/^[A-G][#b]?/);
-      const root = rootMatch ? rootMatch[0] : scale[i];
-
-      const isMinor = base.chord.includes('m') && !base.chord.includes('maj');
-
-      let newChord = '';
-      let newRoman = '';
-
-      if (activeFilter === '7TH') {
-        newChord = root + '7';
-        newRoman = romanMaj[i] + '7';
-      } 
-      else if (activeFilter === 'DIM') {
-        newChord = root + 'dim7';
-        newRoman = romanMin[i] + '°7';
-      } 
-      else if (activeFilter === 'ALT') {
-        // Умная альтерация: апгрейдим аккорд в зависимости от его функции
-        if (base.chord.includes('maj7') || (!isMinor && !base.chord.includes('dim'))) {
-          // Мажорные функции становятся maj9
-          newChord = root + 'maj9';
-          newRoman = romanMaj[i] + 'maj9';
-        } else if (base.chord.includes('m7b5') || base.chord.includes('dim')) {
-          // Уменьшенные остаются полууменьшенными
-          newChord = root + 'm7b5';
-          newRoman = romanMin[i] + 'm7b5';
-        } else if (base.chord.includes('m7') || isMinor) {
-          // Минорные функции становятся m9
-          newChord = root + 'm9';
-          newRoman = romanMin[i] + '9';
-        } else if (base.chord.includes('7')) {
-          // Доминанта становится 7#9 (Хендрикс-аккорд)
-          newChord = root + '7#9';
-          newRoman = romanMaj[i] + '7#9';
-        } else {
-           newChord = root + '9';
-           newRoman = romanMaj[i] + '9';
-        }
-      }
-
-      return { roman: newRoman, chord: newChord };
+    return baseChords.map(c => {
+      if (activeFilter === 'DIA') return { roman: c.baseRoman, chord: c.triad };
+      if (activeFilter === '7TH') return { roman: c.seventhRoman, chord: c.seventhChord };
+      if (activeFilter === '9TH') return { roman: c.ninthRoman, chord: c.ninthChord };
+      if (activeFilter === 'ALT') return { roman: c.eleventhRoman, chord: c.eleventhChord };
+      return { roman: c.baseRoman, chord: c.triad };
     });
   };
 
   const chords = getDisplayedChords();
 
-  // 🎵 ЗВУКОВОЙ ДВИЖОК
   const playChord = (voicing: Voicing) => {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -106,14 +61,13 @@ const DiatonicChords: React.FC = () => {
     <>
       <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         
-        {/* ЗАГОЛОВОК И ФИЛЬТРЫ */}
         <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '12px', textAlign: 'center' }}>
             🎹 Suggested Chords
             </div>
             
             <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', background: 'var(--bg-primary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                {(['DIA', '7TH', 'DIM', 'ALT'] as FilterType[]).map(type => (
+                {(['DIA', '7TH', '9TH', 'ALT'] as FilterType[]).map(type => (
                     <button
                         key={type}
                         onClick={() => setActiveFilter(type)}
@@ -131,7 +85,6 @@ const DiatonicChords: React.FC = () => {
             </div>
         </div>
         
-        {/* СПИСОК АККОРДОВ */}
         {chords.length > 0 ? (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
             {chords.map((c, i) => {
@@ -150,7 +103,7 @@ const DiatonicChords: React.FC = () => {
                     style={{ display: 'flex', alignItems: 'center', width: '80px', cursor: 'pointer' }}
                     title={`View ${c.chord} variations`}
                   >
-                    <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, width: '30px' }}>{c.roman}</span>
+                    <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, width: '35px' }}>{c.roman}</span>
                     <span style={{ color: isTonic ? 'var(--accent)' : 'var(--text-primary)', fontWeight: 800, fontSize: '14px' }}>{c.chord}</span>
                   </div>
 

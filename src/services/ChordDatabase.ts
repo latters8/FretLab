@@ -5,7 +5,6 @@ export interface Voicing {
 }
 
 export const CHORD_DB: Record<string, Voicing[]> = {
-  // Базовые открытые аккорды оставляем для красоты на нулевых ладах
   'C': [{ name: 'Open', baseFret: 1, frets: ['x', 3, 2, 0, 1, 0] }],
   'Am': [{ name: 'Open', baseFret: 1, frets: ['x', 0, 2, 2, 1, 0] }],
   'G': [{ name: 'Open', baseFret: 1, frets: [3, 2, 0, 0, 0, 3] }],
@@ -17,12 +16,12 @@ export const CHORD_DB: Record<string, Voicing[]> = {
   'Em': [{ name: 'Open', baseFret: 1, frets: [0, 2, 2, 0, 0, 0] }]
 };
 
-// 🔥 УМНЫЙ АВТОГЕНЕРАТОР: Сам вычисляет любые надстройки!
+// 🔥 УМНЫЙ АВТОГЕНЕРАТОР: Сам вычисляет любые диатонические надстройки
 export const generateFallbackVoicing = (chord: string): Voicing[] => {
   const rootMatch = chord.match(/^[A-G][#b]?/);
   if (!rootMatch) return [];
   const root = rootMatch[0];
-  const quality = chord.substring(root.length);
+  const q = chord.substring(root.length);
 
   const eStringNotes = ['E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B', 'C', 'C#', 'D', 'D#'];
   const aStringNotes = ['A', 'A#', 'B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#'];
@@ -30,61 +29,60 @@ export const generateFallbackVoicing = (chord: string): Voicing[] => {
   const r6 = eStringNotes.indexOf(root);
   const r5 = aStringNotes.indexOf(root);
 
-  // Находим корень на 6-й и 5-й струне (если открытая - берем 12-й лад для красивых закрытых форм)
   const F6 = r6 <= 0 ? 12 : r6;
   const F5 = r5 <= 0 ? 12 : r5;
 
   const voicings: Voicing[] = [];
-
-  // Вспомогательная функция для автоматического расчета базового лада
   const add = (name: string, frets: (number|'x')[]) => {
      const validFrets = frets.filter(f => typeof f === 'number' && f > 0) as number[];
      const base = validFrets.length > 0 ? Math.min(...validFrets) : 1;
      voicings.push({ name, baseFret: base, frets });
   };
 
-  // ТРЕЗВУЧИЯ И СЕПТАККОРДЫ
-  if (quality === '' || quality === 'maj') {
+  if (q === '' || q === 'maj') {
     add('E-Shape', [F6, F6+2, F6+2, F6+1, F6, F6]);
     add('A-Shape', ['x', F5, F5+2, F5+2, F5+2, F5]);
-  } else if (quality === 'm' || quality === 'min') {
+  } else if (q === 'm' || q === 'min') {
     add('Em-Shape', [F6, F6+2, F6+2, F6, F6, F6]);
     add('Am-Shape', ['x', F5, F5+2, F5+2, F5+1, F5]);
-  } else if (quality === 'maj7') {
+  } else if (q.includes('maj11') || q.includes('maj9#11') || q.includes('maj9')) {
+    add('A-Shape (maj9)', ['x', F5, F5-1, F5+1, F5, 'x']);
+    add('E-Shape (maj9)', [F6, 'x', F6-1, F6+1, F6, 'x']);
+  } else if (q.includes('m11')) {
+    add('E-Shape (m11)', [F6, 'x', F6, F6, F6-2, 'x']);
+    add('A-Shape (m11)', ['x', F5, F5, F5, F5-2, 'x']);
+  } else if (q.includes('11') && !q.includes('m') && !q.includes('maj')) {
+    add('A-Shape (11)', ['x', F5, F5, F5, F5, 'x']);
+    add('E-Shape (11)', [F6, 'x', F6, F6-1, F6-2, 'x']);
+  } else if (q.includes('m9')) {
+    add('A-Shape (m9)', ['x', F5, F5-2, F5, F5, 'x']);
+    add('E-Shape (m9)', [F6, 'x', F6, F6, F6+2, 'x']);
+  } else if (q.includes('7#9')) {
+    add('Hendrix 7#9', ['x', F5, F5-1, F5, F5+1, 'x']);
+  } else if (q.includes('7b9')) {
+    add('A-Shape (7b9)', ['x', F5, F5-1, F5, F5-1, 'x']);
+  } else if (q.includes('9') && !q.includes('m') && !q.includes('maj')) {
+    add('A-Shape (9)', ['x', F5, F5-1, F5, F5, 'x']);
+    add('E-Shape (9)', [F6, 'x', F6-1, F6, F6, 'x']);
+  } else if (q.includes('maj7')) {
     add('E-Shape', [F6, 'x', F6+1, F6+1, F6, 'x']);
     add('A-Shape', ['x', F5, F5+2, F5+1, F5+2, F5]);
-  } else if (quality === 'm7') {
-    add('Em-Shape', [F6, 'x', F6, F6, F6, 'x']);
-    add('Am-Shape', ['x', F5, F5+2, F5, F5+1, F5]);
-  } else if (quality === '7') {
-    add('E-Shape', [F6, 'x', F6, F6+1, F6, 'x']);
-    add('A-Shape', ['x', F5, F5+2, F5, F5+2, F5]);
-  } else if (quality === 'm7b5') {
+  } else if (q.includes('m7b5') || q.includes('9b5') || q.includes('11b5')) {
     add('E-Shape', [F6, 'x', F6, F6, F6-1, 'x']);
     add('A-Shape', ['x', F5, F5+1, F5, F5+1, 'x']);
-  } else if (quality === 'dim' || quality === '°') {
-    add('A-Shape', ['x', F5, F5+1, F5+2, F5+1, 'x']);
-  } else if (quality === 'dim7' || quality === '°7') {
+  } else if (q.includes('m7')) {
+    add('Em-Shape', [F6, 'x', F6, F6, F6, 'x']);
+    add('Am-Shape', ['x', F5, F5+2, F5, F5+1, F5]);
+  } else if (q.includes('dim7') || q.includes('°7')) {
     add('E-Shape', [F6, 'x', F6-1, F6, F6-1, 'x']);
     add('A-Shape', ['x', F5, F5+1, F5-1, F5+1, 'x']);
-  } 
-  // 🔥 ПРОДВИНУТЫЕ ДЖАЗОВЫЕ НАДСТРОЙКИ (ALT, 9, 11)
-  else if (quality === '9') {
-    add('A-Shape', ['x', F5, F5-1, F5, F5, 'x']);
-    add('E-Shape', [F6, 'x', F6-1, F6, F6, 'x']);
-  } else if (quality === 'm9') {
-    add('A-Shape', ['x', F5, F5-2, F5, F5, 'x']);
-  } else if (quality === 'maj9') {
-    add('A-Shape', ['x', F5, F5-1, F5+1, F5, 'x']);
-  } else if (quality === '11') {
-    add('A-Shape (sus4)', ['x', F5, F5, F5, F5, 'x']); // Часто играется как 9sus4
-  } else if (quality === 'm11') {
-    add('E-Shape', [F6, 'x', F6, F6, F6-2, 'x']);
-  } else if (quality === '7#9') {
-    add('Hendrix Chord', ['x', F5, F5-1, F5, F5+1, 'x']); // Легендарный 7#9
+  } else if (q.includes('dim') || q.includes('°')) {
+    add('A-Shape', ['x', F5, F5+1, F5+2, F5+1, 'x']);
+  } else if (q.includes('7') && !q.includes('m') && !q.includes('maj')) {
+    add('E-Shape', [F6, 'x', F6, F6+1, F6, 'x']);
+    add('A-Shape', ['x', F5, F5+2, F5, F5+2, F5]);
   }
 
-  // Если аккорд совсем экзотический - даем хотя бы тонику
   if (voicings.length === 0) {
      add('Root Only', [F6, 'x', 'x', 'x', 'x', 'x']);
   }

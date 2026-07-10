@@ -3,11 +3,16 @@ import { useMusic } from '../../context/MusicContext';
 
 const Player: React.FC = () => {
   const { currentTrack } = useMusic();
-  // Железобетонный дефолт, если контекст еще загружается
-  const track = currentTrack || { platform: 'youtube', id: 'OebA4GfO8wU', title: 'Fusion Backing Track (E Minor)' };
+  
+  // Фолбэк на случай, если контекст еще подгружается
+  const track = currentTrack || { 
+    platform: 'youtube', 
+    id: 'HdsP-KYQZDQ', 
+    title: 'Liquid Groove Fusion Backing Track - Em' 
+  };
 
   const getEmbedUrl = () => {
-    // Включаем полноценный функционал: controls=1, разрешаем родной UI
+    // Используем полноценный YouTube с включенной навигацией (controls=1)
     if (track.platform === 'youtube') return `https://www.youtube.com/embed/${track.id}?controls=1&rel=0&playsinline=1`;
     if (track.platform === 'rutube') return `https://rutube.ru/play/embed/${track.id}`;
     if (track.platform === 'vk') return `https://vk.com/video_ext.php?oid=-1&id=${track.id}`;
@@ -32,9 +37,10 @@ const Player: React.FC = () => {
         <iframe 
           style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
           src={getEmbedUrl()} 
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" 
+          title="YouTube video player"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+          referrerPolicy="strict-origin-when-cross-origin"
           allowFullScreen
-          title="FretLab Jam Player"
         />
       </div>
     </div>
