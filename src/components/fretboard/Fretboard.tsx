@@ -3,18 +3,23 @@ import { useMusic } from '../../context/MusicContext';
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const FRET_COUNT = 24;
-const MARKERS = [3, 5, 7, 9, 15, 17, 19, 21]; // Одинарные точки
-const DOUBLE_MARKERS = [12, 24]; // Двойные точки
+const MARKERS = [3, 5, 7, 9, 15, 17, 19, 21]; 
+const DOUBLE_MARKERS = [12, 24]; 
 
 const MODES = [
   { value: 'major', label: 'Major (Ionian)' },
+  { value: 'dorian', label: 'Dorian' },
+  { value: 'phrygian', label: 'Phrygian' },
+  { value: 'lydian', label: 'Lydian' },
+  { value: 'mixolydian', label: 'Mixolydian' },
   { value: 'aeolian', label: 'Minor (Aeolian)' },
+  { value: 'locrian', label: 'Locrian' },
   { value: 'harmonic_minor', label: 'Harmonic Minor' },
+  { value: 'melodic_minor', label: 'Melodic Minor' },
   { value: 'pentatonic', label: 'Pentatonic' },
   { value: 'blues', label: 'Blues' }
 ];
 
-// Пресеты строя (от 1-й струны к 6-й)
 const TUNINGS: Record<string, string[]> = {
   'Standard E': ['E', 'B', 'G', 'D', 'A', 'E'],
   'Drop D': ['E', 'B', 'G', 'D', 'A', 'D'],
@@ -23,12 +28,11 @@ const TUNINGS: Record<string, string[]> = {
   'Drop A (Baritone)': ['E', 'B', 'G', 'D', 'A', 'A']
 };
 
-// Материалы грифа
 const MATERIALS: Record<string, { bg: string, fret: string, dot: string }> = {
-  ebony: { bg: 'linear-gradient(to right, #1a1a1a, #111)', fret: '#333', dot: '#4a4a4a' },
+  glass: { bg: 'linear-gradient(to right, #0d131a, #070a0f)', fret: '#172430', dot: '#30b0f0' },
+  ebony: { bg: 'linear-gradient(to right, #1a1a1a, #111)', fret: '#333', dot: '#e0e0e0' }, // Светлые точки
   rosewood: { bg: 'linear-gradient(to right, #362217, #24140c)', fret: '#4a3022', dot: '#b5a592' },
-  maple: { bg: 'linear-gradient(to right, #dfc08b, #c4a162)', fret: '#b39050', dot: '#2a2015' },
-  glass: { bg: 'linear-gradient(to right, #0d131a, #070a0f)', fret: '#172430', dot: '#30b0f0' } // Стиль Neural DSP
+  maple: { bg: 'linear-gradient(to right, #dfc08b, #c4a162)', fret: '#b39050', dot: '#2a2015' } 
 };
 
 const Fretboard: React.FC = () => {
@@ -36,13 +40,13 @@ const Fretboard: React.FC = () => {
   const scaleNotes = getScaleNotes();
 
   const [tuningName, setTuningName] = useState('Standard E');
-  const [material, setMaterial] = useState('ebony');
+  const [material, setMaterial] = useState('glass');
 
   const currentTuning = TUNINGS[tuningName];
   const currentMat = MATERIALS[material];
 
   const getNote = (openNote: string, fret: number) => {
-    const startIndex = ALL_NOTES.indexOf(openNote);
+    const startIndex = ALL_NOTES.indexOf(openNote.toUpperCase());
     return ALL_NOTES[(startIndex + fret) % 12];
   };
 
@@ -50,10 +54,10 @@ const Fretboard: React.FC = () => {
     <div style={{ 
         background: 'var(--bg-panel)', borderRadius: 'var(--radius)', 
         padding: '20px', border: '1px solid var(--border-color)',
-        display: 'flex', flexDirection: 'column', gap: '20px',
-        boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+        display: 'flex', flexDirection: 'column', gap: '24px',
+        boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+        width: '100%' // Растягиваем на всю ширину блока
     }}>
-      {/* 🎛 ПАНЕЛЬ УПРАВЛЕНИЯ ГРИФОМ (Интерфейс процессора) */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
         <div style={{ display: 'flex', gap: '16px' }}>
           <div>
@@ -80,20 +84,19 @@ const Fretboard: React.FC = () => {
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: 700 }}>FRETBOARD WOOD</div>
             <select value={material} onChange={(e) => setMaterial(e.target.value)} style={{ background: '#000', border: '1px solid var(--border-color)', color: 'var(--text-primary)', padding: '6px 12px', borderRadius: 'var(--radius-sm)', cursor: 'pointer', outline: 'none' }}>
-              <option value="ebony">Ebony (Default)</option>
+              <option value="glass">Glass (Default)</option>
+              <option value="ebony">Ebony</option>
               <option value="rosewood">Rosewood</option>
               <option value="maple">Maple</option>
-              <option value="glass">Glass (Digital)</option>
             </select>
           </div>
         </div>
       </div>
 
-      {/* 🎸 САМ ГРИФ */}
-      <div style={{ overflowX: 'auto', paddingBottom: '10px' }}>
-        <div style={{ minWidth: '960px', position: 'relative', display: 'flex', background: currentMat.bg, borderRadius: '4px', border: '2px solid #111', boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.5)' }}>
+      <div style={{ padding: '20px 0', width: '100%' }}>
+        <div style={{ width: '100%', position: 'relative', display: 'flex', background: currentMat.bg, borderRadius: '4px', border: '2px solid #111', boxShadow: 'inset 0 4px 10px rgba(0,0,0,0.5)' }}>
           
-          {/* Слой 1: Порожки и точки (внутри грифа) */}
+          {/* Слой с ладами и точками */}
           <div style={{ position: 'absolute', top: 0, bottom: 0, left: '36px', right: 0, display: 'flex' }}>
             {Array.from({ length: FRET_COUNT }).map((_, fretIdx) => {
               const fretNum = fretIdx + 1;
@@ -102,63 +105,60 @@ const Fretboard: React.FC = () => {
 
               return (
                 <div key={`bg-${fretNum}`} style={{ flex: 1, borderRight: `2px solid ${currentMat.fret}`, position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
-                  {/* Отрисовка точек */}
-                  {hasSingle && <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, opacity: 0.8 }} />}
+                  
+                  {/* Номера сверху */}
+                  <div style={{ position: 'absolute', top: '-24px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{fretNum}</div>
+                  
+                  {hasSingle && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: currentMat.dot, opacity: material === 'ebony' ? 0.9 : 0.6 }} />}
                   {hasDouble && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '30px' }}>
-                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, opacity: 0.8 }} />
-                      <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, opacity: 0.8 }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '34px' }}>
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: currentMat.dot, opacity: material === 'ebony' ? 0.9 : 0.6 }} />
+                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: currentMat.dot, opacity: material === 'ebony' ? 0.9 : 0.6 }} />
                     </div>
                   )}
-                  {/* Номера ладов (внизу под грифом) */}
-                  <div style={{ position: 'absolute', bottom: '-22px', fontSize: '11px', color: 'var(--text-muted)' }}>{fretNum}</div>
+                  
+                  {/* Номера снизу */}
+                  <div style={{ position: 'absolute', bottom: '-24px', fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>{fretNum}</div>
                 </div>
               );
             })}
           </div>
 
-          {/* Слой 2: Струны и Ноты */}
           <div style={{ display: 'flex', flexDirection: 'column', width: '100%', position: 'relative', zIndex: 10, padding: '10px 0' }}>
             {currentTuning.map((openNote, stringIdx) => (
               <div key={`str-${stringIdx}`} style={{ display: 'flex', alignItems: 'center', height: '24px' }}>
-                
-                {/* Нулевой лад (Открытая струна) */}
                 <div style={{ width: '36px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                   <div style={{ 
                     width: '20px', height: '20px', borderRadius: '4px', background: '#000', 
                     color: scaleNotes.includes(openNote) ? (openNote === keyNote ? 'var(--accent)' : 'var(--text-primary)') : 'var(--text-muted)',
-                    border: `1px solid ${openNote === keyNote ? 'var(--accent)' : '#333'}`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold'
                   }}>
                     {openNote}
                   </div>
                 </div>
                 
-                {/* Игровые лады */}
-                <div style={{ display: 'flex', flex: 1, borderLeft: '4px solid #aaa' /* Нулевой порожек */ }}>
+                <div style={{ display: 'flex', flex: 1, borderLeft: '4px solid #aaa' }}>
                   {Array.from({ length: FRET_COUNT }).map((_, fretIdx) => {
                     const fretNum = fretIdx + 1;
                     const note = getNote(openNote, fretNum);
                     const isInScale = scaleNotes.includes(note);
                     const isRoot = note === keyNote;
-                    // Имитация толщины струны
                     const stringThickness = 1 + (stringIdx * 0.4);
 
                     return (
                       <div key={fretNum} style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {/* Визуальная струна */}
                         <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: `${stringThickness}px`, background: '#888', transform: 'translateY(-50%)', boxShadow: '0 2px 4px rgba(0,0,0,0.5)', zIndex: 1 }} />
                         
-                        {/* Нота */}
                         {isInScale && (
                           <div style={{
-                            width: '24px', height: '24px', borderRadius: '50%',
-                            background: isRoot ? 'var(--accent)' : (material === 'maple' ? '#222' : 'var(--bg-panel)'),
-                            border: `2px solid ${isRoot ? 'var(--accent)' : 'var(--accent-blue)'}`,
-                            color: isRoot ? '#000' : (material === 'maple' ? '#fff' : 'var(--text-primary)'),
+                            width: '22px', height: '22px', borderRadius: '50%',
+                            background: isRoot ? 'var(--accent)' : 'rgba(255,255,255,0.4)',
+                            color: isRoot ? '#000' : 'var(--text-primary)',
+                            border: 'none', 
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', fontWeight: 'bold', zIndex: 2,
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.8)'
+                            fontSize: '11px', fontWeight: isRoot ? '800' : '600', zIndex: 2,
+                            boxShadow: isRoot ? '0 2px 8px rgba(0,0,0,0.6)' : '0 1px 3px rgba(0,0,0,0.3)',
+                            textShadow: isRoot ? 'none' : '0 1px 2px rgba(0,0,0,0.8)'
                           }}>
                             {note}
                           </div>
@@ -167,11 +167,9 @@ const Fretboard: React.FC = () => {
                     );
                   })}
                 </div>
-
               </div>
             ))}
           </div>
-
         </div>
       </div>
     </div>

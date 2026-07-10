@@ -1,69 +1,70 @@
-// src/hooks/useMetronome.ts
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 export const useMetronome = (bpm: number) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const nextNoteTimeRef = useRef<number>(0);
-  const timerRef = useRef<number | null>(null);
-  const stepCounterRef = useRef<number>(0);
+  const audioContext = useRef<AudioContext | null>(null);
+  const nextNoteTime = useRef(0);
+  const timerID = useRef<number>(0);
+  const stepCounter = useRef(0); // Используем ref для счетчика шагов
 
-  const scheduleNote = (time: number) => {
-    const oscillator = audioContextRef.current?.createOscillator();
-    const gainNode = audioContextRef.current?.createGain();
-    
-    if (oscillator && gainNode && audioContextRef.current) {
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContextRef.current.destination);
-      
-      oscillator.frequency.value = 1000;
-      gainNode.gain.setValueAtTime(0.3, time);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-      
-      oscillator.start(time);
-      oscillator.stop(time + 0.1);
-      
-      // Обновляем текущий шаг при каждом ударе метронома
-      stepCounterRef.current = (stepCounterRef.current + 1) % 32;
-      setCurrentStep(stepCounterRef.current);
-    }
+  const playClick = (time: number, isAccent: boolean) => {
+    const osc = audioContext.current!.createOscillator();
+    const envelope = audioContext.current!.createGain();
+    osc.frequency.value = isAccent ? 1200 : 800;
+    envelope.gain.value = 1;
+    envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+    osc.connect(envelope);
+    envelope.connect(audioContext.current!.destination);
+    osc.start(time);
+    osc.stop(time + 0.1);
   };
 
-  const scheduler = () => {
-    if (!audioContextRef.current) return;
+  const scheduler = useCallback(() => {
+    if (!audioContext.current) return;
     
-    const currentTime = audioContextRef.current.currentTime;
+    const currentTime = audioContext.current.currentTime;
     const interval = 60.0 / bpm;
     
-    while (nextNoteTimeRef.current < currentTime + 0.1) {
-      scheduleNote(nextNoteTimeRef.current);
-      nextNoteTimeRef.current += interval;
+    while (nextNoteTime.current < currentTime + 0.1) {
+      // Определяем акцент (каждый 4-й удар)
+      const isAccent = stepCounter.current % 4 === 0;
+      playClick(nextNoteTime.current, isAccent);
+      nextNoteTime.current += interval;
+      
+      // Обновляем счетчик и состояние
+      stepCounter.current = (stepCounter.current + 1) % 32;
+      setCurrentStep(stepCounter.current);
     }
-    
-    timerRef.current = requestAnimationFrame(scheduler);
-  };
+    timerID.current = requestAnimationFrame(scheduler);
+  }, [bpm]);
 
   useEffect(() => {
     if (isPlaying) {
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      nextNoteTimeRef.current = audioContextRef.current.currentTime;
-      stepCounterRef.current = 0;
+      if (!audioContext.current) {
+        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      // Сброс при старте
+      stepCounter.current = 0;
       setCurrentStep(0);
+      nextNoteTime.current = audioContext.current.currentTime;
       scheduler();
-    } else if (timerRef.current) {
-      cancelAnimationFrame(timerRef.current);
-      audioContextRef.current?.close();
-      setCurrentStep(-1);
+    } else {
+      if (timerID.current) {
+        cancelAnimationFrame(timerID.current);
+      }
+      setCurrentStep(-1); // -1 означает, что метроном остановлен
     }
     
     return () => {
-      if (timerRef.current) {
-        cancelAnimationFrame(timerRef.current);
+      if (timerID.current) {
+        cancelAnimationFrame(timerID.current);
       }
-      audioContextRef.current?.close();
+      if (audioContext.current && audioContext.current.state !== 'closed') {
+        audioContext.current.close();
+      }
     };
-  }, [isPlaying, bpm]);
+  }, [isPlaying, bpm, scheduler]);
 
   return { isPlaying, setIsPlaying, currentStep };
 };
