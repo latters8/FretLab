@@ -20,7 +20,7 @@ const Player: React.FC = () => {
   };
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ flexShrink: 0, background: 'var(--bg-panel)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column' }}>
       
       <div style={{ padding: '12px 20px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -33,9 +33,10 @@ const Player: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ position: 'relative', width: '100%', paddingTop: '56.25%', background: '#000' }}>
+      {/* 🔥 Исправление: Современный aspect-ratio вместо старых CSS-хаков */}
+      <div style={{ width: '100%', aspectRatio: '16 / 9', background: '#000' }}>
         <iframe 
-          style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+          style={{ width: '100%', height: '100%', border: 'none' }}
           src={getEmbedUrl()} 
           title="YouTube video player"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
