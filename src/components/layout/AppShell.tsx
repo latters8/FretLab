@@ -27,20 +27,12 @@ const AppShell: React.FC = () => {
               🎸
             </div>
             
-            <div style={{ padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Practice Mode" onMouseEnter={e => e.currentTarget.style.color='var(--accent)'} onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}>
-              📝
-            </div>
-            
             <div 
               onClick={() => setActiveModule('dictionary')}
               style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} 
               title="Chord Dictionary"
             >
               📖
-            </div>
-
-            <div style={{ padding: '12px', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Tone Setup" onMouseEnter={e => e.currentTarget.style.color='var(--accent)'} onMouseLeave={e => e.currentTarget.style.color='var(--text-muted)'}>
-              🎛
             </div>
         </aside>
 
@@ -49,17 +41,20 @@ const AppShell: React.FC = () => {
           
           {activeModule === 'engine' ? (
             <>
+              {/* MAIN WORKSPACE */}
               <main style={{ flex: 1, padding: '24px 32px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '-10px' }}>
-                      <AISearchBar />
-                  </div>
                   
-                  {/* Теперь здесь точно Плеер */}
+                  {/* ТОЛЬКО ОДНА СТРОКА AI */}
+                  <AISearchBar />
+                  
+                  {/* ПЛЕЕР С ПОЛНЫМ ФУНКЦИОНАЛОМ */}
                   <Player />
                   
                   <Fretboard />
                   <Tablature />
               </main>
+              
+              {/* RIGHT SIDEBAR */}
               <aside style={{ width: '340px', padding: '24px 16px', borderLeft: '1px solid var(--border-color)', background: 'var(--bg-panel)', display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', flexShrink: 0 }}>
                   <CircleOfFifths />
                   <DiatonicChords />

@@ -1,83 +1,66 @@
 import React, { useState } from 'react';
+import { processAIQuery } from '../../services/AIEngine';
 import { useMusic } from '../../context/MusicContext';
-import { processAIQuery, type AIResponse } from '../../services/AIEngine';
 
 const AISearchBar: React.FC = () => {
   const [query, setQuery] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState<AIResponse | null>(null);
-  
-  // Подключаемся к глобальному мозгу, чтобы ИИ мог им управлять
-  const { setKeyNote, setMode, setCurrentTrack } = useMusic();
+  const [loading, setLoading] = useState(false);
+  const [response, setResponse] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { setKeyNote, setMode, setBpm, setCurrentTrack } = useMusic();
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAsk = async () => {
     if (!query.trim()) return;
-
-    setIsLoading(true);
+    setLoading(true);
     setResponse(null);
-
-    // Отправляем запрос в наш AI Engine
-    const aiResult = await processAIQuery(query);
-    setResponse(aiResult);
-
-    // 🧠 МАГИЯ ИИ: Если ИИ прислал команду изменить интерфейс, мы её выполняем!
-    if (aiResult.action && aiResult.action.type === 'SET_CONTEXT') {
-      const { key, mode, track } = aiResult.action.payload;
-      if (key) setKeyNote(key);
-      if (mode) setMode(mode);
-      if (track) setCurrentTrack(track);
+    try {
+      const res = await processAIQuery(query);
+      setResponse(res.text);
+      setIsExpanded(true); // Автоматически разворачиваем чат при ответе
+      if (res.action?.type === 'SET_CONTEXT') {
+        if (res.action.payload.key) setKeyNote(res.action.payload.key);
+        if (res.action.payload.mode) setMode(res.action.payload.mode);
+        if (res.action.payload.bpm) setBpm(res.action.payload.bpm);
+        if (res.action.payload.track) setCurrentTrack(res.action.payload.track);
+      }
+    } catch (e) {
+      setResponse('Ошибка связи с AI. Проверьте консоль.');
     }
-
-    setIsLoading(false);
-    setQuery(''); // Очищаем строку после запроса
+    setLoading(false);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '600px', margin: '0 auto', gap: '12px' }}>
-      <form onSubmit={handleSearch} style={{ display: 'flex', width: '100%', position: 'relative' }}>
-        <input 
-          type="text" 
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%', margin: '0 auto', zIndex: 5 }}>
+      {/* Search Input Line */}
+      <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-panel)', padding: '8px 16px', borderRadius: '30px', border: '1px solid var(--border-color)', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}>
+        <span style={{ fontSize: '18px' }}>🧠</span>
+        <input
+          type="text"
+          placeholder="Ask AI: 'Найди фанк джем в Ля миноре...'"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Ask AI: 'Найди фанк джем в Ля миноре...'"
-          style={{ 
-              width: '100%', padding: '12px 20px 12px 48px', 
-              background: 'var(--bg-primary)', border: '1px solid var(--accent)', 
-              borderRadius: '24px', color: 'var(--text-primary)', 
-              fontSize: '14px', outline: 'none',
-              boxShadow: '0 0 15px rgba(163, 116, 255, 0.15)'
-          }}
-          disabled={isLoading}
+          onKeyDown={(e) => e.key === 'Enter' && handleAsk()}
+          style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '14px' }}
         />
-        <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', fontSize: '18px', opacity: isLoading ? 0.5 : 1 }}>
-          🧠
-        </div>
-        <button 
-          type="submit" 
-          disabled={isLoading}
-          style={{ 
-              position: 'absolute', right: '4px', top: '4px', bottom: '4px', 
-              background: 'var(--accent)', color: '#000', border: 'none', 
-              borderRadius: '20px', padding: '0 20px', fontWeight: 800, cursor: 'pointer',
-              opacity: isLoading ? 0.7 : 1
-          }}>
-          {isLoading ? 'Thinking...' : 'Generate'}
+        <button onClick={handleAsk} disabled={loading} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '6px 16px', borderRadius: '20px', fontWeight: 800, cursor: 'pointer' }}>
+          {loading ? '...' : 'Generate'}
         </button>
-      </form>
+        <button onClick={() => setIsExpanded(!isExpanded)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '20px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+          {isExpanded ? '▲ Close' : '⛶ Chat'}
+        </button>
+      </div>
 
-      {/* Окно ответа ИИ */}
-      {response && (
-        <div style={{ 
-          background: 'var(--bg-panel)', border: '1px solid var(--border-color)', 
-          padding: '16px 20px', borderRadius: '12px', color: 'var(--text-primary)', 
-          fontSize: '13px', lineHeight: '1.6', position: 'relative',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)'
-        }}>
-          <div style={{ position: 'absolute', top: '-10px', left: '24px', background: 'var(--bg-panel)', padding: '0 8px', color: 'var(--accent)', fontSize: '11px', fontWeight: 800 }}>
-            AI Assistant
+      {/* Expanded AI Window */}
+      {isExpanded && (
+        <div style={{ background: 'var(--bg-panel)', borderRadius: '12px', padding: '20px', border: '1px solid var(--accent)', boxShadow: '0 12px 32px rgba(0,0,0,0.6)', minHeight: '120px', transition: 'all 0.3s' }}>
+          <div style={{ color: 'var(--accent)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', marginBottom: '12px' }}>
+            // AI Assistant Dialogue
           </div>
-          {response.text}
+          {response ? (
+            <div style={{ color: 'var(--text-primary)', fontSize: '14px', lineHeight: '1.6' }}>{response}</div>
+          ) : (
+            <div style={{ color: 'var(--text-muted)', fontSize: '14px', fontStyle: 'italic' }}>Я готов! Напиши мне, что ты хочешь сыграть, и я подберу трек и настрою интерфейс...</div>
+          )}
         </div>
       )}
     </div>

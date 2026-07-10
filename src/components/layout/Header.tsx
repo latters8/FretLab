@@ -1,63 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useMusic } from '../../context/MusicContext';
-import AISearchBar from '../ai/AISearchBar';
+import { useMetronome } from '../../hooks/useMetronome';
 
 const Header: React.FC = () => {
   const { keyNote, mode, bpm, setBpm, isPlaying, togglePlay } = useMusic();
-  const [theme, setTheme] = useState('nebula-graphite');
-
-  useEffect(() => {
-    document.body.setAttribute('data-theme', theme);
-  }, [theme]);
+  
+  // 🔥 Исправлено: передаем текущий bpm в хук метронома
+  useMetronome(bpm);
 
   return (
-    <header style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '0 20px', background: 'var(--bg-panel)',
-        borderBottom: '1px solid var(--border-color)', height: '64px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.3)', zIndex: 100
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        <div style={{ fontWeight: 800, fontSize: '18px', color: 'var(--accent)', letterSpacing: '1px' }}>♯ FRETLAB</div>
-        <select 
-          value={theme} 
-          onChange={(e) => setTheme(e.target.value)}
-          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '4px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', textTransform: 'uppercase', fontWeight: 700 }}
-        >
-          <option value="nebula-graphite">Nebula Graphite</option>
-          <option value="titanium-citrine">Titanium Citrine</option>
-          <option value="crimson-onyx">Crimson Onyx</option>
-        </select>
+    <header style={{ height: '64px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)', zIndex: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ color: 'var(--accent)', fontWeight: 900, fontSize: '20px', letterSpacing: '2px' }}>
+          # FRETLAB
+        </div>
       </div>
-      
-      <AISearchBar />
 
+      {/* Context Display */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-        <div style={{ display: 'flex', gap: '16px', fontSize: '12px', background: 'var(--bg-primary)', padding: '6px 16px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-          <span><span style={{ color: 'var(--text-muted)' }}>KEY</span> <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{keyNote}</span></span>
-          <span><span style={{ color: 'var(--text-muted)' }}>MODE</span> <span style={{ color: 'var(--accent)', fontWeight: 700 }}>{mode}</span></span>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Key <span style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{keyNote}</span></span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Mode <span style={{ color: 'var(--accent)', fontSize: '14px' }}>{mode}</span></span>
         </div>
 
-        {/* ТРАНСПОРТНАЯ ПАНЕЛЬ */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-primary)', padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700 }}>BPM</span>
-              <input type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} 
-                  style={{ width: '45px', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontWeight: 800, fontSize: '16px', outline: 'none' }} />
-          </div>
-
-          <button 
-              onClick={togglePlay}
-              style={{ 
-                  width: '44px', height: '44px', borderRadius: '50%', 
-                  background: isPlaying ? 'var(--accent-blue)' : 'var(--accent)', 
-                  border: 'none', color: '#000', cursor: 'pointer', fontSize: '18px',
-                  boxShadow: `0 0 15px ${isPlaying ? 'var(--accent-blue)' : 'var(--accent)'}`,
-                  transition: 'all 0.2s'
-              }}>
-            {isPlaying ? '⏹' : '▶'}
-          </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'var(--bg-primary)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>BPM</span>
+          <input type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} style={{ width: '40px', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontWeight: 800, fontSize: '14px', outline: 'none' }} />
         </div>
+
+        <button onClick={togglePlay} style={{ width: '40px', height: '40px', borderRadius: '50%', background: isPlaying ? 'var(--accent)' : 'var(--bg-primary)', color: isPlaying ? '#000' : 'var(--accent)', border: `2px solid var(--accent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', boxShadow: isPlaying ? '0 0 16px var(--accent)' : 'none' }}>
+          {isPlaying ? '■' : '▶'}
+        </button>
       </div>
     </header>
   );
