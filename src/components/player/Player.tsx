@@ -28,7 +28,6 @@ const Player: React.FC<PlayerProps> = ({
     }
   }, [isPlaying]);
 
-  // 🔥 Обработчик вставки ссылки прямо в плеер
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!urlInput.trim()) return;
@@ -47,10 +46,15 @@ const Player: React.FC<PlayerProps> = ({
 
     if (trackId) {
       setCurrentTrack({ platform: 'youtube', id: trackId, title: 'Custom Link Stream' });
-      setUrlInput(''); // Очищаем строку после успешной загрузки
+      setUrlInput(''); 
     } else {
       alert("Please paste a valid YouTube Video or Playlist link!");
     }
+  };
+
+  // Открытие YouTube поиска напрямую из плеера
+  const handleOpenSearch = () => {
+    window.open('https://www.youtube.com/results?search_query=guitar+backing+track+jam', '_blank', 'noopener,noreferrer');
   };
 
   const getEmbedUrl = (trackId: string) => {
@@ -64,12 +68,14 @@ const Player: React.FC<PlayerProps> = ({
       origin: origin
     });
 
-    // Обработка сложных URL (Плейлисты)
     if (trackId.startsWith('videoseries?')) {
       return `https://www.youtube.com/embed/${trackId}&${params.toString()}`;
     } else if (trackId.includes('&list=')) {
       return `https://www.youtube.com/embed/${trackId}&${params.toString()}`;
     } else {
+      // 🔥 МАГИЯ БЕСКОНЕЧНОГО ДЖЕМА: Одиночные видео теперь зацикливаются!
+      params.set('loop', '1');
+      params.set('playlist', trackId);
       return `https://www.youtube.com/embed/${trackId}?${params.toString()}`;
     }
   };
@@ -85,9 +91,20 @@ const Player: React.FC<PlayerProps> = ({
       overflow: 'hidden'
     }}>
       
-      {/* 🚀 АДРЕСНАЯ СТРОКА ПЛЕЕРА */}
-      <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)' }}>
-        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '8px' }}>
+        {/* Кнопка быстрого поиска на YouTube */}
+        <button 
+          type="button" 
+          onClick={handleOpenSearch}
+          style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 16px', borderRadius: '20px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', transition: '0.2s', display: 'flex', alignItems: 'center', gap: '6px' }}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'} 
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--text-primary)'}
+          title="Search YouTube in new tab"
+        >
+          🔍 SEARCH YT
+        </button>
+
+        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px', flex: 1 }}>
           <input 
             type="text" 
             value={urlInput}
@@ -97,13 +114,12 @@ const Player: React.FC<PlayerProps> = ({
             onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
             onBlur={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
           />
-          <button type="submit" style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '0 20px', borderRadius: '20px', fontSize: '12px', fontWeight: 800, cursor: 'pointer', transition: '0.2s' }} onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'} onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}>
+          <button type="submit" style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '0 24px', borderRadius: '20px', fontSize: '12px', fontWeight: 900, cursor: 'pointer', transition: '0.2s' }}>
             LOAD
           </button>
         </form>
       </div>
 
-      {/* 📺 КОНТЕЙНЕР ВИДЕО */}
       <div style={{ flex: 1, position: 'relative', backgroundColor: '#000' }}>
         {currentTrack && currentTrack.platform === 'youtube' ? (
           <iframe
@@ -121,21 +137,13 @@ const Player: React.FC<PlayerProps> = ({
           <div 
             aria-label="No track selected"
             style={{ 
-              position: 'absolute', 
-              top: '50%', 
-              left: '50%', 
-              transform: 'translate(-50%, -50%)', 
-              color: 'var(--text-muted)', 
-              fontSize: '14px', 
-              fontWeight: 800, 
-              textAlign: 'center', 
-              letterSpacing: '1px', 
-              textTransform: 'uppercase' 
+              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', 
+              color: 'var(--text-muted)', fontSize: '14px', fontWeight: 800, textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase' 
             }}
           >
             <span style={{ fontSize: '42px', display: 'block', marginBottom: '16px', opacity: 0.5 }}>🎵</span>
             Awaiting Media Stream<br/>
-            <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--text-secondary)', textTransform: 'none', marginTop: '8px', display: 'block' }}>Paste a link above or ask TouchGrass</span>
+            <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--text-secondary)', textTransform: 'none', marginTop: '8px', display: 'block' }}>Paste a link or search YouTube</span>
           </div>
         )}
       </div>

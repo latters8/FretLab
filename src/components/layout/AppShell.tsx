@@ -24,12 +24,15 @@ const AppShell: React.FC = () => {
       setActiveModule('engine');
     } else if (action.type === 'OPEN_AUTOTAB') {
       setActiveModule('autotab');
+    } else if (action.type === 'SEARCH_YOUTUBE') {
+      // 🔥 Открываем безопасную новую вкладку с результатами поиска
+      const query = encodeURIComponent(action.payload.query + ' guitar backing track');
+      window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
     }
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-secondary)' }}>
-      {/* 🔥 Передаем команды в шапку */}
       <Header onAIAction={handleAIAction} />
       
       <div className="app-layout">
@@ -43,7 +46,6 @@ const AppShell: React.FC = () => {
           {activeModule === 'engine' && (
             <>
               <main className="center-column">
-                  {/* Строка ИИ удалена отсюда, теперь плеер стоит на первом месте */}
                   <Player />
                   <div className="fretboard-scroll-wrapper"><Fretboard /></div>
                   <Tablature />

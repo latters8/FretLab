@@ -6,7 +6,8 @@ export interface TrackInfo {
   title: string;
 }
 
-export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB';
+// 🔥 ДОБАВЛЕН НОВЫЙ ТИП: SEARCH_YOUTUBE
+export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB' | 'SEARCH_YOUTUBE';
 
 export interface AIResponse {
   text: string;
@@ -61,7 +62,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   const lowerQuery = query.toLowerCase();
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // 🔥 1. ПАРСЕР ССЫЛОК YOUTUBE (ВИДЕО И ПЛЕЙЛИСТЫ)
+  // 1. ПАРСЕР ПРЯМЫХ ССЫЛОК YOUTUBE
   const ytVideoMatch = query.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*embed\/|.*\/))([^&?\s]{11})/);
   const ytListMatch = query.match(/[?&]list=([^&?\s]+)/);
 
@@ -74,13 +75,9 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
     } else if (ytVideoMatch) {
       trackId = ytVideoMatch[1];
     }
-
     return {
-      text: "TouchGrass 🎵: Поймал ссылку! Распознал трек/плейлист и уже загрузил его в твой плеер. Управление у тебя!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: { track: { platform: 'youtube', id: trackId, title: 'Custom YouTube Link' } }
-      }
+      text: "TouchGrass 🎵: Поймал ссылку! Трек/плейлист загружен в плеер, джем начинается!",
+      action: { type: 'SET_CONTEXT', payload: { track: { platform: 'youtube', id: trackId, title: 'Custom YouTube Stream' } } }
     };
   }
 
@@ -92,42 +89,40 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
     };
   }
 
-  // 3. ГЕНЕРАТОР ТАБОВ
-  if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick') || lowerQuery.includes('фраз')) {
-    return { text: "TouchGrass 🎵: Открываю панель генератора фраз. Выбери тональность и нажми 'Generate Lick'!", action: { type: 'OPEN_TAB_GEN' } };
-  }
-
-  // 4. AUTOTAB
-  if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб') || lowerQuery.includes('разбери')) {
-    return { text: "TouchGrass 🎵: Переключаю на AutoTab транскрибатор. Загружай аудио!", action: { type: 'OPEN_AUTOTAB' } };
-  }
-
-  // 5. ПОИСК ТРЕКОВ
-  if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
-    return { text: "TouchGrass 🎵: Запускаю Heavy Rock Jam (120 BPM, A minor)!", action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 120, track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Heavy Rock Groove' } } } };
-  }
-  if (lowerQuery.includes('фанк') || lowerQuery.includes('funk')) {
-    return { text: "TouchGrass 🎵: Запускаю C Dorian Funk (110 BPM)!", action: { type: 'SET_CONTEXT', payload: { key: 'C', mode: 'dorian', bpm: 110, track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk' } } } };
-  }
-  if (lowerQuery.includes('блюз') || lowerQuery.includes('blues')) {
-    return { text: "TouchGrass 🎵: Запускаю Slow Blues Jam (80 BPM, A minor)!", action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 80, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Jam' } } } };
-  }
-
-  // 6. ПОИСК АККОРДОВ
+  // 3. ПОИСК АККОРДОВ (Высший приоритет над текстовым поиском)
   if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || query.match(/\b[A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?\b/i)) {
     const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
     let targetChord = 'Cmaj7'; 
-    if (match) {
-      targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
-    }
+    if (match) targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
     return {
       text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике!`,
       action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
     };
   }
 
+  // 4. 🔥 НОВАЯ КОМАНДА: ПОИСК НА YOUTUBE В НОВОЙ ВКЛАДКЕ
+  if (lowerQuery.includes('ютуб') || lowerQuery.includes('youtube') || lowerQuery.includes('найди минус') || lowerQuery.includes('поиск')) {
+    let searchQuery = query.replace(/(найди|поиск|на ютубе|в ютубе|youtube|search|for|мне|минус|трек)/gi, '').trim();
+    if (!searchQuery) searchQuery = 'guitar backing track';
+    
+    return {
+      text: `TouchGrass 🎵: Отличная идея! Я открыл новую вкладку с поиском YouTube по запросу "${searchQuery}". Выбери лучший минус, скопируй ссылку и вставь её в мой плеер!`,
+      action: { type: 'SEARCH_YOUTUBE', payload: { query: searchQuery } }
+    };
+  }
+
+  // 5. ГЕНЕРАТОР ТАБОВ
+  if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick') || lowerQuery.includes('фраз')) {
+    return { text: "TouchGrass 🎵: Открываю панель генератора фраз. Выбери тональность и нажми 'Generate Lick'!", action: { type: 'OPEN_TAB_GEN' } };
+  }
+
+  // 6. AUTOTAB
+  if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб') || lowerQuery.includes('разбери')) {
+    return { text: "TouchGrass 🎵: Переключаю на AutoTab транскрибатор. Загружай аудио!", action: { type: 'OPEN_AUTOTAB' } };
+  }
+
   return {
-    text: "TouchGrass 🎵: Привет! Я твой ИИ-наставник. Вставь ссылку на YouTube видео или плейлист, и я загружу его в плеер!"
+    text: "TouchGrass 🎵: Привет! Напиши мне «найди блюзовый минус на ютубе», и я открою новую вкладку с поиском! Либо просто вставь ссылку на видео."
   };
 };
 
@@ -160,11 +155,7 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     if (i < phraseLength - 1 && Math.random() > 0.7) { technique = Math.random() > 0.5 ? 'hammer' : 'slide'; tiedToNext = true; }
     if (i === phraseLength - 1) { technique = 'vibrato'; durationObj = 'quarter'; }
     notes.push({ string: currentString, fret: fret, duration: durationObj, technique, tiedToNext });
-    if (Math.random() > 0.6) {
-       currentString += Math.random() > 0.5 ? 1 : -1;
-       if (currentString > 5) currentString = 5;
-       if (currentString < 0) currentString = 0;
-    }
+    if (Math.random() > 0.6) { currentString += Math.random() > 0.5 ? 1 : -1; if (currentString > 5) currentString = 5; if (currentString < 0) currentString = 0; }
   }
   return { name: `AI Generated ${keyNote} ${mode} Lick`, notes };
 };
