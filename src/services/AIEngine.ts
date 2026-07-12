@@ -62,7 +62,6 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
 
   if (savedApiKey) {
     try {
-      // 🔥 Исправлено: точный эндпоинт без /v1/
       const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
@@ -80,21 +79,30 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
         })
       });
 
-      if (!response.ok) throw new Error('API request failed');
+      // 🔥 ВЫВОДИМ ОШИБКИ СЕРВЕРА НА ЭКРАН (Неверный ключ, нет денег на балансе)
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => 'No error body');
+        return {
+          text: `🔴 Ошибка DeepSeek API (Статус ${response.status}). Возможно, неверный токен, закончились средства на балансе DeepSeek или сбоит сервер. Ответ API: ${errBody.substring(0, 120)}`
+        };
+      }
+
       const jsonRes = await response.json();
       let aiMessage = jsonRes.choices[0].message.content;
 
-      // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Очищаем ответ от markdown-оберток, если ИИ их добавил
       aiMessage = aiMessage.replace(/```json/g, "").replace(/```/g, "").trim();
-      
       return JSON.parse(aiMessage) as AIResponse;
 
-    } catch (error) {
-      console.error('DeepSeek API Error, falling back to local engine:', error);
+    } catch (error: any) {
+      console.error('DeepSeek API Network/CORS Error:', error);
+      // 🔥 ВЫВОДИМ ОШИБКИ СЕТИ И CORS НА ЭКРАН
+      return {
+        text: `🔴 Блокировка CORS или ошибка сети: "${error?.message || 'Failed to fetch'}". Прямые запросы к API из браузера часто блокируются DeepSeek для безопасности. Открой консоль браузера (F12 -> Вкладка Console), чтобы увидеть системный лог блокировки.`
+      };
     }
   }
 
-  // --- УЛУЧШЕННЫЙ ЛОКАЛЬНЫЙ FALLBACK (Если ключа нет) ---
+  // --- ОБЫЧНЫЙ ЛОКАЛЬНЫЙ FALLBACK (Сработает ТОЛЬКО если ключа физически НЕТ в localStorage) ---
   const lowerQuery = query.toLowerCase();
   await new Promise((resolve) => setTimeout(resolve, 600));
 
