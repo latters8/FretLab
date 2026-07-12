@@ -9,8 +9,8 @@
   --text-secondary: #a0a5b5;
   --text-muted: #6b7280;
   --border-color: #2a2d39;
-  --accent: #00FF9D;       /* Неоновый зеленый для мажора */
-  --accent-blue: #00b8ff;  /* Неоновый синий для минора */
+  --accent: #00FF9D;       
+  --accent-blue: #00b8ff;  
   --radius: 12px;
 }
 
@@ -71,7 +71,23 @@ body {
   box-sizing: border-box;
 }
 
-/* --- АДАПТИВНОСТЬ (MOBILE RESPONSIVE) --- */
+/* --- 🔥 КАСТОМНЫЕ ПОЛОСЫ ПРОКРУТКИ (ВИДИМЫЙ СКРОЛЛ) --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-root);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+
+/* --- АДАПТИВНОСТЬ (MOBILE RESPONSIVE & FLEXBOX FIXES) --- */
 .app-layout {
   display: flex;
   flex-direction: row;
@@ -95,15 +111,20 @@ body {
   flex: 1;
   display: flex;
   overflow: hidden;
+  /* 🔥 FIX: Запрещаем контейнеру расширяться за пределы экрана */
+  min-width: 0; 
 }
 
 .center-column {
   flex: 1;
   padding: 24px 32px;
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 24px;
+  /* 🔥 FIX: Спасает вертикальный скроллбар от улетания за правый край экрана */
+  min-width: 0; 
 }
 
 .right-column {
@@ -118,6 +139,15 @@ body {
   overflow-y: auto;
 }
 
+/* 🔥 FIX: Обертка грифа теперь независимо скроллится по горизонтали на всех экранах */
+.fretboard-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 12px; /* Место под горизонтальный скроллбар */
+}
+
+/* --- МОБИЛЬНАЯ ВЕРСИЯ (ДО 768px) --- */
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
@@ -154,9 +184,6 @@ body {
   }
 
   .fretboard-scroll-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 12px;
     margin: 0 -16px;
     padding-left: 16px;
     padding-right: 16px;
