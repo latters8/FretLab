@@ -56,7 +56,6 @@ const Fretboard: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '16px' }}>
-          {/* 🔥 ИСПРАВЛЕНО: Стилизовано под левые селекторы (белый текст, правильный фон) */}
           <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -78,7 +77,7 @@ const Fretboard: React.FC = () => {
       {/* The Fretboard */}
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         
-        {/* Dots Layer */}
+        {/* 🔥 ИСПРАВЛЕН Dots Layer */}
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none' }}>
           {frets.map(f => (
             <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : '1px solid rgba(0,0,0,0.5)' }}>
@@ -88,12 +87,12 @@ const Fretboard: React.FC = () => {
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
               )}
               
-              {/* 🔥 ИСПРАВЛЕНО: Двойные точки (12, 24 лады) смещены между 2-3 и 4-5 струнами */}
+              {/* Двойные точки (12, 24 лады) Теперь МЕЖДУ струнами */}
               {doubleDots.includes(f) && (
                 <>
-                  {/* Верхняя точка: Между 2-й (B) и 3-й (G) струнами. В нашей верстке это ~25% высоты */}
+                  {/* Верхняя точка: Между 2-й и 3-й струнами. Считаем от верха: (height / 6) * 1.5 ~ 25% */}
                   <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
-                  {/* Нижняя точка: Между 4-й (D) и 5-й (A) струнами. Это ~75% высоты */}
+                  {/* Нижняя точка: Между 4-й и 5-й струнами. Считаем от верха: (height / 6) * 4.5 ~ 75% */}
                   <div style={{ position: 'absolute', top: '75%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
                 </>
               )}

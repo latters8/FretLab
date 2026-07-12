@@ -6,6 +6,7 @@ export interface TrackInfo {
   title: string;
 }
 
+// 🔥 Расширяем возможности TouchGrass: он умеет открывать окна
 export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB';
 
 export interface AIResponse {
@@ -16,6 +17,7 @@ export interface AIResponse {
   };
 }
 
+// --- Типы для генератора табов ---
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {

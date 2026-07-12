@@ -17,11 +17,9 @@ const Player: React.FC = () => {
   }, [isPlaying]);
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-      {/* Удален заголовок: // Jam Player (youtube) Liquid Groove... 
-        Оставляем только сам плеер для минимализма.
-      */}
-      <div style={{ background: '#000', height: '240px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '16px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+      {/* Плеер: Minimalist & Full-Size */}
+      <div style={{ background: '#000', height: '360px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
         {currentTrack && currentTrack.platform === 'youtube' ? (
           <iframe
             ref={iframeRef}
