@@ -1,48 +1,43 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useMusic } from '../../context/MusicContext';
 
 const Player: React.FC = () => {
-  const { currentTrack } = useMusic();
-  
-  // Фолбэк на случай, если контекст еще подгружается
-  const track = currentTrack || { 
-    platform: 'youtube', 
-    id: 'HdsP-KYQZDQ', 
-    title: 'Liquid Groove Fusion Backing Track - Em' 
-  };
+  const { isPlaying, currentTrack } = useMusic();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const getEmbedUrl = () => {
-    // Используем полноценный YouTube с включенной навигацией (controls=1)
-    if (track.platform === 'youtube') return `https://www.youtube.com/embed/${track.id}?controls=1&rel=0&playsinline=1`;
-    if (track.platform === 'rutube') return `https://rutube.ru/play/embed/${track.id}`;
-    if (track.platform === 'vk') return `https://vk.com/video_ext.php?oid=-1&id=${track.id}`;
-    return '';
-  };
+  useEffect(() => {
+    if (!iframeRef.current) return;
+    
+    // Отправляем команды в iframe YouTube API
+    const message = isPlaying 
+      ? '{"event":"command","func":"playVideo","args":""}' 
+      : '{"event":"command","func":"pauseVideo","args":""}';
+      
+    iframeRef.current.contentWindow?.postMessage(message, '*');
+  }, [isPlaying]);
 
   return (
-    <div style={{ flexShrink: 0, background: 'var(--bg-panel)', borderRadius: 'var(--radius)', overflow: 'hidden', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.4)', display: 'flex', flexDirection: 'column' }}>
-      
-      <div style={{ padding: '12px 20px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
-            // Jam Player ({track.platform})
-          </span>
-          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {track.title}
-          </span>
-        </div>
-      </div>
-
-      {/* 🔥 Исправление: Современный aspect-ratio вместо старых CSS-хаков */}
-      <div style={{ width: '100%', aspectRatio: '16 / 9', background: '#000' }}>
-        <iframe 
-          style={{ width: '100%', height: '100%', border: 'none' }}
-          src={getEmbedUrl()} 
-          title="YouTube video player"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
-          referrerPolicy="strict-origin-when-cross-origin"
-          allowFullScreen
-        />
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
+      {/* Удален заголовок: // Jam Player (youtube) Liquid Groove... 
+        Оставляем только сам плеер для минимализма.
+      */}
+      <div style={{ background: '#000', height: '240px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+        {currentTrack && currentTrack.platform === 'youtube' ? (
+          <iframe
+            ref={iframeRef}
+            width="100%"
+            height="100%"
+            src={`https://www.youtube.com/embed/${currentTrack.id}?enablejsapi=1&controls=1&showinfo=0&rel=0`}
+            title="YouTube video player"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        ) : (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-muted)' }}>
+            No track selected
+          </div>
+        )}
       </div>
     </div>
   );

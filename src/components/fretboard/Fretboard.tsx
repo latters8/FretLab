@@ -45,10 +45,10 @@ const Fretboard: React.FC = () => {
           <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>
             Fretboard Engine
           </div>
-          <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: '#fff', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
+          <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
-          <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: '#fff', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
+          <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
             {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
               <option key={m} value={m}>{m}</option>
             ))}
@@ -56,10 +56,11 @@ const Fretboard: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '16px' }}>
-          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', outline: 'none' }}>
+          {/* 🔥 ИСПРАВЛЕНО: Стилизовано под левые селекторы (белый текст, правильный фон) */}
+          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', textTransform: 'capitalize', outline: 'none' }}>
+          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
@@ -81,12 +82,18 @@ const Fretboard: React.FC = () => {
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none' }}>
           {frets.map(f => (
             <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : '1px solid rgba(0,0,0,0.5)' }}>
+              
+              {/* Одинарные точки (центр) */}
               {dots.includes(f) && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
               )}
+              
+              {/* 🔥 ИСПРАВЛЕНО: Двойные точки (12, 24 лады) смещены между 2-3 и 4-5 струнами */}
               {doubleDots.includes(f) && (
                 <>
+                  {/* Верхняя точка: Между 2-й (B) и 3-й (G) струнами. В нашей верстке это ~25% высоты */}
                   <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
+                  {/* Нижняя точка: Между 4-й (D) и 5-й (A) струнами. Это ~75% высоты */}
                   <div style={{ position: 'absolute', top: '75%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
                 </>
               )}
