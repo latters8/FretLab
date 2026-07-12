@@ -19,7 +19,6 @@ export interface AIResponse {
   };
 }
 
-// --- Типы для генератора табов ---
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {
@@ -35,7 +34,6 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// Системный промпт, обучающий DeepSeek музыкальной математике FretLab
 const SYSTEM_PROMPT = `You are the AI Conductor of FretLab, an operating system for guitarists.
 Your task is to analyze user requests and return a valid JSON object. Do not include any markdown formatting or extra text outside the JSON block.
 
@@ -47,7 +45,7 @@ The JSON structure MUST strictly follow the AIResponse interface:
     "payload": {
       "key": "C", // Must be one of: C, C#, D, D#, E, F, F#, G, G#, A, A#, B
       "mode": "dorian", // Must be one of: major, minor, dorian, phrygian, lydian, mixolydian, aeolian, locrian
-      "bpm": 110, // Integer
+      "bpm": 110,
       "track": {
         "platform": "youtube",
         "id": "X5X1i5H9m2s",
@@ -60,12 +58,12 @@ The JSON structure MUST strictly follow the AIResponse interface:
 If the user asks to play a certain style, key, or jam, find a suitable musical setting, write a concise explanation, and provide the correct payload to change the app state.`;
 
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
-  // 🔥 Читаем ключ напрямую из безопасного localStorage
   const savedApiKey = localStorage.getItem('fretlab_api_key');
 
   if (savedApiKey) {
     try {
-      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+      // 🔥 Исправлено: точный эндпоинт без /v1/
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,14 +75,18 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
             { role: 'system', content: SYSTEM_PROMPT },
             { role: 'user', content: query }
           ],
-          response_format: { type: 'json_object' }, // Принудительный режим JSON
+          response_format: { type: 'json_object' }, 
           temperature: 0.2
         })
       });
 
       if (!response.ok) throw new Error('API request failed');
       const jsonRes = await response.json();
-      const aiMessage = jsonRes.choices[0].message.content;
+      let aiMessage = jsonRes.choices[0].message.content;
+
+      // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Очищаем ответ от markdown-оберток, если ИИ их добавил
+      aiMessage = aiMessage.replace(/```json/g, "").replace(/```/g, "").trim();
+      
       return JSON.parse(aiMessage) as AIResponse;
 
     } catch (error) {
@@ -92,7 +94,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
     }
   }
 
-  // --- УЛУЧШЕННЫЙ ЛОКАЛЬНЫЙ FALLBACK (Если ключа нет или сеть упала) ---
+  // --- УЛУЧШЕННЫЙ ЛОКАЛЬНЫЙ FALLBACK (Если ключа нет) ---
   const lowerQuery = query.toLowerCase();
   await new Promise((resolve) => setTimeout(resolve, 600));
 
@@ -131,7 +133,6 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   };
 };
 
-// --- ИНТЕРАКТИВНЫЙ AI-ГЕНЕРАТОР ТАБОВ ---
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 const STANDARD_TUNING = ['E', 'B', 'G', 'D', 'A', 'E'];
 

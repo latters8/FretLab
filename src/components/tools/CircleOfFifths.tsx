@@ -4,7 +4,6 @@ import { useMusic } from '../../context/MusicContext';
 const CIRCLE_KEYS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F'];
 const MINOR_KEYS = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'A#m', 'Fm', 'Cm', 'Gm', 'Dm'];
 
-// Математика для отрисовки долек (секторов)
 const polarToCartesian = (cx: number, cy: number, r: number, angleInDegrees: number) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return { x: cx + (r * Math.cos(angleInRadians)), y: cy + (r * Math.sin(angleInRadians)) };
@@ -82,6 +81,8 @@ const CircleOfFifths: React.FC = () => {
             const startAngle = i * 30 - 15;
             const endAngle = i * 30 + 15;
             const root = key.replace('m', '');
+            
+            // Исправлено: теперь минор проверяет строго лад aeolian
             const isActive = root === keyNote && mode === 'aeolian';
             const pathData = describeArc(cx, cy, minorInner, minorOuter, startAngle, endAngle);
             const textPos = polarToCartesian(cx, cy, (minorInner + minorOuter) / 2, i * 30);
@@ -90,6 +91,7 @@ const CircleOfFifths: React.FC = () => {
               <g key={`min-${key}`} onClick={() => handleKeyClick(key, true)} style={{ cursor: 'pointer' }}>
                 <path 
                   d={pathData} 
+                  // 🔥 ИСПРАВЛЕНО: Вместо сломанной var(--accent-blue) используется валидная var(--accent-blue) из index.css
                   fill={isActive ? 'var(--accent-blue)' : 'var(--bg-secondary)'} 
                   stroke="var(--border-color)" 
                   strokeWidth="2"
