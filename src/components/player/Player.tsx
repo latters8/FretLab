@@ -15,7 +15,6 @@ const Player: React.FC<PlayerProps> = ({
   const { isPlaying, currentTrack } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  // 2. Управление плеером через postMessage API
   useEffect(() => {
     if (!iframeRef.current) return;
     
@@ -26,25 +25,21 @@ const Player: React.FC<PlayerProps> = ({
         
       iframeRef.current.contentWindow?.postMessage(message, '*');
     } catch (error) {
-      console.error("FretLab Player Error: Failed to send postMessage to iframe", error);
+      console.error("FretLab Player Error:", error);
     }
   }, [isPlaying]);
 
-  // 3. ✅ ФИКС: Генерация безопасного Embed URL
   const getEmbedUrl = (videoId: string) => {
-    // ✅ Используем youtube-nocookie.com для обхода блокировок
+    // ✅ Используем youtube-nocookie для обхода блокировок
     const baseUrl = 'https://www.youtube-nocookie.com/embed';
     
-    // ✅ Определяем правильный origin
-    let origin = 'https://latters8.github.io'; // Для продакшна
-    
-    // Для локальной разработки
+    // Определяем origin
+    let origin = 'https://latters8.github.io';
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        origin = 'http://localhost:3000';
-      } else if (hostname === 'latters8.github.io') {
-        origin = 'https://latters8.github.io';
+        // ⚠️ Для локальной разработки используем *
+        origin = '*';
       } else {
         origin = window.location.origin;
       }
@@ -59,17 +54,14 @@ const Player: React.FC<PlayerProps> = ({
       modestbranding: '1',
       iv_load_policy: '3',
       playsinline: '1',
-      origin: origin,
+      origin: origin,  // Для localhost будет '*'
       fs: '1',
-      disablekb: '0',
-      // ✅ Добавляем для совместимости
-      widget_referrer: origin,
+      disablekb: '0'
     });
 
     return `${baseUrl}/${videoId}?${params.toString()}`;
   };
 
-  // 4. UI/UX: Адаптивный рендер с визуальными состояниями
   return (
     <div style={{ 
       background: 'var(--bg-panel)', 
