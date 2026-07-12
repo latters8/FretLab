@@ -7,10 +7,9 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentLick, setCurrentLick] = useState<Lick | null>(null);
 
-  // Улучшенный генератор: никогда не оставляет пустое состояние
+  // Мгновенная инициализация: подстраховка на случай пустых массивов гармонии при старте
   useEffect(() => {
     const scale = getScaleNotes();
-    // Если контекст вдруг не успел отдать ноты, подсовываем базовую гамму До-мажор для безопасности
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const safeKey = keyNote || 'C';
     const safeMode = mode || 'major';
@@ -34,9 +33,9 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
   const noteSpacing = 70;
   const startX = 80;
 
-  // 🔥 ИСПРАВЛЕНО: Убрано return null. Панель рендерится всегда!
+  // 🔥 ИСПРАВЛЕНО: Добавлен flexShrink: 0 и явная минимальная высота, чтобы контейнер не исчезал
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0, minHeight: '310px', marginTop: '8px' }}>
       
       {/* HEADER */}
       <div style={{ padding: '16px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -45,7 +44,7 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
             🎸 Lick & Short Phrase Generator
           </span>
           <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent)' }}>
-            {currentLick ? currentLick.name : 'Initializing...'}
+            {currentLick ? currentLick.name : 'Initializing Tab Engine...'}
           </span>
         </div>
         <button 
@@ -60,14 +59,14 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
       </div>
 
       {/* SVG TABLATURE RENDERER */}
-      <div style={{ padding: '24px', overflowX: 'auto', background: '#111216', minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ padding: '24px', overflowX: 'auto', background: '#111216', flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-start' }}>
         
         {!currentLick ? (
-          <div style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '14px', letterSpacing: '1px' }}>
-            ⏳ LOADING TABLATURE ENGINE...
+          <div style={{ color: 'var(--text-muted)', fontWeight: 800, fontSize: '12px', letterSpacing: '1px', width: '100%', textAlign: 'center' }}>
+            ⏳ LOADING VECTOR TABLATURE ENGINE...
           </div>
         ) : (
-          <svg viewBox={`0 0 ${Math.max(800, currentLick.notes.length * noteSpacing + 150)} 240`} style={{ width: '100%', minWidth: '600px', height: 'auto', display: 'block' }}>
+          <svg viewBox={`0 0 ${Math.max(800, currentLick.notes.length * noteSpacing + 150)} 240`} style={{ width: '100%', minWidth: '600px', height: '180px', display: 'block' }}>
             
             {/* РИСУЕМ СТРУНЫ */}
             {[0, 1, 2, 3, 4, 5].map((strIndex) => (
