@@ -80,19 +80,26 @@ const Fretboard: React.FC = () => {
         {/* Dots Layer */}
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
           {frets.map(f => (
-            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : '1px solid rgba(0,0,0,0.5)' }}>
+            <div key={`dotcol-${f}`} style={{ 
+                flex: 1, 
+                position: 'relative', 
+                // 🔥 ИСПРАВЛЕНО: СТАНДАРТНЫЕ СЕРЕБРИСТЫЕ ЛАДЫ (METAL SILVER)
+                // 4px лад для нулевого порожка (brass/silver)
+                // 1px серебристые лады для остальных.
+                borderRight: f === 0 
+                    ? '4px solid #bba182' 
+                    : '1px solid #c0c0c0' /* Серебристый металлик */
+            }}>
               
-              {/* Одинарные маркеры (строго по центру грифа) */}
+              {/* Одинарные маркеры */}
               {dots.includes(f) && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
               )}
               
-              {/* 🔥 АНАТОМИЧЕСКИ ТОЧНЫЕ ДВОЙНЫЕ ТОЧКИ НА 12 И 24 ЛАДАХ */}
+              {/* Двойные маркеры на 12 и 24 (Пиксельная точность между струнами) */}
               {doubleDots.includes(f) && (
                 <>
-                  {/* Верхняя точка: Между 2-й (B) и 3-й (G) струнами. Высота двух струн = 72px */}
                   <div style={{ position: 'absolute', top: '72px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
-                  {/* Нижная точка: Между 4-й (D) и 5-й (A) струнами. Высота четырех струн = 144px */}
                   <div style={{ position: 'absolute', top: '144px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
                 </>
               )}
