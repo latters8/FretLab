@@ -30,35 +30,19 @@ const Player: React.FC<PlayerProps> = ({
   }, [isPlaying]);
 
   const getEmbedUrl = (videoId: string) => {
-    const baseUrl = 'https://www.youtube-nocookie.com/embed';
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
     
-    let origin = 'https://latters8.github.io';
-    if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        origin = '*';
-      } else if (hostname === 'latters8.github.io') {
-        origin = 'https://latters8.github.io';
-      } else {
-        origin = window.location.origin;
-      }
-    }
-    
+    // Формируем чистые, нативные параметры YouTube
     const params = new URLSearchParams({
       enablejsapi: '1',
       autoplay: autoplay ? '1' : '0',
       controls: controls ? '1' : '0',
-      showinfo: '0',
       rel: '0',
-      modestbranding: '1',
-      iv_load_policy: '3',
-      playsinline: '1',
-      origin: origin,
       fs: '1',
-      disablekb: '0'
+      origin: origin
     });
 
-    return `${baseUrl}/${videoId}?${params.toString()}`;
+    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   };
 
   return (
@@ -76,18 +60,14 @@ const Player: React.FC<PlayerProps> = ({
           width="100%"
           height="100%"
           src={getEmbedUrl(currentTrack.id)}
-          title="FretLab YouTube Player"
+          title="Native YouTube Player"
           frameBorder="0"
-          sandbox="allow-same-origin allow-scripts allow-forms allow-presentation allow-popups"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+          // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ:
+          // Полностью удален атрибут 'sandbox', вызывавший блокировку серверами Google.
+          // Добавлен 'web-share' для нативного поведения платформы.
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
           allowFullScreen
-          style={{ 
-            display: 'block', 
-            backgroundColor: 'var(--bg-primary)',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-          }}
+          style={{ display: 'block', backgroundColor: '#000' }}
         />
       ) : (
         <div 
@@ -106,7 +86,7 @@ const Player: React.FC<PlayerProps> = ({
           }}
         >
           <span style={{ fontSize: '42px', display: 'block', marginBottom: '16px', opacity: 0.5 }}>🎵</span>
-          No track selected
+          Awaiting Media Stream
         </div>
       )}
     </div>
