@@ -6,8 +6,16 @@ export interface TrackInfo {
   title: string;
 }
 
-// 🔥 ДОБАВЛЕН НОВЫЙ ТИП: SEARCH_YOUTUBE
 export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB' | 'SEARCH_YOUTUBE';
+
+// 🔥 НОВЫЙ ИНТЕРФЕЙС: Интерактивная опция трека для чата
+export interface TrackOption {
+  title: string;
+  id: string;
+  key?: string;
+  mode?: string;
+  bpm?: number;
+}
 
 export interface AIResponse {
   text: string;
@@ -15,6 +23,7 @@ export interface AIResponse {
     type: AIActionType;
     payload?: any;
   };
+  options?: TrackOption[]; // Массив кнопок для пользователя
 }
 
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
@@ -35,7 +44,7 @@ export interface Lick {
 const API_KEY = ""; 
 
 const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a FretLab guitar AI assistant.
-Return ONLY valid JSON matching: { "text": "...", "action": { "type": "OPEN_CHORD", "payload": { "chord": "Cmaj7" } } }`;
+Return ONLY valid JSON matching: { "text": "...", "options": [...] }`;
 
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
   if (API_KEY) {
@@ -51,12 +60,9 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       });
       if (response.ok) {
          const jsonRes = await response.json();
-         let aiMessage = jsonRes.choices[0].message.content;
-         return JSON.parse(aiMessage.replace(/```json/g, "").replace(/```/g, "").trim()) as AIResponse;
+         return JSON.parse(jsonRes.choices[0].message.content.replace(/```json/g, "").replace(/```/g, "").trim()) as AIResponse;
       }
-    } catch (e) {
-      console.error("AI API Error:", e);
-    }
+    } catch (e) { console.error("AI API Error:", e); }
   }
 
   const lowerQuery = query.toLowerCase();
@@ -65,64 +71,52 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   // 1. ПАРСЕР ПРЯМЫХ ССЫЛОК YOUTUBE
   const ytVideoMatch = query.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*embed\/|.*\/))([^&?\s]{11})/);
   const ytListMatch = query.match(/[?&]list=([^&?\s]+)/);
-
   if (ytVideoMatch || ytListMatch) {
-    let trackId = '';
-    if (ytVideoMatch && ytListMatch) {
-      trackId = `${ytVideoMatch[1]}&list=${ytListMatch[1]}`;
-    } else if (ytListMatch) {
-      trackId = `videoseries?list=${ytListMatch[1]}`;
-    } else if (ytVideoMatch) {
-      trackId = ytVideoMatch[1];
-    }
+    let trackId = ytVideoMatch && ytListMatch ? `${ytVideoMatch[1]}&list=${ytListMatch[1]}` : ytListMatch ? `videoseries?list=${ytListMatch[1]}` : ytVideoMatch![1];
+    return { text: "TouchGrass 🎵: Ссылка принята! Загружаю в плеер...", action: { type: 'SET_CONTEXT', payload: { track: { platform: 'youtube', id: trackId, title: 'Custom YouTube Stream' } } } };
+  }
+
+  // 2. 🔥 ВЫДАЧА ИНТЕРАКТИВНЫХ ОПЦИЙ (Рок)
+  if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
     return {
-      text: "TouchGrass 🎵: Поймал ссылку! Трек/плейлист загружен в плеер, джем начинается!",
-      action: { type: 'SET_CONTEXT', payload: { track: { platform: 'youtube', id: trackId, title: 'Custom YouTube Stream' } } }
+      text: "TouchGrass 🎵: Я нашел отличные рок-минусовки на YouTube! Кликни на любую, и я мгновенно загружу её в плеер и перестрою гриф:",
+      options: [
+        { title: '🎸 Heavy Rock Groove (A minor)', id: '8KpPab_M4t4', key: 'A', mode: 'aeolian', bpm: 120 },
+        { title: '🤘 Stadium Hard Rock Jam (E minor)', id: '3W1A142r-yE', key: 'E', mode: 'minor', bpm: 130 }
+      ]
     };
   }
 
-  // 2. ДЕТЕКТОР ФРУСТРАЦИИ
+  // 3. 🔥 ВЫДАЧА ИНТЕРАКТИВНЫХ ОПЦИЙ (Общий поиск треков / Фанк / Блюз)
+  if (lowerQuery.includes('найди') || lowerQuery.includes('минус') || lowerQuery.includes('трек') || lowerQuery.includes('блюз') || lowerQuery.includes('фанк')) {
+    return {
+      text: "TouchGrass 🎵: Собрал для тебя сочную подборку джем-треков! Выбирай стиль:",
+      options: [
+        { title: '⚡ C Dorian Funk Power Groove', id: 'X5X1i5H9m2s', key: 'C', mode: 'dorian', bpm: 110 },
+        { title: '☕ Slow Blues Midnight Jam (A minor)', id: '3W1A142r-yE', key: 'A', mode: 'aeolian', bpm: 80 },
+        { title: '🌌 Smooth Neo-Soul (G major)', id: '8KpPab_M4t4', key: 'G', mode: 'major', bpm: 90 }
+      ]
+    };
+  }
+
+  // 4. ДЕТЕКТОР ФРУСТРАЦИИ
   if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
-    return {
-      text: "TouchGrass 🎵: Так, выдыхаем! Отложи гитару на пару минут. Я сбросил темп метронома до 70 BPM и включил легкий минус.",
-      action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Relaxed Practice Track' } } }
-    };
+    return { text: "TouchGrass 🎵: Выдыхаем! Я сбросил темп до 70 BPM и включил легкий минус.", action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Relaxed Practice Track' } } } };
   }
 
-  // 3. ПОИСК АККОРДОВ (Высший приоритет над текстовым поиском)
+  // 5. ПОИСК АККОРДОВ
   if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || query.match(/\b[A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?\b/i)) {
     const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
-    let targetChord = 'Cmaj7'; 
-    if (match) targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
-    return {
-      text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике!`,
-      action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
-    };
+    let targetChord = 'Cmaj7'; if (match) targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
+    return { text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике!`, action: { type: 'OPEN_CHORD', payload: { chord: targetChord } } };
   }
 
-  // 4. 🔥 НОВАЯ КОМАНДА: ПОИСК НА YOUTUBE В НОВОЙ ВКЛАДКЕ
-  if (lowerQuery.includes('ютуб') || lowerQuery.includes('youtube') || lowerQuery.includes('найди минус') || lowerQuery.includes('поиск')) {
-    let searchQuery = query.replace(/(найди|поиск|на ютубе|в ютубе|youtube|search|for|мне|минус|трек)/gi, '').trim();
-    if (!searchQuery) searchQuery = 'guitar backing track';
-    
-    return {
-      text: `TouchGrass 🎵: Отличная идея! Я открыл новую вкладку с поиском YouTube по запросу "${searchQuery}". Выбери лучший минус, скопируй ссылку и вставь её в мой плеер!`,
-      action: { type: 'SEARCH_YOUTUBE', payload: { query: searchQuery } }
-    };
-  }
-
-  // 5. ГЕНЕРАТОР ТАБОВ
-  if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick') || lowerQuery.includes('фраз')) {
-    return { text: "TouchGrass 🎵: Открываю панель генератора фраз. Выбери тональность и нажми 'Generate Lick'!", action: { type: 'OPEN_TAB_GEN' } };
-  }
-
-  // 6. AUTOTAB
-  if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб') || lowerQuery.includes('разбери')) {
-    return { text: "TouchGrass 🎵: Переключаю на AutoTab транскрибатор. Загружай аудио!", action: { type: 'OPEN_AUTOTAB' } };
-  }
+  // 6. ГЕНЕРАТОР ТАБОВ И AUTOTAB
+  if (lowerQuery.includes('соло') || lowerQuery.includes('таб')) return { text: "TouchGrass 🎵: Открываю генератор фраз!", action: { type: 'OPEN_TAB_GEN' } };
+  if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб')) return { text: "TouchGrass 🎵: Переключаю на AutoTab.", action: { type: 'OPEN_AUTOTAB' } };
 
   return {
-    text: "TouchGrass 🎵: Привет! Напиши мне «найди блюзовый минус на ютубе», и я открою новую вкладку с поиском! Либо просто вставь ссылку на видео."
+    text: "TouchGrass 🎵: Привет! Напиши мне «найди рок минус», и я предложу тебе несколько вариантов прямо в чате!"
   };
 };
 
