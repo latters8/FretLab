@@ -6,7 +6,6 @@ export interface TrackInfo {
   title: string;
 }
 
-// 🔥 Расширяем возможности TouchGrass: он умеет открывать окна
 export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB';
 
 export interface AIResponse {
@@ -17,7 +16,6 @@ export interface AIResponse {
   };
 }
 
-// --- Типы для генератора табов ---
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {
@@ -33,52 +31,108 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// 🔥 ПОЛНОСТЬЮ АВТОНОМНЫЙ TOUCHGRASS (Без API ключей)
+// 🔥 УМНЫЙ АВТОНОМНЫЙ МЕДИА-МАРШРУТИЗАТОР TOUCHGRASS
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
   const lowerQuery = query.toLowerCase();
   
-  // Имитация "думания" нейросети
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  // Имитируем глубокий анализ музыкального запроса
+  await new Promise((resolve) => setTimeout(resolve, 700));
 
-  // 1. Команды транскрипции треков (AutoTab)
-  if (lowerQuery.includes('минусовк') || lowerQuery.includes('транскриб') || lowerQuery.includes('youtube')) {
+  // 1. Поиск и загрузка рок-минусовок через TouchGrass
+  if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
     return {
-      text: "TouchGrass 🎵: Отличная идея! Я открыл для тебя модуль AutoTab. Просто закинь туда аудиофайл или вставь ссылку, и ИИ разберет его на табы!",
+      text: "TouchGrass 🎵: Рок-драйв активирован! Я подключился к YouTube и загрузил мощный Heavy Rock Backing Track в тональности Ля-минор (A Minor). Скорость — 120 BPM, гриф перестроен под скоростные проходы!",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'A',
+          mode: 'aeolian',
+          bpm: 120,
+          track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Heavy Rock Groove Backing Track' }
+        }
+      }
+    };
+  }
+
+  // 2. Поиск и загрузка нео-соул / джаз минусовок
+  if (lowerQuery.includes('соул') || lowerQuery.includes('soul') || lowerQuery.includes('джаз') || lowerQuery.includes('jazz')) {
+    return {
+      text: "TouchGrass 🎵: Настраиваюсь на мягкую волну. Загружаю Smooth Neo-Soul / Jazz Jam в тональности Соль-мажор (G Major). Темп снижен до комфортных 90 BPM для проработки красивых джазовых ступеней.",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'G',
+          mode: 'major',
+          bpm: 90,
+          track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Smooth Neo-Soul / Jazz Backing Track' }
+        }
+      }
+    };
+  }
+
+  // 3. Стандартный поиск фанка
+  if (lowerQuery.includes('фанк') || lowerQuery.includes('funk') || lowerQuery.includes('до')) {
+    return {
+      text: "TouchGrass 🎵: Закачиваем плотный фанковый грув! Включаю C Dorian Funk Power Groove на 110 BPM. Обрати внимание на дорийский лад на грифе!",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'C',
+          mode: 'dorian',
+          bpm: 110,
+          track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk Power Groove' }
+        }
+      }
+    };
+  }
+
+  // 4. Стандартный поиск блюза
+  if (lowerQuery.includes('блюз') || lowerQuery.includes('blues') || lowerQuery.includes('ля минор')) {
+    return {
+      text: "TouchGrass 🎵: Ламповый вечерний вайб. Загружаю Slow Blues Midnight Jam в Ля-миноре (80 BPM). Включай овердрайв, время для блюзовой пентатоники.",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'A',
+          mode: 'aeolian',
+          bpm: 80,
+          track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Midnight Jam' }
+        }
+      }
+    };
+  }
+
+  // 5. Запрос на открытие AutoTab модулей
+  if (lowerQuery.includes('транскриб') || lowerQuery.includes(' songsterr') || lowerQuery.includes('автотаб')) {
+    return {
+      text: "TouchGrass 🎵: Понял задачу! Переключаю тебя в модуль полной транскрипции AutoTab. Загружай трек, и нейросеть разберет его по нотам.",
       action: { type: 'OPEN_AUTOTAB', payload: {} }
     };
   }
 
-  // 2. Команды поиска аккордов
-  if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || lowerQuery.match(/[a-g]#?m?(maj)?7?(b5)?(#9)?/)) {
-    // Пытаемся выцепить название аккорда из текста
-    const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
+  // 6. Запрос на поиск аккордов
+  if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord')) {
+    const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?)/i);
     const targetChord = match ? match[0] : 'Cmaj7';
-    
     return {
-      text: `TouchGrass 🎵: Без проблем! Я нашел аппликатуру для ${targetChord}. Открываю интерактивный Справочник, чтобы ты мог послушать и посмотреть сетку!`,
+      text: `TouchGrass 🎵: Ищу аккорд ${targetChord} в базе данных. Перевожу интерфейс в интерактивный Справочник!`,
       action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
     };
   }
 
-  // 3. Команды генерации фраз (Licks)
-  if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick')) {
+  // Fallback эмпатии (Фрустрация)
+  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
     return {
-      text: "TouchGrass 🎵: С удовольствием! Я активировал генератор фраз под грифом. Выбери тональность, и я создам для тебя вкусный лик с легато и слайдами.",
-      action: { type: 'OPEN_TAB_GEN', payload: {} }
+      text: "TouchGrass 🎵: Так, выдыхаем! Отложи гитару на пару минут. Я сбросил темп метронома до спокойных 70 BPM и включил легкий минус, чтобы ты мог расслабиться.",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: { key: 'A', mode: 'aeolian', bpm: 70, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Relaxed Practice Track' } }
+      }
     };
   }
 
-  // 4. Детектор фрустрации (Эмпатия)
-  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит') || lowerQuery.includes('не получается')) {
-    return {
-      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят, а аккорды кажутся стеной? Это абсолютно нормально. Каждый крутой гитарист проходил через это. Давай сделаем глубокий вдох, расслабим кисти и снизим темп до 70 BPM в простом Ля-миноре.",
-      action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70 } }
-    };
-  }
-
-  // 5. Базовый Fallback
   return {
-    text: "TouchGrass 🎵: Привет! Я встроенный ИИ-помощник. Скажи мне 'покажи аккорд F#m7', 'сочини соло', или загрузи трек для транскрипции в табы!"
+    text: "TouchGrass 🎵: Привет! Я твой медиа-проводник. Напиши мне, например: 'найди рок минус на youtube', 'включи джаз' или 'покажи аккорд Dm9' — и я полностью перестрою плеер и гриф под твой запрос!"
   };
 };
 
