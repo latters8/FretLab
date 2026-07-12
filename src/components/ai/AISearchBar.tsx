@@ -30,32 +30,43 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           if (p.mode) setMode(p.mode);
           if (p.bpm) setBpm(p.bpm);
         }
-        // Пробрасываем команду переключения окон в AppShell
         if (onAction) onAction(res.action);
       }
     } catch (err) {
       setResponse('🔴 Ошибка обработки запроса.');
     } finally {
       setIsLoading(false);
+      setQuery(''); // Очищаем строку после отправки
     }
   };
 
   return (
-    <div style={{ background: 'var(--bg-panel)', padding: '20px', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px' }}>
-        <input 
-          type="text" 
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Ask TouchGrass 🎵 to show a chord, write a solo, or change the jam..."
-          style={{ flex: 1, background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', outline: 'none' }}
-        />
-        <button type="submit" disabled={isLoading} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '0 24px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', transition: '0.2s' }}>
-          {isLoading ? 'THINKING...' : 'ASK AI'}
+    <div style={{ position: 'relative', flex: 1, maxWidth: '480px', margin: '0 24px' }}>
+      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '8px', width: '100%' }}>
+        <div style={{ position: 'relative', flex: 1 }}>
+          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontSize: '14px' }}>✨</span>
+          <input
+            type="text"
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Ask TouchGrass 🎵..."
+            style={{ width: '100%', background: 'var(--bg-root)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px 8px 36px', borderRadius: '20px', fontSize: '13px', outline: 'none', transition: 'border-color 0.2s' }}
+            onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
+            onBlur={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+          />
+        </div>
+        <button type="submit" disabled={isLoading} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '0 16px', borderRadius: '20px', fontWeight: 800, fontSize: '11px', cursor: 'pointer', transition: '0.2s' }}>
+          {isLoading ? '...' : 'ASK'}
         </button>
       </form>
+      
+      {/* Выпадающее окно (Popover) с ответом ИИ */}
       {response && (
-        <div style={{ background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', fontSize: '14px', color: 'var(--text-secondary)', borderLeft: '4px solid var(--accent)', lineHeight: '1.5' }}>
+        <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '16px', background: 'var(--bg-panel)', border: '1px solid var(--border-color)', padding: '16px', borderRadius: '12px', zIndex: 100, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.6', borderLeft: '3px solid var(--accent)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+            <span style={{ fontWeight: 800, color: 'var(--text-primary)' }}>TouchGrass 🎵</span>
+            <button onClick={() => setResponse('')} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '16px', padding: 0 }}>✕</button>
+          </div>
           {response}
         </div>
       )}

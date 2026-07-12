@@ -6,11 +6,9 @@ import Fretboard from '../fretboard/Fretboard';
 import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
-import AISearchBar from '../ai/AISearchBar';
-import AutoTab from '../tools/AutoTab'; // 🔥 ИМПОРТИРУЕМ НОВЫЙ МОДУЛЬ
+import AutoTab from '../tools/AutoTab'; 
 
 const AppShell: React.FC = () => {
-  // 🔥 ДОБАВЛЕН ТРЕТИЙ СТЕЙТ 'autotab'
   const [activeModule, setActiveModule] = useState<'engine' | 'dictionary' | 'autotab'>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
 
@@ -31,10 +29,10 @@ const AppShell: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-secondary)' }}>
-      <Header />
+      {/* 🔥 Передаем команды в шапку */}
+      <Header onAIAction={handleAIAction} />
       
       <div className="app-layout">
-        {/* 🔥 НОВЫЙ SIDEBAR БЕЗ КНОПКИ API КЛЮЧА */}
         <aside className="left-sidebar">
             <div onClick={() => setActiveModule('engine')} style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Fretboard Engine">🎸</div>
             <div onClick={() => setActiveModule('dictionary')} style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Chord Dictionary">📖</div>
@@ -45,7 +43,7 @@ const AppShell: React.FC = () => {
           {activeModule === 'engine' && (
             <>
               <main className="center-column">
-                  <AISearchBar onAction={handleAIAction} />
+                  {/* Строка ИИ удалена отсюда, теперь плеер стоит на первом месте */}
                   <Player />
                   <div className="fretboard-scroll-wrapper"><Fretboard /></div>
                   <Tablature />
@@ -63,7 +61,6 @@ const AppShell: React.FC = () => {
             </main>
           )}
 
-          {/* 🔥 НОВЫЙ РАЗДЕЛ ТРАНСКРИПЦИИ */}
           {activeModule === 'autotab' && (
             <main className="center-column" style={{ overflowY: 'hidden' }}>
                 <AutoTab />

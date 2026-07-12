@@ -8,7 +8,6 @@ const Player: React.FC = () => {
   useEffect(() => {
     if (!iframeRef.current) return;
     
-    // Отправляем команды в iframe YouTube API
     const message = isPlaying 
       ? '{"event":"command","func":"playVideo","args":""}' 
       : '{"event":"command","func":"pauseVideo","args":""}';
@@ -18,8 +17,8 @@ const Player: React.FC = () => {
 
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '16px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-      {/* Плеер: Minimalist & Full-Size */}
-      <div style={{ background: '#000', height: '360px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+      {/* 🔥 Высота увеличена до 420px для масштабного джем-экрана */}
+      <div style={{ background: '#000', height: '420px', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
         {currentTrack && currentTrack.platform === 'youtube' ? (
           <iframe
             ref={iframeRef}
