@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 
 const ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -31,20 +31,47 @@ const CHORD_CATEGORIES = {
     { suffix: 'm9b5', label: 'm9b5 (Locrian 9th)' },
     { suffix: 'm7b5b9', label: 'm7b5(b9)' },
     { suffix: 'm11b5', label: 'm11b5' },
-    { suffix: 'dim7', fill: 'dim7 (Full-Diminished)', label: 'dim7 (Full-Diminished)' },
+    { suffix: 'dim7', label: 'dim7 (Full-Diminished)' },
     { suffix: 'dim', label: 'dim (Diminished Triad)' }
   ]
 };
 
-// 🔥 ИСПРАВЛЕНО: Индексы строго соответствуют структуре БД (0 = Low E, 5 = High e)
 const STRINGS = ['E', 'A', 'D', 'G', 'B', 'e'];
 
-const ChordDictionary: React.FC = () => {
+// 🔥 ПРИНИМАЕМ КОМАНДУ ОТ ИИ ЧЕРЕЗ PROPS
+interface Props {
+  targetChord?: string | null;
+}
+
+const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
   const [selectedRoot, setSelectedRoot] = useState('C');
   const [selectedSuffix, setSelectedSuffix] = useState('');
   const [activeCategory, setActiveCategory] = useState<keyof typeof CHORD_CATEGORIES>('Major');
 
   const currentChordName = `${selectedRoot}${selectedSuffix}`;
+
+  // 🔥 СЛУШАЕМ ИИ: Если пришла команда показать аккорд, парсим его и настраиваем интерфейс
+  useEffect(() => {
+    if (targetChord) {
+      // Разбиваем аккорд (например, F#m7b5) на корень (F#) и суффикс (m7b5)
+      const match = targetChord.match(/^([A-G]#?)(.*)$/);
+      if (match) {
+        const root = match[1];
+        const suffix = match[2] || '';
+        
+        setSelectedRoot(root);
+        setSelectedSuffix(suffix);
+        
+        // Ищем категорию, в которой лежит этот суффикс, чтобы открыть нужную вкладку
+        for (const [catName, chords] of Object.entries(CHORD_CATEGORIES)) {
+          if (chords.some(c => c.suffix === suffix)) {
+            setActiveCategory(catName as any);
+            break;
+          }
+        }
+      }
+    }
+  }, [targetChord]);
 
   const getVoicings = (): Voicing[] => {
     if (CHORD_DB[currentChordName]) return CHORD_DB[currentChordName];
@@ -53,42 +80,28 @@ const ChordDictionary: React.FC = () => {
 
   const voicings = getVoicings();
 
-  // 🔥 СИНТЕЗАТОР ЗВУКА ИСПРАВЛЕН: Генерация сопоставлена верным частотам от баса к верхам
   const playChordAudio = (frets: (number | 'x')[]) => {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
-      
       const ctx = new AudioContextClass();
-      // Частоты открытых струн от 6-й (Low E) к 1-й (High e)
       const OPEN_FREQS = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
-      
       let delay = 0;
-
-      // Перебор от толстых струн к тонким
       for (let i = 0; i <= 5; i++) {
         const fret = frets[i];
         if (fret === 'x') continue;
-
-        const openFreq = OPEN_FREQS[i];
-        const freq = openFreq * Math.pow(2, Number(fret) / 12);
-
+        const freq = OPEN_FREQS[i] * Math.pow(2, Number(fret) / 12);
         const osc = ctx.createOscillator();
         const gainNode = ctx.createGain();
-
         osc.type = 'triangle'; 
         osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
-
         gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
         gainNode.gain.linearRampToValueAtTime(0.2, ctx.currentTime + delay + 0.01);
         gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 1.0);
-
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
-
         osc.start(ctx.currentTime + delay);
         osc.stop(ctx.currentTime + delay + 1.0);
-
         delay += 0.05; 
       }
     } catch (e) {
@@ -98,8 +111,6 @@ const ChordDictionary: React.FC = () => {
 
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-      
-      {/* Header */}
       <div style={{ padding: '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px' }}>📖</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -108,10 +119,7 @@ const ChordDictionary: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Container */}
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="dictionary-layout">
-        
-        {/* LEFT COLUMN: ROOTS & CATEGORIES */}
         <div style={{ width: '260px', borderRight: '1px solid var(--border-color)', background: 'var(--bg-primary)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>1. Select Root Note</div>
@@ -148,7 +156,6 @@ const ChordDictionary: React.FC = () => {
           </div>
         </div>
 
-        {/* CENTER COLUMN: SPECIFIC SUFFIXES */}
         <div style={{ width: '300px', borderRight: '1px solid var(--border-color)', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
           <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>3. Select Extensions</div>
           {CHORD_CATEGORIES[activeCategory].map(item => (
@@ -165,7 +172,6 @@ const ChordDictionary: React.FC = () => {
           ))}
         </div>
 
-        {/* RIGHT COLUMN: VISUAL VERTICAL CHORD BOX PREVIEW */}
         <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-root)' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
             <h2 style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--accent)', textShadow: '0 0 20px rgba(0,255,157,0.2)' }}>
@@ -175,7 +181,6 @@ const ChordDictionary: React.FC = () => {
 
           {voicings.map((voicing, vIdx) => (
             <div key={vIdx} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
-              
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
                 <span>Pos: {voicing.name}</span>
                 <button 
@@ -188,7 +193,6 @@ const ChordDictionary: React.FC = () => {
                 </button>
               </div>
 
-              {/* Текстовая схема зажима */}
               <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
                 {voicing.frets.map((f, idx) => (
                   <span key={idx} style={{ color: f !== 'x' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
@@ -197,87 +201,41 @@ const ChordDictionary: React.FC = () => {
                 ))}
               </div>
 
-              {/* НАСТОЯЩАЯ ВЕКТОРНАЯ (SVG) ГИТАРНАЯ СЕТКА С КРУЖКАМИ */}
               <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <svg viewBox="0 0 240 280" style={{ width: '180px', height: 'auto', display: 'block' }}>
-                  
-                  {/* Порожки (Горизонтальные линии, 5 ладов) */}
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <line 
-                      key={`fline-${i}`}
-                      x1="40" y1={50 + i * 40} 
-                      x2="200" y2={50 + i * 40} 
-                      stroke={voicing.baseFret === 1 && i === 0 ? "#ffffff" : "rgba(255,255,255,0.2)"} 
-                      strokeWidth={voicing.baseFret === 1 && i === 0 ? "4" : "1.5"} 
-                    />
+                    <line key={`fline-${i}`} x1="40" y1={50 + i * 40} x2="200" y2={50 + i * 40} stroke={voicing.baseFret === 1 && i === 0 ? "#ffffff" : "rgba(255,255,255,0.2)"} strokeWidth={voicing.baseFret === 1 && i === 0 ? "4" : "1.5"} />
                   ))}
-
-                  {/* Струны (Вертикальные линии, слева направо: от 6-й к 1-й) */}
                   {[0, 1, 2, 3, 4, 5].map((i) => (
-                    <line 
-                      key={`sline-${i}`}
-                      x1={40 + i * 32} y1="50" 
-                      x2={40 + i * 32} y2="250" 
-                      stroke="rgba(255,255,255,0.3)" 
-                      strokeWidth={1 + i * 0.3} 
-                    />
+                    <line key={`sline-${i}`} x1={40 + i * 32} y1="50" x2={40 + i * 32} y2="250" stroke="rgba(255,255,255,0.3)" strokeWidth={1 + i * 0.3} />
                   ))}
-
-                  {/* Индикатор базового лада */}
                   {voicing.baseFret > 1 && (
-                    <text x="15" y="75" fill="var(--accent)" fontSize="12" fontWeight="800" textAnchor="middle">
-                      {voicing.baseFret}fr
-                    </text>
+                    <text x="15" y="75" fill="var(--accent)" fontSize="12" fontWeight="800" textAnchor="middle">{voicing.baseFret}fr</text>
                   )}
-
-                  {/* 🔥 ИСПРАВЛЕНО: Буквы струн берутся напрямую из массива STRINGS (сверху вниз: E A D G B e) */}
                   {STRINGS.map((letter, i) => (
-                    <text key={`lbl-${i}`} x={40 + i * 32} y="270" fill="var(--text-muted)" fontSize="11" fontWeight="800" textAnchor="middle">
-                      {letter}
-                    </text>
+                    <text key={`lbl-${i}`} x={40 + i * 32} y="270" fill="var(--text-muted)" fontSize="11" fontWeight="800" textAnchor="middle">{letter}</text>
                   ))}
-
-                  {/* ОТРИСОВКА КРУЖКОВ ЗАЖИМА И КРЕСТИКОВ ГЛУШЕНИЯ */}
                   {voicing.frets.map((fretVal, stringIdx) => {
-                    // stringIdx 0 в базе — это 6-я струна (Low E), крайняя левая линия на SVG схеме (i = 0)
                     const gridX = 40 + stringIdx * 32;
-                    
-                    if (fretVal === 'x') {
-                      return (
-                        <text key={`x-${stringIdx}`} x={gridX} y="38" fill="#ff4d4d" fontSize="14" fontWeight="900" textAnchor="middle">✕</text>
-                      );
-                    }
-                    
-                    if (fretVal === 0) {
-                      return (
-                        <circle key={`o-${stringIdx}`} cx={gridX} cy={34} r="5" fill="transparent" stroke="var(--text-secondary)" strokeWidth="2" />
-                      );
-                    }
-
+                    if (fretVal === 'x') return <text key={`x-${stringIdx}`} x={gridX} y="38" fill="#ff4d4d" fontSize="14" fontWeight="900" textAnchor="middle">✕</text>;
+                    if (fretVal === 0) return <circle key={`o-${stringIdx}`} cx={gridX} cy={34} r="5" fill="transparent" stroke="var(--text-secondary)" strokeWidth="2" />;
                     const relativeFret = fretVal - voicing.baseFret + 1;
                     const gridY = 50 + (relativeFret - 1) * 40 + 20;
-
                     if (relativeFret >= 1 && relativeFret <= 5) {
                       return (
                         <g key={`dot-${stringIdx}`}>
-                          {/* 🔥 ИСПРАВЛЕНО: Неоновые кружочки с номерами ладов вернулись на струны */}
                           <circle cx={gridX} cy={gridY} r="11" fill="var(--accent)" style={{ filter: 'drop-shadow(0 0 6px var(--accent))' }} />
-                          <text x={gridX} y={gridY + 4} fill="#000000" fontSize="11" fontWeight="900" textAnchor="middle">
-                            {fretVal}
-                          </text>
+                          <text x={gridX} y={gridY + 4} fill="#000000" fontSize="11" fontWeight="900" textAnchor="middle">{fretVal}</text>
                         </g>
                       );
                     }
                     return null;
                   })}
-
                 </svg>
               </div>
-
             </div>
           ))}
         </div>
-
       </div>
     </div>
   );

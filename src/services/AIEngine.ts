@@ -6,20 +6,17 @@ export interface TrackInfo {
   title: string;
 }
 
+// 🔥 НОВЫЕ ТИПЫ КОМАНД ДЛЯ УПРАВЛЕНИЯ ИНТЕРФЕЙСОМ
+export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN';
+
 export interface AIResponse {
   text: string;
   action?: {
-    type: 'SET_CONTEXT';
-    payload: {
-      key?: string;
-      mode?: any;
-      bpm?: number;
-      track?: TrackInfo;
-    };
+    type: AIActionType;
+    payload?: any;
   };
 }
 
-// --- Типы для генератора табов ---
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {
@@ -35,26 +32,25 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// 🔥 ОБУЧАЮЩИЙ СИСТЕМНЫЙ ПРОМПТ ДЛЯ ЛИЧНОСТИ TOUCHGRASS 🎵
-const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a lightweight, highly supportive, and deeply human AI assistant embedded inside FretLab.
-Your expertise covers guitar anatomy, tabs, advanced music theory, songwriting, and, most importantly, detecting musician frustration.
+// 🔥 ПРОМПТ ДИРИЖЕРА: Теперь TouchGrass умеет открывать окна приложения
+const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a lightweight, highly supportive AI assistant embedded inside FretLab.
+Your expertise covers guitar anatomy, tabs, music theory, and detecting musician frustration.
 
-Guidelines for your personality:
-1. Act like an experienced, warm guitar coach or a supportive peer. Use light music jokes, be encouraging.
-2. DETECT FRUSTRATION: If the user complains about pain (fingers hurt), difficulty (F chord/barree is too hard, got stuck), or feeling overwhelmed, respond with empathy. Tell them it's completely normal, suggest they take a quick break ("touch grass" concept), and dynamically offer to lower the BPM or change the context to a simpler key (like C Major or A Minor).
-3. If they ask about songwriting or scales, provide structured, inspiring answers.
+Guidelines for your personality & capabilities:
+1. Act like a warm guitar coach. Be encouraging.
+2. DETECT FRUSTRATION: If the user complains about pain or difficulty, suggest they take a break, and use SET_CONTEXT to lower BPM and switch to a simple key like A minor.
+3. BE THE CONDUCTOR (CRITICAL): You control the app UI. 
+   - If the user asks to see or learn a specific chord (e.g., "how to play Cmaj7" or "show me G minor"), you MUST return action type "OPEN_CHORD" with payload { "chord": "Cmaj7" } (use standard notation like C, Cm, Cmaj7).
+   - If the user asks for a solo, lick, or tab (e.g., "write me a jazz solo"), you MUST return action type "OPEN_TAB_GEN".
+   - If they ask to jam, use "SET_CONTEXT" with key, mode, and bpm.
 
-You must analyze user requests and return a valid JSON object. Do not include any markdown formatting or extra text outside the JSON block.
-The JSON structure MUST strictly follow the AIResponse interface:
+You must return a valid JSON object ONLY. No markdown, no extra text.
+JSON structure:
 {
-  "text": "Your human-like, encouraging response with TouchGrass 🎵 branding.",
+  "text": "Your human-like response here.",
   "action": {
-    "type": "SET_CONTEXT",
-    "payload": {
-      "key": "A", 
-      "mode": "minor",
-      "bpm": 70
-    }
+    "type": "OPEN_CHORD",
+    "payload": { "chord": "Cmaj7" }
   }
 }`;
 
@@ -62,7 +58,6 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   const savedApiKey = localStorage.getItem('fretlab_api_key');
   const lowerQuery = query.toLowerCase();
 
-  // 1. ЕСЛИ КЛЮЧ ЕСТЬ: Запускаем живую нейросеть с характером TouchGrass
   if (savedApiKey) {
     try {
       const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -78,11 +73,17 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
             { role: 'user', content: query }
           ],
           response_format: { type: 'json_object' }, 
-          temperature: 0.4 // Чуть выше для более живой и человечной речи
+          temperature: 0.4 
         })
       });
 
-      if (!response.ok) throw new Error(`API Status ${response.status}`);
+      if (!response.ok) {
+        const errBody = await response.text().catch(() => 'No error body');
+        return {
+          text: `🔴 Ошибка DeepSeek API (Статус ${response.status}). Проверь ключ или баланс. Ответ API: ${errBody.substring(0, 120)}`
+        };
+      }
+
       const jsonRes = await response.json();
       let aiMessage = jsonRes.choices[0].message.content;
 
@@ -90,69 +91,39 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       return JSON.parse(aiMessage) as AIResponse;
 
     } catch (error: any) {
-      console.error('TouchGrass Online Error, falling to local empathy:', error);
+      console.error('TouchGrass Online Error:', error);
+      return {
+        text: `🔴 Блокировка CORS или ошибка сети: "${error?.message}".`
+      };
     }
   }
 
-  // 2. 🔥 АВТОНОМНЫЙ РЕЖИМ С АНАЛИЗОМ ЭМОЦИЙ И ФРУСТРАЦИИ (Без ключа API)
+  // АВТОНОМНЫЙ РЕЖИМ
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // Проверка триггеров фрустрации и усталости музыканта
-  if (
-    lowerQuery.includes('сложно') || 
-    lowerQuery.includes('болит') || 
-    lowerQuery.includes('бесит') || 
-    lowerQuery.includes('не получается') || 
-    lowerQuery.includes('устал') ||
-    lowerQuery.includes('hard') ||
-    lowerQuery.includes('hurt')
-  ) {
+  if (lowerQuery.includes('покажи') && (lowerQuery.includes('аккорд') || lowerQuery.includes('chord'))) {
     return {
-      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят, а аккорды кажутся стеной? Это абсолютно нормально. Каждый крутой гитарист проходил через это. Давай сделаем глубокий вдох, опустим руки, расслабим кисти и снизим темп до спокойных 70 BPM в простом Ля-миноре. Попробуй поиграть медленно, без спешки. Ты со всем справишься!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'A',
-          mode: 'aeolian',
-          bpm: 70
-        }
-      }
+      text: "TouchGrass 🎵: Конечно! Открываю Справочник. В автономном режиме я покажу тебе базовый Cmaj7, но если введешь API-ключ, я найду абсолютно любой аккорд!",
+      action: { type: 'OPEN_CHORD', payload: { chord: 'Cmaj7' } }
     };
   }
 
-  // Стандартные музыкальные команды для оффлайн-режима
-  if (lowerQuery.includes('ля минор') || lowerQuery.includes('a minor') || lowerQuery.includes('блюз')) {
+  if (lowerQuery.includes('соло') || lowerQuery.includes('табы') || lowerQuery.includes('lick')) {
     return {
-      text: "TouchGrass 🎵: Поймал! Настраиваю теплый ламповый блюз в Ля-миноре (A Aeolian). Пентатоника уже ждет тебя на грифе, погнали джемить!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'A',
-          mode: 'aeolian',
-          bpm: 90,
-          track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Backing Track in A Minor' }
-        }
-      }
+      text: "TouchGrass 🎵: Без проблем! Открываю панель генерации табов для тебя.",
+      action: { type: 'OPEN_TAB_GEN', payload: {} }
     };
   }
 
-  if (lowerQuery.includes('фанк') || lowerQuery.includes('до') || lowerQuery.includes('c ')) {
+  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
     return {
-      text: "TouchGrass 🎵: Закачиваем плотный фанковый грув в До-дорийском ладу (C Dorian). Включай фейзер, качаем этот ритм!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'C',
-          mode: 'dorian',
-          bpm: 110,
-          track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk Jam' }
-        }
-      }
+      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят? Давай расслабим кисти и снизим темп до 70 BPM в простом Ля-миноре. Попробуй поиграть без спешки.",
+      action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70 } }
     };
   }
 
   return {
-    text: "TouchGrass 🎵: Привет! Я твой гитарный наставник. Напиши мне, что ты хочешь сыграть (например, 'хочу блюз в ля миноре'), или пожалуйся, если упражнение дается слишком тяжело — я помогу упростить задачу!"
+    text: "TouchGrass 🎵: Привет! Я твой гитарный наставник. Попроси меня 'показать аккорд Am9', 'сгенерировать соло' или пожалуйся на боль в пальцах!"
   };
 };
 
@@ -163,11 +134,9 @@ const findFretForNote = (targetNote: string, targetStringIdx: number, basePositi
   const openNote = STANDARD_TUNING[targetStringIdx];
   const openIndex = ALL_NOTES.indexOf(openNote);
   const targetIndex = ALL_NOTES.indexOf(targetNote);
-  
   let distance = (targetIndex - openIndex + 12) % 12;
   if (distance < basePosition - 2) distance += 12;
   if (distance > basePosition + 5) distance -= 12;
-  
   return Math.abs(distance);
 };
 
@@ -181,7 +150,6 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     const randomNote = scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
     const fret = findFretForNote(randomNote, currentString, basePosition);
     let durationObj: 'quarter' | 'eighth' | 'sixteenth' = Math.random() > 0.6 ? 'eighth' : 'sixteenth';
-    
     let technique: Technique = 'none';
     let tiedToNext = false;
     
@@ -195,13 +163,7 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
        durationObj = 'quarter';
     }
 
-    notes.push({
-      string: currentString,
-      fret: fret,
-      duration: durationObj,
-      technique,
-      tiedToNext
-    });
+    notes.push({ string: currentString, fret: fret, duration: durationObj, technique, tiedToNext });
     
     if (Math.random() > 0.6) {
        currentString += Math.random() > 0.5 ? 1 : -1;
@@ -210,8 +172,5 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     }
   }
 
-  return {
-    name: `AI Generated ${keyNote} ${mode} Lick`,
-    notes
-  };
+  return { name: `AI Generated ${keyNote} ${mode} Lick`, notes };
 };
