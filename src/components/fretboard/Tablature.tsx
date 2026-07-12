@@ -2,12 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { generateSmartLick, type Lick } from '../../services/AIEngine';
 
-const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
-  const { mode, keyNote, getScaleNotes } = useMusic();
+const Tablature: React.FC = () => {
+  const { mode, keyNote, getScaleNotes, bpm } = useMusic();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentLick, setCurrentLick] = useState<Lick | null>(null);
+  
+  // Локальный стейт для бегущего курсора (подсветка текущей ноты)
+  const [localActiveStep, setLocalActiveStep] = useState<number>(-1);
 
-  // Мгновенная инициализация: подстраховка на случай пустых массивов гармонии при старте
+  // Мгновенная инициализация при старте
   useEffect(() => {
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -18,6 +22,7 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
   }, [keyNote, mode]);
 
   const handleGenerate = () => {
+    if (isPlayingAudio) return;
     setIsGenerating(true);
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
@@ -25,7 +30,86 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
     setTimeout(() => {
       setCurrentLick(generateSmartLick(safeScale, keyNote || 'C', mode || 'major'));
       setIsGenerating(false);
+      setLocalActiveStep(-1);
     }, 400);
+  };
+
+  // 🔥 Web Audio API: Синтезатор для проигрывания табулатуры
+  const playLickAudio = () => {
+    if (!currentLick || isPlayingAudio) return;
+    setIsPlayingAudio(true);
+    setLocalActiveStep(-1);
+
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const ctx = new AudioContextClass();
+      
+      // Базовые частоты открытых струн: e, B, G, D, A, E (от тонкой к толстой)
+      const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41]; 
+      
+      let startTime = ctx.currentTime + 0.1;
+      const currentBpm = bpm || 120;
+      const quarterDuration = 60 / currentBpm; // Длительность одной четверти в секундах
+
+      currentLick.notes.forEach((note, index) => {
+        // Вычисляем частоту ноты: Базовая частота струны * 2^(лад/12)
+        const freq = OPEN_FREQS[note.string] * Math.pow(2, note.fret / 12);
+        
+        // Вычисляем длительность ноты в секундах
+        let noteDuration = quarterDuration;
+        if (note.duration === 'eighth') noteDuration = quarterDuration / 2;
+        if (note.duration === 'sixteenth') noteDuration = quarterDuration / 4;
+
+        // Синхронизируем визуальный курсор с аудио через таймер
+        setTimeout(() => {
+          setLocalActiveStep(index);
+        }, (startTime - ctx.currentTime) * 1000);
+
+        // Создаем звук
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.type = 'triangle'; // Мягкий гитарный/синтовый тембр
+        
+        // Вибрато (если есть техника)
+        if (note.technique === 'vibrato') {
+          const lfo = ctx.createOscillator();
+          const lfoGain = ctx.createGain();
+          lfo.type = 'sine';
+          lfo.frequency.value = 5; // 5 Гц вибрато
+          lfoGain.gain.value = freq * 0.03; // Глубина
+          lfo.connect(lfoGain);
+          lfoGain.connect(osc.frequency);
+          lfo.start(startTime);
+          lfo.stop(startTime + noteDuration);
+        }
+
+        osc.frequency.setValueAtTime(freq, startTime);
+        
+        // Огибающая громкости (Attack -> Decay)
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + noteDuration - 0.02);
+        
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+        
+        osc.start(startTime);
+        osc.stop(startTime + noteDuration);
+
+        // Сдвигаем время для следующей ноты
+        startTime += noteDuration;
+      });
+
+      // Сброс состояния после завершения фразы
+      setTimeout(() => {
+        setLocalActiveStep(-1);
+        setIsPlayingAudio(false);
+      }, (startTime - ctx.currentTime) * 1000 + 200);
+
+    } catch (e) {
+      console.error("Audio Synthesis Failed:", e);
+      setIsPlayingAudio(false);
+    }
   };
 
   const stringSpacing = 20;
@@ -33,7 +117,6 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
   const noteSpacing = 70;
   const startX = 80;
 
-  // 🔥 ИСПРАВЛЕНО: Добавлен flexShrink: 0 и явная минимальная высота, чтобы контейнер не исчезал
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', overflow: 'hidden', flexShrink: 0, minHeight: '310px', marginTop: '8px' }}>
       
@@ -47,15 +130,27 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
             {currentLick ? currentLick.name : 'Initializing Tab Engine...'}
           </span>
         </div>
-        <button 
-          onClick={handleGenerate}
-          disabled={isGenerating || !currentLick}
-          style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 16px', borderRadius: '20px', fontWeight: 800, fontSize: '12px', cursor: 'pointer', transition: '0.2s', display: 'flex', gap: '8px', alignItems: 'center' }}
-          onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-          onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
-        >
-          {isGenerating ? '⏳ GENERATING...' : '🎲 GENERATE LICK'}
-        </button>
+        
+        <div style={{ display: 'flex', gap: '12px' }}>
+          {/* 🔥 НОВАЯ КНОПКА ВОСПРОИЗВЕДЕНИЯ */}
+          <button 
+            onClick={playLickAudio}
+            disabled={isGenerating || isPlayingAudio || !currentLick}
+            style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '6px 16px', borderRadius: '20px', fontWeight: 900, fontSize: '12px', cursor: isPlayingAudio ? 'default' : 'pointer', transition: '0.2s', display: 'flex', gap: '8px', alignItems: 'center', opacity: (isGenerating || !currentLick) ? 0.5 : 1 }}
+          >
+            {isPlayingAudio ? '🎶 PLAYING...' : '🔊 PLAY LICK'}
+          </button>
+
+          <button 
+            onClick={handleGenerate}
+            disabled={isGenerating || isPlayingAudio || !currentLick}
+            style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 16px', borderRadius: '20px', fontWeight: 800, fontSize: '12px', cursor: 'pointer', transition: '0.2s', display: 'flex', gap: '8px', alignItems: 'center', opacity: isPlayingAudio ? 0.5 : 1 }}
+            onMouseEnter={e => { if(!isPlayingAudio) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+          >
+            {isGenerating ? '⏳ GENERATING...' : '🎲 GENERATE NEW'}
+          </button>
+        </div>
       </div>
 
       {/* SVG TABLATURE RENDERER */}
@@ -97,10 +192,11 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
               const nextY = startY + (currentLick.notes[index + 1]?.string || 0) * stringSpacing;
               
               const stemBottomY = 190;
-              const isActive = activeStep === index;
+              // 🔥 Проверка активности ноты для бегущего курсора
+              const isActive = localActiveStep === index;
               
               return (
-                <g key={`note-${index}`} style={{ opacity: isGenerating ? 0.3 : 1, transition: 'all 0.2s' }}>
+                <g key={`note-${index}`} style={{ opacity: isGenerating ? 0.3 : 1, transition: 'all 0.1s' }}>
                   
                   {/* ДУГИ ЛЕГАТО */}
                   {note.tiedToNext && currentLick.notes[index + 1] && (
@@ -127,22 +223,23 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
                     <line x1={x} y1={stemBottomY - 6} x2={x + 15} y2={stemBottomY - 11} stroke={isActive ? "var(--accent)" : "var(--text-muted)"} strokeWidth="2" />
                   )}
 
-                  {/* ФОН НОТЫ */}
+                  {/* ФОН НОТЫ (Прямоугольник затирающий линию струны) */}
                   <rect x={x - 12} y={y - 12} width="24" height="24" fill="#111216" rx="4" />
 
-                  {/* САМА НОТА */}
+                  {/* ПОДСВЕТКА АКТИВНОЙ НОТЫ (Бегущий курсор) */}
+                  {isActive && (
+                    <circle cx={x} cy={y} r="16" fill="var(--accent)" opacity="0.8" style={{ filter: 'drop-shadow(0 0 8px var(--accent))' }} />
+                  )}
+
+                  {/* САМА ЦИФРА ЛАДА */}
                   <text 
                     x={x} y={y + 4} 
                     fill={isActive ? '#000' : (note.technique !== 'none' ? 'var(--accent)' : 'var(--text-primary)')} 
-                    fontSize={isActive ? "16" : "14"} 
+                    fontSize={isActive ? "18" : "14"} 
                     fontWeight="900" fontFamily="monospace" textAnchor="middle"
                   >
                     {note.fret}
                   </text>
-                  
-                  {isActive && (
-                    <circle cx={x} cy={y} r="14" fill="var(--accent)" opacity="0.8" style={{ zIndex: -1 }} />
-                  )}
 
                   {/* Подпись техники над дугой */}
                   {note.tiedToNext && (

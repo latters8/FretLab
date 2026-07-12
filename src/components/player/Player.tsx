@@ -30,16 +30,15 @@ const Player: React.FC<PlayerProps> = ({
   }, [isPlaying]);
 
   const getEmbedUrl = (videoId: string) => {
-    // ✅ Используем youtube-nocookie для обхода блокировок
     const baseUrl = 'https://www.youtube-nocookie.com/embed';
     
-    // Определяем origin
     let origin = 'https://latters8.github.io';
     if (typeof window !== 'undefined') {
       const hostname = window.location.hostname;
       if (hostname === 'localhost' || hostname === '127.0.0.1') {
-        // ⚠️ Для локальной разработки используем *
         origin = '*';
+      } else if (hostname === 'latters8.github.io') {
+        origin = 'https://latters8.github.io';
       } else {
         origin = window.location.origin;
       }
@@ -54,7 +53,7 @@ const Player: React.FC<PlayerProps> = ({
       modestbranding: '1',
       iv_load_policy: '3',
       playsinline: '1',
-      origin: origin,  // Для localhost будет '*'
+      origin: origin,
       fs: '1',
       disablekb: '0'
     });
