@@ -19,6 +19,7 @@ export interface AIResponse {
   };
 }
 
+// --- Типы для генератора табов ---
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {
@@ -34,32 +35,34 @@ export interface Lick {
   notes: TabNote[];
 }
 
-const SYSTEM_PROMPT = `You are the AI Conductor of FretLab, an operating system for guitarists.
-Your task is to analyze user requests and return a valid JSON object. Do not include any markdown formatting or extra text outside the JSON block.
+// 🔥 ОБУЧАЮЩИЙ СИСТЕМНЫЙ ПРОМПТ ДЛЯ ЛИЧНОСТИ TOUCHGRASS 🎵
+const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a lightweight, highly supportive, and deeply human AI assistant embedded inside FretLab.
+Your expertise covers guitar anatomy, tabs, advanced music theory, songwriting, and, most importantly, detecting musician frustration.
 
+Guidelines for your personality:
+1. Act like an experienced, warm guitar coach or a supportive peer. Use light music jokes, be encouraging.
+2. DETECT FRUSTRATION: If the user complains about pain (fingers hurt), difficulty (F chord/barree is too hard, got stuck), or feeling overwhelmed, respond with empathy. Tell them it's completely normal, suggest they take a quick break ("touch grass" concept), and dynamically offer to lower the BPM or change the context to a simpler key (like C Major or A Minor).
+3. If they ask about songwriting or scales, provide structured, inspiring answers.
+
+You must analyze user requests and return a valid JSON object. Do not include any markdown formatting or extra text outside the JSON block.
 The JSON structure MUST strictly follow the AIResponse interface:
 {
-  "text": "Your helpful and musically accurate textual response here.",
+  "text": "Your human-like, encouraging response with TouchGrass 🎵 branding.",
   "action": {
     "type": "SET_CONTEXT",
     "payload": {
-      "key": "C", // Must be one of: C, C#, D, D#, E, F, F#, G, G#, A, A#, B
-      "mode": "dorian", // Must be one of: major, minor, dorian, phrygian, lydian, mixolydian, aeolian, locrian
-      "bpm": 110,
-      "track": {
-        "platform": "youtube",
-        "id": "X5X1i5H9m2s",
-        "title": "Descriptive backing track title"
-      }
+      "key": "A", 
+      "mode": "minor",
+      "bpm": 70
     }
   }
-}
-
-If the user asks to play a certain style, key, or jam, find a suitable musical setting, write a concise explanation, and provide the correct payload to change the app state.`;
+}`;
 
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
   const savedApiKey = localStorage.getItem('fretlab_api_key');
+  const lowerQuery = query.toLowerCase();
 
+  // 1. ЕСЛИ КЛЮЧ ЕСТЬ: Запускаем живую нейросеть с характером TouchGrass
   if (savedApiKey) {
     try {
       const response = await fetch('https://api.deepseek.com/chat/completions', {
@@ -75,18 +78,11 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
             { role: 'user', content: query }
           ],
           response_format: { type: 'json_object' }, 
-          temperature: 0.2
+          temperature: 0.4 // Чуть выше для более живой и человечной речи
         })
       });
 
-      // 🔥 ВЫВОДИМ ОШИБКИ СЕРВЕРА НА ЭКРАН (Неверный ключ, нет денег на балансе)
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => 'No error body');
-        return {
-          text: `🔴 Ошибка DeepSeek API (Статус ${response.status}). Возможно, неверный токен, закончились средства на балансе DeepSeek или сбоит сервер. Ответ API: ${errBody.substring(0, 120)}`
-        };
-      }
-
+      if (!response.ok) throw new Error(`API Status ${response.status}`);
       const jsonRes = await response.json();
       let aiMessage = jsonRes.choices[0].message.content;
 
@@ -94,21 +90,40 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       return JSON.parse(aiMessage) as AIResponse;
 
     } catch (error: any) {
-      console.error('DeepSeek API Network/CORS Error:', error);
-      // 🔥 ВЫВОДИМ ОШИБКИ СЕТИ И CORS НА ЭКРАН
-      return {
-        text: `🔴 Блокировка CORS или ошибка сети: "${error?.message || 'Failed to fetch'}". Прямые запросы к API из браузера часто блокируются DeepSeek для безопасности. Открой консоль браузера (F12 -> Вкладка Console), чтобы увидеть системный лог блокировки.`
-      };
+      console.error('TouchGrass Online Error, falling to local empathy:', error);
     }
   }
 
-  // --- ОБЫЧНЫЙ ЛОКАЛЬНЫЙ FALLBACK (Сработает ТОЛЬКО если ключа физически НЕТ в localStorage) ---
-  const lowerQuery = query.toLowerCase();
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  // 2. 🔥 АВТОНОМНЫЙ РЕЖИМ С АНАЛИЗОМ ЭМОЦИЙ И ФРУСТРАЦИИ (Без ключа API)
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
+  // Проверка триггеров фрустрации и усталости музыканта
+  if (
+    lowerQuery.includes('сложно') || 
+    lowerQuery.includes('болит') || 
+    lowerQuery.includes('бесит') || 
+    lowerQuery.includes('не получается') || 
+    lowerQuery.includes('устал') ||
+    lowerQuery.includes('hard') ||
+    lowerQuery.includes('hurt')
+  ) {
+    return {
+      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят, а аккорды кажутся стеной? Это абсолютно нормально. Каждый крутой гитарист проходил через это. Давай сделаем глубокий вдох, опустим руки, расслабим кисти и снизим темп до спокойных 70 BPM в простом Ля-миноре. Попробуй поиграть медленно, без спешки. Ты со всем справишься!",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'A',
+          mode: 'aeolian',
+          bpm: 70
+        }
+      }
+    };
+  }
+
+  // Стандартные музыкальные команды для оффлайн-режима
   if (lowerQuery.includes('ля минор') || lowerQuery.includes('a minor') || lowerQuery.includes('блюз')) {
     return {
-      text: "[Offline Mode] Я переключил тональность в Ля-минор (A Aeolian) и подгрузил классический блюзовый джем.",
+      text: "TouchGrass 🎵: Поймал! Настраиваю теплый ламповый блюз в Ля-миноре (A Aeolian). Пентатоника уже ждет тебя на грифе, погнали джемить!",
       action: {
         type: 'SET_CONTEXT',
         payload: {
@@ -123,7 +138,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
 
   if (lowerQuery.includes('фанк') || lowerQuery.includes('до') || lowerQuery.includes('c ')) {
     return {
-      text: "[Offline Mode] Фанк в До-дорийском ладу (C Dorian). Движок перестроен под грув ритм-секции.",
+      text: "TouchGrass 🎵: Закачиваем плотный фанковый грув в До-дорийском ладу (C Dorian). Включай фейзер, качаем этот ритм!",
       action: {
         type: 'SET_CONTEXT',
         payload: {
@@ -137,7 +152,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   }
 
   return {
-    text: "Я работаю в автономном режиме. Чтобы раскрыть весь потенциал ИИ-дирижера, введи свой API-ключ в настройках панели 🎛 Tone Setup!"
+    text: "TouchGrass 🎵: Привет! Я твой гитарный наставник. Напиши мне, что ты хочешь сыграть (например, 'хочу блюз в ля миноре'), или пожалуйся, если упражнение дается слишком тяжело — я помогу упростить задачу!"
   };
 };
 
