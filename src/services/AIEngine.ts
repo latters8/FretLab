@@ -1,119 +1,151 @@
-import { type TrackInfo, type Mode } from '../context/MusicContext';
+export type VideoPlatform = 'youtube' | 'rutube' | 'vk';
 
-export interface AIAction {
-  type: 'SET_CONTEXT';
-  payload: {
-    key?: string;
-    mode?: Mode;
-    bpm?: number;
-    track?: TrackInfo;
-  };
+export interface TrackInfo {
+  platform: VideoPlatform;
+  id: string;
+  title: string;
 }
 
 export interface AIResponse {
   text: string;
-  action?: AIAction;
+  action?: {
+    type: 'SET_CONTEXT';
+    payload: {
+      key?: string;
+      mode?: any;
+      bpm?: number;
+      track?: TrackInfo;
+    };
+  };
 }
 
-// 🔥 ПРОМПТ ДЛЯ НЕЙРОСЕТИ: Обучаем ИИ управлять нашим интерфейсом
-const SYSTEM_PROMPT = `
-You are the AI brain of 'FretLab' - a professional guitar workstation.
-The user will ask you for musical advice, backing tracks, theory, or to change settings.
+// --- Типы для генератора табов ---
+export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
-Your GOAL is to answer their question AND control the UI by sending specific parameters.
-You MUST ALWAYS respond with a VALID JSON object in this exact format:
-
-{
-  "text": "Your helpful response explaining theory, chord suggestions, or introducing the backing track.",
-  "action": {
-    "type": "SET_CONTEXT",
-    "payload": {
-      "key": "A", // The root note (C, C#, D, D#, E, F, F#, G, G#, A, A#, B)
-      "mode": "dorian", // The scale mode (major, minor, dorian, phrygian, lydian, mixolydian, aeolian, locrian, blues, pentatonic)
-      "bpm": 110, // Suggested BPM
-      "track": { // (Optional) ONLY if the user wants to jam.
-        "platform": "youtube",
-        "id": "YOUR_SUGGESTED_YOUTUBE_VIDEO_ID",
-        "title": "Title of the backing track"
-      }
-    }
-  }
+export interface TabNote {
+  string: number; // 0 (e) to 5 (E)
+  fret: number;
+  duration: 'quarter' | 'eighth' | 'sixteenth';
+  technique: Technique;
+  tiedToNext?: boolean;
 }
-Do NOT use markdown code blocks like \`\`\`json. Return ONLY raw JSON.
-`;
 
+export interface Lick {
+  name: string;
+  notes: TabNote[];
+}
+
+// Эмулятор текстовых запросов (наш мозг)
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
-  const apiKey = import.meta.env.VITE_AI_API_KEY;
-
-  // 🧠 СЦЕНАРИЙ 1: Если у нас есть API-ключ (Реальный ИИ)
-  if (apiKey && apiKey.length > 10) {
-    try {
-      // Можно использовать 'https://api.deepseek.com/v1/chat/completions' для DeepSeek
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: "gpt-3.5-turbo", // или "deepseek-chat"
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: query }
-          ],
-          temperature: 0.7
-        })
-      });
-
-      const data = await response.json();
-      let content = data.choices[0].message.content;
-      
-      // Очищаем от возможных маркдаун-блоков (```json)
-      content = content.replace(/```json/g, '').replace(/```/g, '').trim();
-      
-      return JSON.parse(content) as AIResponse;
-    } catch (error) {
-      console.error("AI API Error:", error);
-      // Если API упал, мягко переходим к локальному анализатору (Сценарий 2)
-    }
-  }
-
-  // ⚡ СЦЕНАРИЙ 2: Локальный анализатор (Если ключа нет)
-  await new Promise(resolve => setTimeout(resolve, 600)); // Имитация задержки сети
   const lowerQuery = query.toLowerCase();
 
-  // Локальный умный парсер тональностей
-  let detectedKey = 'E';
-  if (lowerQuery.match(/\b(a|ля)\b/)) detectedKey = 'A';
-  if (lowerQuery.match(/\b(c|до)\b/)) detectedKey = 'C';
-  if (lowerQuery.match(/\b(d|ре)\b/)) detectedKey = 'D';
-  if (lowerQuery.match(/\b(g|соль)\b/)) detectedKey = 'G';
-  if (lowerQuery.match(/\b(f|фа)\b/)) detectedKey = 'F';
+  // Имитация задержки сети для реалистичности
+  await new Promise((resolve) => setTimeout(resolve, 800));
 
-  // Локальный парсер стилей
-  if (lowerQuery.includes('блюз') || lowerQuery.includes('blues')) {
+  if (lowerQuery.includes('ля минор') || lowerQuery.includes('a minor') || lowerQuery.includes('блюз')) {
     return {
-      text: `Я нашел отличный блюзовый минус в тональности ${detectedKey} и переключил интерфейс на блюзовую пентатонику. Обрати внимание на 'Suggested Chords' справа — там отличные доминантсептаккорды для обыгрыша!`,
-      action: { type: 'SET_CONTEXT', payload: { key: detectedKey, mode: 'blues', bpm: 90, track: { platform: 'youtube', id: 'OebA4GfO8wU', title: `${detectedKey} Blues Jam` } } }
+      text: "Отличный выбор! Я переключил тональность в Ля-минор (A Aeolian) и нашел классический блюзовый джем. Обрати внимание на пентатонику в 5-й позиции!",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'A',
+          mode: 'aeolian',
+          bpm: 90,
+          track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Backing Track in A Minor' }
+        }
+      }
     };
   }
 
-  if (lowerQuery.includes('фанк') || lowerQuery.includes('funk')) {
+  if (lowerQuery.includes('фанк') || lowerQuery.includes('до') || lowerQuery.includes('c ')) {
     return {
-      text: `Фанк — это ритм! Я включил фанк-минус в ${detectedKey} Дорийском (Dorian) ладу. Попробуй использовать обращения из панели справа, чтобы звучать как Нил Роджерс.`,
-      action: { type: 'SET_CONTEXT', payload: { key: detectedKey, mode: 'dorian', bpm: 110, track: { platform: 'youtube', id: 'fX1D_S2YkXo', title: `${detectedKey} Dorian Funk` } } }
+      text: "Фанк в До-дорийском ладу (C Dorian) — это классика грува. Я подгрузил мощный минус и настроил гриф.",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: {
+          key: 'C',
+          mode: 'dorian',
+          bpm: 110,
+          track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk Jam' }
+        }
+      }
     };
   }
 
-  if (lowerQuery.includes('метал') || lowerQuery.includes('metal')) {
-    return {
-      text: `Врубаем дисторшн! Тяжелый метал-минус в ${detectedKey} Фригийском (Phrygian) ладу. Гриф и диатоника уже перестроены под этот мрачный лад.`,
-      action: { type: 'SET_CONTEXT', payload: { key: detectedKey, mode: 'phrygian', bpm: 140, track: { platform: 'youtube', id: '1a2b3c4d5e', title: `${detectedKey} Dark Metal Jam` } } }
-    };
-  }
-
-  // Дефолтный ответ
   return {
-    text: "Пока я работаю в локальном режиме без API-ключа. Но я уже умею распознавать стили! Напиши мне, например: 'Включи фанк в до' или 'Давай поиграем блюз в ля', и я всё настрою."
+    text: "Я пока в режиме обучения и понимаю только команды вроде 'блюз в ля миноре' или 'фанк в до'. В будущем я буду подключен к полноценной нейросети!"
+  };
+};
+
+// --- ИНТЕРАКТИВНЫЙ AI-ГЕНЕРАТОР ТАБОВ ---
+const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const STANDARD_TUNING = ['E', 'B', 'G', 'D', 'A', 'E']; // от 1-й к 6-й
+
+// Функция поиска лада для ноты вокруг целевой позиции (например, 5-7 лад)
+const findFretForNote = (targetNote: string, targetStringIdx: number, basePosition: number = 5): number => {
+  const openNote = STANDARD_TUNING[targetStringIdx];
+  const openIndex = ALL_NOTES.indexOf(openNote);
+  const targetIndex = ALL_NOTES.indexOf(targetNote);
+  
+  let distance = (targetIndex - openIndex + 12) % 12;
+  // Ищем лад в нужной октаве, чтобы было удобно играть
+  if (distance < basePosition - 2) distance += 12;
+  if (distance > basePosition + 5) distance -= 12;
+  
+  return Math.abs(distance);
+};
+
+export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: string): Lick => {
+  const notes: TabNote[] = [];
+  const phraseLength = Math.floor(Math.random() * 3) + 6; // 6-8 нот в фразе
+  
+  // Выбираем стартовую позицию на грифе случайным образом (позиция 5 или 7)
+  const basePosition = Math.random() > 0.5 ? 5 : 7;
+  let currentString = Math.floor(Math.random() * 2) + 2; // Начнем с 3-й (G) или 4-й (D) струны
+  
+  for (let i = 0; i < phraseLength; i++) {
+    // 1. Выбираем случайную ноту из текущей гаммы
+    const randomNote = scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
+    
+    // 2. Ищем для нее удобный лад на текущей или соседней струне
+    const fret = findFretForNote(randomNote, currentString, basePosition);
+    
+    // 3. 🔥 ИСПРАВЛЕНО: Изменено с const на let для возможности переназначать длительность ноты
+    let durationObj: 'quarter' | 'eighth' | 'sixteenth' = Math.random() > 0.6 ? 'eighth' : 'sixteenth';
+    
+    // 4. Добавляем "гитарную физику" (слайды и легато)
+    let technique: Technique = 'none';
+    let tiedToNext = false;
+    
+    if (i < phraseLength - 1 && Math.random() > 0.7) {
+       technique = Math.random() > 0.5 ? 'hammer' : 'slide';
+       tiedToNext = true;
+    }
+    
+    // Последняя нота часто играется с вибрато и тянется дольше
+    if (i === phraseLength - 1) {
+       technique = 'vibrato';
+       durationObj = 'quarter';
+    }
+
+    notes.push({
+      string: currentString,
+      fret: fret,
+      duration: durationObj,
+      technique,
+      tiedToNext
+    });
+    
+    // Слегка смещаемся по струнам вверх или вниз (чтобы соло звучало натурально)
+    if (Math.random() > 0.6) {
+       currentString += Math.random() > 0.5 ? 1 : -1;
+       if (currentString > 5) currentString = 5;
+       if (currentString < 0) currentString = 0;
+    }
+  }
+
+  return {
+    name: `AI Generated ${keyNote} ${mode} Lick`,
+    notes
   };
 };

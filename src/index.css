@@ -1,69 +1,120 @@
-/* =========================================
-   ТЕМА 1: NEBULA GRAPHITE (Default)
-   Темно-графитовый, фиолетовые и мятные акценты
-========================================= */
-:root, [data-theme="nebula-graphite"] {
-  --bg-primary: #0e0f12;
-  --bg-secondary: #15171c;
-  --bg-panel: #1a1c23;
-  --bg-hover: #232630;
-  --border-color: #2b2e38;
-  --text-primary: #f0f2f5;
-  --text-secondary: #9ba1b0;
-  --text-muted: #646a7a;
-  --accent: #a374ff; /* Неоновый фиолетовый */
-  --accent-blue: #00e6a8; /* Мятно-зеленый */
-  --radius: 8px;
-  --radius-sm: 4px;
-}
-
-/* =========================================
-   ТЕМА 2: TITANIUM CITRINE
-   Матовый серый титан, лимонный и голубой
-========================================= */
-[data-theme="titanium-citrine"] {
-  --bg-primary: #191919;
-  --bg-secondary: #222222;
-  --bg-panel: #2a2a2a;
-  --bg-hover: #333333;
-  --border-color: #3f3f3f;
+:root {
+  --bg-root: #090a0f;
+  --bg-panel: #111216;
+  --bg-primary: #1a1b23;
+  --bg-secondary: #22242e;
+  --bg-hover: #2a2d39;
   --text-primary: #ffffff;
-  --text-secondary: #aaaaaa;
-  --text-muted: #777777;
-  --accent: #c4d700; /* Яркий цитрин / лимонный */
-  --accent-blue: #00d2ff;
-  --radius: 6px;
-  --radius-sm: 3px;
+  --text-secondary: #a0a5b5;
+  --text-muted: #6b7280;
+  --border-color: #2a2d39;
+  --accent: #00FF9D;
+  --radius: 12px;
 }
-
-/* =========================================
-   ТЕМА 3: CRIMSON ONYX
-   Тотальный черный оникс, багровый неон
-========================================= */
-[data-theme="crimson-onyx"] {
-  --bg-primary: #000000;
-  --bg-secondary: #0a0a0a;
-  --bg-panel: #111111;
-  --bg-hover: #1a1a1a;
-  --border-color: #222222;
-  --text-primary: #ffffff;
-  --text-secondary: #888888;
-  --text-muted: #555555;
-  --accent: #ff3333; /* Багровый неон */
-  --accent-blue: #00c3ff;
-  --radius: 4px;
-  --radius-sm: 2px;
-}
-
-/* Глобальные стили */
-* { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg-primary);
+  margin: 0;
+  font-family: sans-serif;
+  background: var(--bg-root);
   color: var(--text-primary);
-  height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* --- АДАПТИВНОСТЬ (MOBILE RESPONSIVE) --- */
+
+.app-layout {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
   overflow: hidden;
-  user-select: none;
-  transition: background 0.3s ease, color 0.3s ease; /* Плавная смена тем */
+}
+
+.left-sidebar {
+  width: 120px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 0;
+}
+
+.main-workspace {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.center-column {
+  flex: 1;
+  padding: 24px 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.right-column {
+  width: 340px;
+  flex-shrink: 0;
+  padding: 24px 16px;
+  border-left: 1px solid var(--border-color);
+  background: var(--bg-panel);
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  overflow-y: auto;
+}
+
+/* Мобильная версия (Экраны меньше 768px) */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+    overflow-y: auto;
+    height: auto;
+  }
+
+  .left-sidebar {
+    width: 100%;
+    flex-direction: row;
+    justify-content: center;
+    padding: 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .main-workspace {
+    flex-direction: column;
+    overflow-y: visible;
+  }
+
+  .center-column {
+    padding: 16px;
+    gap: 16px;
+    overflow-y: visible;
+  }
+
+  .right-column {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    padding: 16px;
+    overflow-y: visible;
+  }
+
+  /* Специальный контейнер для свайпа грифа на телефоне */
+  .fretboard-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch; /* Плавный скролл на iOS */
+    padding-bottom: 12px; /* Место для скроллбара */
+    margin: 0 -16px; /* Вытягиваем за края экрана */
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
