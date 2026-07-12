@@ -23,7 +23,7 @@ export interface AIResponse {
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
 
 export interface TabNote {
-  string: number; // 0 (e) to 5 (E)
+  string: number; 
   fret: number;
   duration: 'quarter' | 'eighth' | 'sixteenth';
   technique: Technique;
@@ -35,16 +35,70 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// Эмулятор текстовых запросов (наш мозг)
-export const processAIQuery = async (query: string): Promise<AIResponse> => {
-  const lowerQuery = query.toLowerCase();
+// Системный промпт, обучающий DeepSeek музыкальной математике FretLab
+const SYSTEM_PROMPT = `You are the AI Conductor of FretLab, an operating system for guitarists.
+Your task is to analyze user requests and return a valid JSON object. Do not include any markdown formatting or extra text outside the JSON block.
 
-  // Имитация задержки сети для реалистичности
-  await new Promise((resolve) => setTimeout(resolve, 800));
+The JSON structure MUST strictly follow the AIResponse interface:
+{
+  "text": "Your helpful and musically accurate textual response here.",
+  "action": {
+    "type": "SET_CONTEXT",
+    "payload": {
+      "key": "C", // Must be one of: C, C#, D, D#, E, F, F#, G, G#, A, A#, B
+      "mode": "dorian", // Must be one of: major, minor, dorian, phrygian, lydian, mixolydian, aeolian, locrian
+      "bpm": 110, // Integer
+      "track": {
+        "platform": "youtube",
+        "id": "X5X1i5H9m2s",
+        "title": "Descriptive backing track title"
+      }
+    }
+  }
+}
+
+If the user asks to play a certain style, key, or jam, find a suitable musical setting, write a concise explanation, and provide the correct payload to change the app state.`;
+
+export const processAIQuery = async (query: string): Promise<AIResponse> => {
+  // 🔥 Читаем ключ напрямую из безопасного localStorage
+  const savedApiKey = localStorage.getItem('fretlab_api_key');
+
+  if (savedApiKey) {
+    try {
+      const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${savedApiKey}`
+        },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            { role: 'user', content: query }
+          ],
+          response_format: { type: 'json_object' }, // Принудительный режим JSON
+          temperature: 0.2
+        })
+      });
+
+      if (!response.ok) throw new Error('API request failed');
+      const jsonRes = await response.json();
+      const aiMessage = jsonRes.choices[0].message.content;
+      return JSON.parse(aiMessage) as AIResponse;
+
+    } catch (error) {
+      console.error('DeepSeek API Error, falling back to local engine:', error);
+    }
+  }
+
+  // --- УЛУЧШЕННЫЙ ЛОКАЛЬНЫЙ FALLBACK (Если ключа нет или сеть упала) ---
+  const lowerQuery = query.toLowerCase();
+  await new Promise((resolve) => setTimeout(resolve, 600));
 
   if (lowerQuery.includes('ля минор') || lowerQuery.includes('a minor') || lowerQuery.includes('блюз')) {
     return {
-      text: "Отличный выбор! Я переключил тональность в Ля-минор (A Aeolian) и нашел классический блюзовый джем. Обрати внимание на пентатонику в 5-й позиции!",
+      text: "[Offline Mode] Я переключил тональность в Ля-минор (A Aeolian) и подгрузил классический блюзовый джем.",
       action: {
         type: 'SET_CONTEXT',
         payload: {
@@ -59,7 +113,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
 
   if (lowerQuery.includes('фанк') || lowerQuery.includes('до') || lowerQuery.includes('c ')) {
     return {
-      text: "Фанк в До-дорийском ладу (C Dorian) — это классика грува. Я подгрузил мощный минус и настроил гриф.",
+      text: "[Offline Mode] Фанк в До-дорийском ладу (C Dorian). Движок перестроен под грув ритм-секции.",
       action: {
         type: 'SET_CONTEXT',
         payload: {
@@ -73,22 +127,20 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   }
 
   return {
-    text: "Я пока в режиме обучения и понимаю только команды вроде 'блюз в ля миноре' или 'фанк в до'. В будущем я буду подключен к полноценной нейросети!"
+    text: "Я работаю в автономном режиме. Чтобы раскрыть весь потенциал ИИ-дирижера, введи свой API-ключ в настройках панели 🎛 Tone Setup!"
   };
 };
 
 // --- ИНТЕРАКТИВНЫЙ AI-ГЕНЕРАТОР ТАБОВ ---
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const STANDARD_TUNING = ['E', 'B', 'G', 'D', 'A', 'E']; // от 1-й к 6-й
+const STANDARD_TUNING = ['E', 'B', 'G', 'D', 'A', 'E'];
 
-// Функция поиска лада для ноты вокруг целевой позиции (например, 5-7 лад)
 const findFretForNote = (targetNote: string, targetStringIdx: number, basePosition: number = 5): number => {
   const openNote = STANDARD_TUNING[targetStringIdx];
   const openIndex = ALL_NOTES.indexOf(openNote);
   const targetIndex = ALL_NOTES.indexOf(targetNote);
   
   let distance = (targetIndex - openIndex + 12) % 12;
-  // Ищем лад в нужной октаве, чтобы было удобно играть
   if (distance < basePosition - 2) distance += 12;
   if (distance > basePosition + 5) distance -= 12;
   
@@ -97,23 +149,15 @@ const findFretForNote = (targetNote: string, targetStringIdx: number, basePositi
 
 export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: string): Lick => {
   const notes: TabNote[] = [];
-  const phraseLength = Math.floor(Math.random() * 3) + 6; // 6-8 нот в фразе
-  
-  // Выбираем стартовую позицию на грифе случайным образом (позиция 5 или 7)
+  const phraseLength = Math.floor(Math.random() * 3) + 6; 
   const basePosition = Math.random() > 0.5 ? 5 : 7;
-  let currentString = Math.floor(Math.random() * 2) + 2; // Начнем с 3-й (G) или 4-й (D) струны
+  let currentString = Math.floor(Math.random() * 2) + 2; 
   
   for (let i = 0; i < phraseLength; i++) {
-    // 1. Выбираем случайную ноту из текущей гаммы
     const randomNote = scaleNotes[Math.floor(Math.random() * scaleNotes.length)];
-    
-    // 2. Ищем для нее удобный лад на текущей или соседней струне
     const fret = findFretForNote(randomNote, currentString, basePosition);
-    
-    // 3. 🔥 ИСПРАВЛЕНО: Изменено с const на let для возможности переназначать длительность ноты
     let durationObj: 'quarter' | 'eighth' | 'sixteenth' = Math.random() > 0.6 ? 'eighth' : 'sixteenth';
     
-    // 4. Добавляем "гитарную физику" (слайды и легато)
     let technique: Technique = 'none';
     let tiedToNext = false;
     
@@ -122,7 +166,6 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
        tiedToNext = true;
     }
     
-    // Последняя нота часто играется с вибрато и тянется дольше
     if (i === phraseLength - 1) {
        technique = 'vibrato';
        durationObj = 'quarter';
@@ -136,7 +179,6 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
       tiedToNext
     });
     
-    // Слегка смещаемся по струнам вверх или вниз (чтобы соло звучало натурально)
     if (Math.random() > 0.6) {
        currentString += Math.random() > 0.5 ? 1 : -1;
        if (currentString > 5) currentString = 5;
