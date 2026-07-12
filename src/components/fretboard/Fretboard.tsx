@@ -12,7 +12,7 @@ const MATERIALS = {
   ebony: { bg: '#1a1a1a', dot: '#e0e0e0' },
   rosewood: { bg: '#3e2723', dot: '#d7ccc8' },
   maple: { bg: '#f1ba54', dot: '#3e2723' },
-  glass: { bg: 'rgba(255,255,255,0.05)', dot: 'var(--accent)' }
+  glass: { bg: 'rgba(255,255,255,0.05)', dot: '#d7ccc8' }
 };
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
