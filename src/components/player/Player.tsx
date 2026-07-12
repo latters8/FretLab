@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { useMusic } from '../../context/MusicContext';
 
-// 1. Определение пропсов согласно спецификации
 interface PlayerProps {
   height?: string | number;
   autoplay?: boolean;
@@ -31,10 +30,25 @@ const Player: React.FC<PlayerProps> = ({
     }
   }, [isPlaying]);
 
-  // 3. Генерация безопасного и полнофункционального Embed URL
+  // 3. ✅ ФИКС: Генерация безопасного Embed URL
   const getEmbedUrl = (videoId: string) => {
-    // Получаем текущий домен для параметра origin (требование безопасности YouTube)
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    // ✅ Используем youtube-nocookie.com для обхода блокировок
+    const baseUrl = 'https://www.youtube-nocookie.com/embed';
+    
+    // ✅ Определяем правильный origin
+    let origin = 'https://latters8.github.io'; // Для продакшна
+    
+    // Для локальной разработки
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        origin = 'http://localhost:3000';
+      } else if (hostname === 'latters8.github.io') {
+        origin = 'https://latters8.github.io';
+      } else {
+        origin = window.location.origin;
+      }
+    }
     
     const params = new URLSearchParams({
       enablejsapi: '1',
@@ -47,10 +61,12 @@ const Player: React.FC<PlayerProps> = ({
       playsinline: '1',
       origin: origin,
       fs: '1',
-      disablekb: '0'
+      disablekb: '0',
+      // ✅ Добавляем для совместимости
+      widget_referrer: origin,
     });
 
-    return `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
+    return `${baseUrl}/${videoId}?${params.toString()}`;
   };
 
   // 4. UI/UX: Адаптивный рендер с визуальными состояниями
@@ -64,7 +80,6 @@ const Player: React.FC<PlayerProps> = ({
       overflow: 'hidden'
     }}>
       {currentTrack && currentTrack.platform === 'youtube' ? (
-        // Активное состояние: Полноценный плеер с видео
         <iframe
           ref={iframeRef}
           width="100%"
@@ -72,14 +87,18 @@ const Player: React.FC<PlayerProps> = ({
           src={getEmbedUrl(currentTrack.id)}
           title="FretLab YouTube Player"
           frameBorder="0"
-          // Требования безопасности
           sandbox="allow-same-origin allow-scripts allow-forms allow-presentation allow-popups"
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
           allowFullScreen
-          style={{ display: 'block', backgroundColor: 'var(--bg-primary)' }}
+          style={{ 
+            display: 'block', 
+            backgroundColor: 'var(--bg-primary)',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
         />
       ) : (
-        // Пустое состояние: Заглушка согласно ТЗ
         <div 
           aria-label="No track selected"
           style={{ 
