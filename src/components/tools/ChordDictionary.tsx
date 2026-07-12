@@ -31,12 +31,13 @@ const CHORD_CATEGORIES = {
     { suffix: 'm9b5', label: 'm9b5 (Locrian 9th)' },
     { suffix: 'm7b5b9', label: 'm7b5(b9)' },
     { suffix: 'm11b5', label: 'm11b5' },
-    { suffix: 'dim7', label: 'dim7 (Full-Diminished)' },
+    { suffix: 'dim7', fill: 'dim7 (Full-Diminished)', label: 'dim7 (Full-Diminished)' },
     { suffix: 'dim', label: 'dim (Diminished Triad)' }
   ]
 };
 
-const STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
+// 🔥 ИСПРАВЛЕНО: Индексы строго соответствуют структуре БД (0 = Low E, 5 = High e)
+const STRINGS = ['E', 'A', 'D', 'G', 'B', 'e'];
 
 const ChordDictionary: React.FC = () => {
   const [selectedRoot, setSelectedRoot] = useState('C');
@@ -52,45 +53,43 @@ const ChordDictionary: React.FC = () => {
 
   const voicings = getVoicings();
 
-  // 🔥 СИНТЕЗАТОР ЗВУКА: Генерирует гитарный перебор аккорда через Web Audio API
+  // 🔥 СИНТЕЗАТОР ЗВУКА ИСПРАВЛЕН: Генерация сопоставлена верным частотам от баса к верхам
   const playChordAudio = (frets: (number | 'x')[]) => {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
       
       const ctx = new AudioContextClass();
-      // Частоты открытых струн (1-e, 2-B, 3-G, 4-D, 5-A, 6-E)
-      const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
+      // Частоты открытых струн от 6-й (Low E) к 1-й (High e)
+      const OPEN_FREQS = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
       
       let delay = 0;
 
-      // Играем струны от басовых (индекс 5) к тонким (индекс 0) для реалистичного медиатора
-      for (let i = 5; i >= 0; i--) {
+      // Перебор от толстых струн к тонким
+      for (let i = 0; i <= 5; i++) {
         const fret = frets[i];
         if (fret === 'x') continue;
 
         const openFreq = OPEN_FREQS[i];
-        // Формула изменения частоты по ладам: f = f0 * 2^(fret/12)
         const freq = openFreq * Math.pow(2, Number(fret) / 12);
 
         const osc = ctx.createOscillator();
         const gainNode = ctx.createGain();
 
-        osc.type = 'triangle'; // Мягкий, акустический тембр струны
+        osc.type = 'triangle'; 
         osc.frequency.setValueAtTime(freq, ctx.currentTime + delay);
 
-        // Pluck Envelope (Атака и затухание щипка струны)
         gainNode.gain.setValueAtTime(0, ctx.currentTime + delay);
-        gainNode.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.01);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 1.2);
+        gainNode.gain.linearRampToValueAtTime(0.2, ctx.currentTime + delay + 0.01);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 1.0);
 
         osc.connect(gainNode);
         gainNode.connect(ctx.destination);
 
         osc.start(ctx.currentTime + delay);
-        osc.stop(ctx.currentTime + delay + 1.2);
+        osc.stop(ctx.currentTime + delay + 1.0);
 
-        delay += 0.04; // 40мс задержка между струнами для имитации удара по струнам
+        delay += 0.05; 
       }
     } catch (e) {
       console.error("Audio Synthesis Failed:", e);
@@ -189,11 +188,20 @@ const ChordDictionary: React.FC = () => {
                 </button>
               </div>
 
-              {/* 🔥 ПРОФЕССИОНАЛЬНАЯ ВЕКТОРНАЯ (SVG) АККОРДОВАЯ СЕТКА С КРУЖКАМИ */}
+              {/* Текстовая схема зажима */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                {voicing.frets.map((f, idx) => (
+                  <span key={idx} style={{ color: f !== 'x' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {STRINGS[idx]}:{f}
+                  </span>
+                ))}
+              </div>
+
+              {/* НАСТОЯЩАЯ ВЕКТОРНАЯ (SVG) ГИТАРНАЯ СЕТКА С КРУЖКАМИ */}
               <div style={{ display: 'flex', justifyContent: 'center', padding: '10px 0', background: 'var(--bg-primary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                 <svg viewBox="0 0 240 280" style={{ width: '180px', height: 'auto', display: 'block' }}>
                   
-                  {/* Порожки (Горизонтальные линии сетки, 5 ладов) */}
+                  {/* Порожки (Горизонтальные линии, 5 ладов) */}
                   {[0, 1, 2, 3, 4, 5].map((i) => (
                     <line 
                       key={`fline-${i}`}
@@ -204,7 +212,7 @@ const ChordDictionary: React.FC = () => {
                     />
                   ))}
 
-                  {/* Струны (Вертикальные линии сетки, 6 струн от 6 к 1) */}
+                  {/* Струны (Вертикальные линии, слева направо: от 6-й к 1-й) */}
                   {[0, 1, 2, 3, 4, 5].map((i) => (
                     <line 
                       key={`sline-${i}`}
@@ -215,47 +223,44 @@ const ChordDictionary: React.FC = () => {
                     />
                   ))}
 
-                  {/* Индикатор базового лада (например, 5 fr. слева от сетки) */}
+                  {/* Индикатор базового лада */}
                   {voicing.baseFret > 1 && (
                     <text x="15" y="75" fill="var(--accent)" fontSize="12" fontWeight="800" textAnchor="middle">
                       {voicing.baseFret}fr
                     </text>
                   )}
 
-                  {/* Названия струн внизу сетки */}
-                  {['E', 'A', 'D', 'G', 'B', 'e'].map((letter, i) => (
+                  {/* 🔥 ИСПРАВЛЕНО: Буквы струн берутся напрямую из массива STRINGS (сверху вниз: E A D G B e) */}
+                  {STRINGS.map((letter, i) => (
                     <text key={`lbl-${i}`} x={40 + i * 32} y="270" fill="var(--text-muted)" fontSize="11" fontWeight="800" textAnchor="middle">
                       {letter}
                     </text>
                   ))}
 
-                  {/* ОТРИСОВКА МАРКЕРОВ ЗАЖИМА (КРУЖКОВ) И ГЛУШЕНИЯ */}
+                  {/* ОТРИСОВКА КРУЖКОВ ЗАЖИМА И КРЕСТИКОВ ГЛУШЕНИЯ */}
                   {voicing.frets.map((fretVal, stringIdx) => {
-                    // Разворачиваем индекс струны: в БД индекс 0 - это первая струна (high e), на схеме она крайняя справа (i = 5)
-                    const gridX = 40 + (5 - stringIdx) * 32;
+                    // stringIdx 0 в базе — это 6-я струна (Low E), крайняя левая линия на SVG схеме (i = 0)
+                    const gridX = 40 + stringIdx * 32;
                     
                     if (fretVal === 'x') {
-                      // Струна приглушена - рисуем крестик над нулевым порожком
                       return (
                         <text key={`x-${stringIdx}`} x={gridX} y="38" fill="#ff4d4d" fontSize="14" fontWeight="900" textAnchor="middle">✕</text>
                       );
                     }
                     
                     if (fretVal === 0) {
-                      // Струна открытая - рисуем пустой кружок над нулевым порожком
                       return (
                         <circle key={`o-${stringIdx}`} cx={gridX} cy={34} r="5" fill="transparent" stroke="var(--text-secondary)" strokeWidth="2" />
                       );
                     }
 
-                    // Струна зажата на ладу - высчитываем относительный лад внутри 5-ладового окна сетки
                     const relativeFret = fretVal - voicing.baseFret + 1;
-                    const gridY = 50 + (relativeFret - 1) * 40 + 20; // Центр ячейки лада
+                    const gridY = 50 + (relativeFret - 1) * 40 + 20;
 
                     if (relativeFret >= 1 && relativeFret <= 5) {
                       return (
                         <g key={`dot-${stringIdx}`}>
-                          {/* 🔥 КРУЖОК НА СТРУНЕ ВЕРНУЛСЯ НА МЕСТО */}
+                          {/* 🔥 ИСПРАВЛЕНО: Неоновые кружочки с номерами ладов вернулись на струны */}
                           <circle cx={gridX} cy={gridY} r="11" fill="var(--accent)" style={{ filter: 'drop-shadow(0 0 6px var(--accent))' }} />
                           <text x={gridX} y={gridY + 4} fill="#000000" fontSize="11" fontWeight="900" textAnchor="middle">
                             {fretVal}
