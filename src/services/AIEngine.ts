@@ -6,8 +6,7 @@ export interface TrackInfo {
   title: string;
 }
 
-// 🔥 НОВЫЕ ТИПЫ КОМАНД ДЛЯ УПРАВЛЕНИЯ ИНТЕРФЕЙСОМ
-export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN';
+export type AIActionType = 'SET_CONTEXT' | 'OPEN_CHORD' | 'OPEN_TAB_GEN' | 'OPEN_AUTOTAB';
 
 export interface AIResponse {
   text: string;
@@ -32,98 +31,52 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// 🔥 ПРОМПТ ДИРИЖЕРА: Теперь TouchGrass умеет открывать окна приложения
-const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a lightweight, highly supportive AI assistant embedded inside FretLab.
-Your expertise covers guitar anatomy, tabs, music theory, and detecting musician frustration.
-
-Guidelines for your personality & capabilities:
-1. Act like a warm guitar coach. Be encouraging.
-2. DETECT FRUSTRATION: If the user complains about pain or difficulty, suggest they take a break, and use SET_CONTEXT to lower BPM and switch to a simple key like A minor.
-3. BE THE CONDUCTOR (CRITICAL): You control the app UI. 
-   - If the user asks to see or learn a specific chord (e.g., "how to play Cmaj7" or "show me G minor"), you MUST return action type "OPEN_CHORD" with payload { "chord": "Cmaj7" } (use standard notation like C, Cm, Cmaj7).
-   - If the user asks for a solo, lick, or tab (e.g., "write me a jazz solo"), you MUST return action type "OPEN_TAB_GEN".
-   - If they ask to jam, use "SET_CONTEXT" with key, mode, and bpm.
-
-You must return a valid JSON object ONLY. No markdown, no extra text.
-JSON structure:
-{
-  "text": "Your human-like response here.",
-  "action": {
-    "type": "OPEN_CHORD",
-    "payload": { "chord": "Cmaj7" }
-  }
-}`;
-
+// 🔥 ПОЛНОСТЬЮ АВТОНОМНЫЙ TOUCHGRASS (Без API ключей)
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
-  const savedApiKey = localStorage.getItem('fretlab_api_key');
   const lowerQuery = query.toLowerCase();
+  
+  // Имитация "думания" нейросети
+  await new Promise((resolve) => setTimeout(resolve, 800));
 
-  if (savedApiKey) {
-    try {
-      const response = await fetch('https://api.deepseek.com/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${savedApiKey}`
-        },
-        body: JSON.stringify({
-          model: 'deepseek-chat',
-          messages: [
-            { role: 'system', content: SYSTEM_PROMPT },
-            { role: 'user', content: query }
-          ],
-          response_format: { type: 'json_object' }, 
-          temperature: 0.4 
-        })
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text().catch(() => 'No error body');
-        return {
-          text: `🔴 Ошибка DeepSeek API (Статус ${response.status}). Проверь ключ или баланс. Ответ API: ${errBody.substring(0, 120)}`
-        };
-      }
-
-      const jsonRes = await response.json();
-      let aiMessage = jsonRes.choices[0].message.content;
-
-      aiMessage = aiMessage.replace(/```json/g, "").replace(/```/g, "").trim();
-      return JSON.parse(aiMessage) as AIResponse;
-
-    } catch (error: any) {
-      console.error('TouchGrass Online Error:', error);
-      return {
-        text: `🔴 Блокировка CORS или ошибка сети: "${error?.message}".`
-      };
-    }
-  }
-
-  // АВТОНОМНЫЙ РЕЖИМ
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
-  if (lowerQuery.includes('покажи') && (lowerQuery.includes('аккорд') || lowerQuery.includes('chord'))) {
+  // 1. Команды транскрипции треков (AutoTab)
+  if (lowerQuery.includes('минусовк') || lowerQuery.includes('транскриб') || lowerQuery.includes('youtube')) {
     return {
-      text: "TouchGrass 🎵: Конечно! Открываю Справочник. В автономном режиме я покажу тебе базовый Cmaj7, но если введешь API-ключ, я найду абсолютно любой аккорд!",
-      action: { type: 'OPEN_CHORD', payload: { chord: 'Cmaj7' } }
+      text: "TouchGrass 🎵: Отличная идея! Я открыл для тебя модуль AutoTab. Просто закинь туда аудиофайл или вставь ссылку, и ИИ разберет его на табы!",
+      action: { type: 'OPEN_AUTOTAB', payload: {} }
     };
   }
 
-  if (lowerQuery.includes('соло') || lowerQuery.includes('табы') || lowerQuery.includes('lick')) {
+  // 2. Команды поиска аккордов
+  if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || lowerQuery.match(/[a-g]#?m?(maj)?7?(b5)?(#9)?/)) {
+    // Пытаемся выцепить название аккорда из текста
+    const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
+    const targetChord = match ? match[0] : 'Cmaj7';
+    
     return {
-      text: "TouchGrass 🎵: Без проблем! Открываю панель генерации табов для тебя.",
+      text: `TouchGrass 🎵: Без проблем! Я нашел аппликатуру для ${targetChord}. Открываю интерактивный Справочник, чтобы ты мог послушать и посмотреть сетку!`,
+      action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
+    };
+  }
+
+  // 3. Команды генерации фраз (Licks)
+  if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick')) {
+    return {
+      text: "TouchGrass 🎵: С удовольствием! Я активировал генератор фраз под грифом. Выбери тональность, и я создам для тебя вкусный лик с легато и слайдами.",
       action: { type: 'OPEN_TAB_GEN', payload: {} }
     };
   }
 
-  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
+  // 4. Детектор фрустрации (Эмпатия)
+  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит') || lowerQuery.includes('не получается')) {
     return {
-      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят? Давай расслабим кисти и снизим темп до 70 BPM в простом Ля-миноре. Попробуй поиграть без спешки.",
+      text: "TouchGrass 🎵: Эй, притормози! Пальцы горят, а аккорды кажутся стеной? Это абсолютно нормально. Каждый крутой гитарист проходил через это. Давай сделаем глубокий вдох, расслабим кисти и снизим темп до 70 BPM в простом Ля-миноре.",
       action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70 } }
     };
   }
 
+  // 5. Базовый Fallback
   return {
-    text: "TouchGrass 🎵: Привет! Я твой гитарный наставник. Попроси меня 'показать аккорд Am9', 'сгенерировать соло' или пожалуйся на боль в пальцах!"
+    text: "TouchGrass 🎵: Привет! Я встроенный ИИ-помощник. Скажи мне 'покажи аккорд F#m7', 'сочини соло', или загрузи трек для транскрипции в табы!"
   };
 };
 
@@ -157,20 +110,16 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
        technique = Math.random() > 0.5 ? 'hammer' : 'slide';
        tiedToNext = true;
     }
-    
     if (i === phraseLength - 1) {
        technique = 'vibrato';
        durationObj = 'quarter';
     }
-
     notes.push({ string: currentString, fret: fret, duration: durationObj, technique, tiedToNext });
-    
     if (Math.random() > 0.6) {
        currentString += Math.random() > 0.5 ? 1 : -1;
        if (currentString > 5) currentString = 5;
        if (currentString < 0) currentString = 0;
     }
   }
-
   return { name: `AI Generated ${keyNote} ${mode} Lick`, notes };
 };

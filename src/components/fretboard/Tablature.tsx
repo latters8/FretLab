@@ -40,8 +40,8 @@ const Tablature: React.FC<{ activeStep?: number }> = ({ activeStep = -1 }) => {
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
             📄 AI Phrase Generator (Pro SVG)
           </span>
-          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent)' }}>
-            {currentLick.name}
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
+            🎸 Lick & Short Phrase Generator
           </span>
         </div>
         <button 

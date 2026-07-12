@@ -7,26 +7,25 @@ import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
 import AISearchBar from '../ai/AISearchBar';
-import { ToneSetupModal } from '../tools/ToneSetupModal';
+import AutoTab from '../tools/AutoTab'; // 🔥 ИМПОРТИРУЕМ НОВЫЙ МОДУЛЬ
 
 const AppShell: React.FC = () => {
-  const [activeModule, setActiveModule] = useState<'engine' | 'dictionary'>('engine');
-  const [isToneSetupOpen, setIsToneSetupOpen] = useState(false);
-  
-  // 🔥 Храним аккорд, который приказал открыть ИИ-дирижер
+  // 🔥 ДОБАВЛЕН ТРЕТИЙ СТЕЙТ 'autotab'
+  const [activeModule, setActiveModule] = useState<'engine' | 'dictionary' | 'autotab'>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
 
-  // Обработчик команд от TouchGrass
   const handleAIAction = (action: any) => {
     if (!action) return;
     
     if (action.type === 'OPEN_CHORD') {
       setActiveModule('dictionary');
       if (action.payload && action.payload.chord) {
-        setAiTargetChord(action.payload.chord); // Запоминаем аккорд (например, Cmaj7)
+        setAiTargetChord(action.payload.chord);
       }
     } else if (action.type === 'OPEN_TAB_GEN') {
       setActiveModule('engine');
+    } else if (action.type === 'OPEN_AUTOTAB') {
+      setActiveModule('autotab');
     }
   };
 
@@ -35,17 +34,17 @@ const AppShell: React.FC = () => {
       <Header />
       
       <div className="app-layout">
+        {/* 🔥 НОВЫЙ SIDEBAR БЕЗ КНОПКИ API КЛЮЧА */}
         <aside className="left-sidebar">
             <div onClick={() => setActiveModule('engine')} style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Fretboard Engine">🎸</div>
             <div onClick={() => setActiveModule('dictionary')} style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Chord Dictionary">📖</div>
-            <div onClick={() => setIsToneSetupOpen(true)} style={{ padding: '12px', background: 'transparent', color: 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s', marginTop: 'auto' }} title="Tone & AI Setup" onMouseEnter={e => e.currentTarget.style.color = 'var(--accent)'} onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}>🎛</div>
+            <div onClick={() => setActiveModule('autotab')} style={{ padding: '12px', background: activeModule === 'autotab' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'autotab' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="AutoTab / Songsterr Mode">🎼</div>
         </aside>
 
         <div className="main-workspace">
-          {activeModule === 'engine' ? (
+          {activeModule === 'engine' && (
             <>
               <main className="center-column">
-                  {/* Подключаем слушатель команд к поисковой строке */}
                   <AISearchBar onAction={handleAIAction} />
                   <Player />
                   <div className="fretboard-scroll-wrapper"><Fretboard /></div>
@@ -56,15 +55,22 @@ const AppShell: React.FC = () => {
                   <DiatonicChords />
               </aside>
             </>
-          ) : (
+          )}
+
+          {activeModule === 'dictionary' && (
             <main className="center-column" style={{ overflowY: 'hidden' }}>
-                {/* Передаем приказ от ИИ внутрь словаря */}
                 <ChordDictionary targetChord={aiTargetChord} />
+            </main>
+          )}
+
+          {/* 🔥 НОВЫЙ РАЗДЕЛ ТРАНСКРИПЦИИ */}
+          {activeModule === 'autotab' && (
+            <main className="center-column" style={{ overflowY: 'hidden' }}>
+                <AutoTab />
             </main>
           )}
         </div>
       </div>
-      <ToneSetupModal isOpen={isToneSetupOpen} onClose={() => setIsToneSetupOpen(false)} />
     </div>
   );
 };
