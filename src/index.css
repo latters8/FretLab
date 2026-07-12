@@ -61,6 +61,7 @@ body[data-theme="crimson"] {
 
 body {
   margin: 0;
+  padding: 0;
   font-family: sans-serif;
   background: var(--bg-root);
   color: var(--text-primary);
@@ -71,7 +72,7 @@ body {
   box-sizing: border-box;
 }
 
-/* --- 🔥 КАСТОМНЫЕ ПОЛОСЫ ПРОКРУТКИ (ВИДИМЫЙ СКРОЛЛ) --- */
+/* --- КАСТОМНЫЕ ПОЛОСЫ ПРОКРУТКИ --- */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -87,16 +88,17 @@ body {
   background: var(--accent);
 }
 
-/* --- АДАПТИВНОСТЬ (MOBILE RESPONSIVE & FLEXBOX FIXES) --- */
+/* --- ГЛОБАЛЬНАЯ АДАРТИВНАЯ СЕТКА --- */
 .app-layout {
   display: flex;
   flex-direction: row;
   flex: 1;
   overflow: hidden;
+  height: calc(100vh - 64px); /* Занимает всё окно за вычетом шапки */
 }
 
 .left-sidebar {
-  width: 120px;
+  width: 90px;
   flex-shrink: 0;
   border-right: 1px solid var(--border-color);
   background: var(--bg-primary);
@@ -111,20 +113,30 @@ body {
   flex: 1;
   display: flex;
   overflow: hidden;
-  /* 🔥 FIX: Запрещаем контейнеру расширяться за пределы экрана */
   min-width: 0; 
 }
 
+/* 🔥 ЦЕНТРАЛЬНАЯ КОЛОНКА: СТРОГО ВО ВСЮ ШИРИНУ И БЕЗ ПОЛЕЙ */
 .center-column {
   flex: 1;
-  padding: 24px 32px;
+  padding: 0 !important; /* Убираем пустые поля вокруг блоков */
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-  /* 🔥 FIX: Спасает вертикальный скроллбар от улетания за правый край экрана */
+  background: var(--bg-root);
   min-width: 0; 
+}
+
+/* 🔥 ЭФФЕКТ FULL-BLEED ДЛЯ КОМПОНЕНТОВ ВНУТРИ ЦЕНТРАЛЬНОЙ КОЛОНКИ */
+.center-column > div {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-radius: 0 !important; /* Намертво прижимаем углы к краям экрана */
+  border-left: none !important;  /* Стираем лишние боковые границы */
+  border-right: none !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important; /* Категорический запрет на схлопывание высоты! */
 }
 
 .right-column {
@@ -139,15 +151,17 @@ body {
   overflow-y: auto;
 }
 
-/* 🔥 FIX: Обертка грифа теперь независимо скроллится по горизонтали на всех экранах */
+/* НЕЗАВИСИМЫЙ ГОРИЗОНТАЛЬНЫЙ СКРОЛЛ ГРИФА */
 .fretboard-scroll-wrapper {
   width: 100%;
   overflow-x: auto;
   overflow-y: hidden;
-  padding-bottom: 12px; /* Место под горизонтальный скроллбар */
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
-/* --- МОБИЛЬНАЯ ВЕРСИЯ (ДО 768px) --- */
+/* --- МОБИЛЬНАЯ СЕТКА (ЭКРАНЫ ДО 768px) --- */
 @media (max-width: 768px) {
   .app-layout {
     flex-direction: column;
@@ -157,9 +171,11 @@ body {
 
   .left-sidebar {
     width: 100%;
+    height: 60px;
     flex-direction: row;
     justify-content: center;
-    padding: 12px;
+    padding: 0;
+    gap: 32px;
     border-right: none;
     border-bottom: 1px solid var(--border-color);
   }
@@ -167,12 +183,12 @@ body {
   .main-workspace {
     flex-direction: column;
     overflow-y: visible;
+    height: auto;
   }
 
   .center-column {
-    padding: 16px;
-    gap: 16px;
     overflow-y: visible;
+    height: auto;
   }
 
   .right-column {
@@ -181,11 +197,6 @@ body {
     border-top: 1px solid var(--border-color);
     padding: 16px;
     overflow-y: visible;
-  }
-
-  .fretboard-scroll-wrapper {
-    margin: 0 -16px;
-    padding-left: 16px;
-    padding-right: 16px;
+    height: auto;
   }
 }

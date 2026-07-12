@@ -31,108 +31,90 @@ export interface Lick {
   notes: TabNote[];
 }
 
-// 🔥 УМНЫЙ АВТОНОМНЫЙ МЕДИА-МАРШРУТИЗАТОР TOUCHGRASS
+// 🔥 ЕСЛИ ЗАХОЧЕШЬ ВЕРНУТЬ НАСТОЯЩИЙ ИИ - ПРОСТО ВСТАВЬ СЮДА КЛЮЧ
+const API_KEY = ""; 
+
+const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a FretLab guitar AI assistant.
+Return ONLY valid JSON matching: { "text": "...", "action": { "type": "OPEN_CHORD", "payload": { "chord": "Cmaj7" } } }
+Action types: OPEN_CHORD (requires chord like "Am", "Cmaj7"), OPEN_TAB_GEN, OPEN_AUTOTAB, SET_CONTEXT (requires key, mode, bpm, track).`;
+
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
+  // 1. ПОПЫТКА ИСПОЛЬЗОВАТЬ НАСТОЯЩУЮ НЕЙРОСЕТЬ
+  if (API_KEY) {
+    try {
+      const response = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${API_KEY}` },
+        body: JSON.stringify({
+          model: 'deepseek-chat',
+          messages: [{ role: 'system', content: SYSTEM_PROMPT }, { role: 'user', content: query }],
+          response_format: { type: 'json_object' }
+        })
+      });
+      if (response.ok) {
+         const jsonRes = await response.json();
+         let aiMessage = jsonRes.choices[0].message.content;
+         return JSON.parse(aiMessage.replace(/```json/g, "").replace(/```/g, "").trim()) as AIResponse;
+      }
+    } catch (e) {
+      console.error("AI API Error:", e);
+    }
+  }
+
+  // 2. БРОНЕБОЙНЫЙ ЛОКАЛЬНЫЙ РЕЖИМ (С ИСПРАВЛЕННЫМ БАГОМ РЕГИСТРА)
   const lowerQuery = query.toLowerCase();
-  
-  // Имитируем глубокий анализ музыкального запроса
-  await new Promise((resolve) => setTimeout(resolve, 700));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // 1. Поиск и загрузка рок-минусовок через TouchGrass
-  if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
-    return {
-      text: "TouchGrass 🎵: Рок-драйв активирован! Я подключился к YouTube и загрузил мощный Heavy Rock Backing Track в тональности Ля-минор (A Minor). Скорость — 120 BPM, гриф перестроен под скоростные проходы!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'A',
-          mode: 'aeolian',
-          bpm: 120,
-          track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Heavy Rock Groove Backing Track' }
-        }
-      }
-    };
-  }
+  // 🔥 ПОИСК АККОРДОВ
+  if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || query.match(/\b[A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?\b/i)) {
+    const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
+    let targetChord = 'Cmaj7'; // Fallback
+    
+    if (match) {
+      // КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ: Делаем первую букву заглавной (am -> Am), иначе словарь ломается!
+      targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
+    }
 
-  // 2. Поиск и загрузка нео-соул / джаз минусовок
-  if (lowerQuery.includes('соул') || lowerQuery.includes('soul') || lowerQuery.includes('джаз') || lowerQuery.includes('jazz')) {
     return {
-      text: "TouchGrass 🎵: Настраиваюсь на мягкую волну. Загружаю Smooth Neo-Soul / Jazz Jam в тональности Соль-мажор (G Major). Темп снижен до комфортных 90 BPM для проработки красивых джазовых ступеней.",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'G',
-          mode: 'major',
-          bpm: 90,
-          track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Smooth Neo-Soul / Jazz Backing Track' }
-        }
-      }
-    };
-  }
-
-  // 3. Стандартный поиск фанка
-  if (lowerQuery.includes('фанк') || lowerQuery.includes('funk') || lowerQuery.includes('до')) {
-    return {
-      text: "TouchGrass 🎵: Закачиваем плотный фанковый грув! Включаю C Dorian Funk Power Groove на 110 BPM. Обрати внимание на дорийский лад на грифе!",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'C',
-          mode: 'dorian',
-          bpm: 110,
-          track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk Power Groove' }
-        }
-      }
-    };
-  }
-
-  // 4. Стандартный поиск блюза
-  if (lowerQuery.includes('блюз') || lowerQuery.includes('blues') || lowerQuery.includes('ля минор')) {
-    return {
-      text: "TouchGrass 🎵: Ламповый вечерний вайб. Загружаю Slow Blues Midnight Jam в Ля-миноре (80 BPM). Включай овердрайв, время для блюзовой пентатоники.",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: {
-          key: 'A',
-          mode: 'aeolian',
-          bpm: 80,
-          track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Midnight Jam' }
-        }
-      }
-    };
-  }
-
-  // 5. Запрос на открытие AutoTab модулей
-  if (lowerQuery.includes('транскриб') || lowerQuery.includes(' songsterr') || lowerQuery.includes('автотаб')) {
-    return {
-      text: "TouchGrass 🎵: Понял задачу! Переключаю тебя в модуль полной транскрипции AutoTab. Загружай трек, и нейросеть разберет его по нотам.",
-      action: { type: 'OPEN_AUTOTAB', payload: {} }
-    };
-  }
-
-  // 6. Запрос на поиск аккордов
-  if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord')) {
-    const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?)/i);
-    const targetChord = match ? match[0] : 'Cmaj7';
-    return {
-      text: `TouchGrass 🎵: Ищу аккорд ${targetChord} в базе данных. Перевожу интерфейс в интерактивный Справочник!`,
+      text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике!`,
       action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
     };
   }
 
-  // Fallback эмпатии (Фрустрация)
-  if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
+  // ПОИСК ТРЕКОВ
+  if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
     return {
-      text: "TouchGrass 🎵: Так, выдыхаем! Отложи гитару на пару минут. Я сбросил темп метронома до спокойных 70 BPM и включил легкий минус, чтобы ты мог расслабиться.",
-      action: {
-        type: 'SET_CONTEXT',
-        payload: { key: 'A', mode: 'aeolian', bpm: 70, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Relaxed Practice Track' } }
-      }
+      text: "TouchGrass 🎵: Запускаю Heavy Rock Jam (120 BPM, A minor)!",
+      action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 120, track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Heavy Rock Groove' } } }
     };
   }
 
+  if (lowerQuery.includes('фанк') || lowerQuery.includes('funk')) {
+    return {
+      text: "TouchGrass 🎵: Запускаю C Dorian Funk (110 BPM)!",
+      action: { type: 'SET_CONTEXT', payload: { key: 'C', mode: 'dorian', bpm: 110, track: { platform: 'youtube', id: 'X5X1i5H9m2s', title: 'C Dorian Funk' } } }
+    };
+  }
+
+  if (lowerQuery.includes('блюз') || lowerQuery.includes('blues')) {
+    return {
+      text: "TouchGrass 🎵: Запускаю Slow Blues Jam (80 BPM, A minor)!",
+      action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 80, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Jam' } } }
+    };
+  }
+
+  // ГЕНЕРАТОР ТАБОВ
+  if (lowerQuery.includes('соло') || lowerQuery.includes('таб')) {
+    return { text: "TouchGrass 🎵: Открываю генератор коротких фраз!", action: { type: 'OPEN_TAB_GEN' } };
+  }
+
+  // AUTOTAB
+  if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб')) {
+    return { text: "TouchGrass 🎵: Переключаю на AutoTab транскрибатор.", action: { type: 'OPEN_AUTOTAB' } };
+  }
+
   return {
-    text: "TouchGrass 🎵: Привет! Я твой медиа-проводник. Напиши мне, например: 'найди рок минус на youtube', 'включи джаз' или 'покажи аккорд Dm9' — и я полностью перестрою плеер и гриф под твой запрос!"
+    text: "TouchGrass 🎵: Привет! Напиши мне 'покажи аккорд Dm7', 'включи рок минус' или 'сгенерируй блюзовое соло'."
   };
 };
 
