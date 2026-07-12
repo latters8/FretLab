@@ -77,30 +77,30 @@ const Fretboard: React.FC = () => {
       {/* The Fretboard */}
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         
-        {/* 🔥 ИСПРАВЛЕН Dots Layer */}
-        <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none' }}>
+        {/* Dots Layer */}
+        <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
           {frets.map(f => (
             <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : '1px solid rgba(0,0,0,0.5)' }}>
               
-              {/* Одинарные точки (центр) */}
+              {/* Одинарные маркеры (строго по центру грифа) */}
               {dots.includes(f) && (
                 <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
               )}
               
-              {/* Двойные точки (12, 24 лады) Теперь МЕЖДУ струнами */}
+              {/* 🔥 АНАТОМИЧЕСКИ ТОЧНЫЕ ДВОЙНЫЕ ТОЧКИ НА 12 И 24 ЛАДАХ */}
               {doubleDots.includes(f) && (
                 <>
-                  {/* Верхняя точка: Между 2-й и 3-й струнами. Считаем от верха: (height / 6) * 1.5 ~ 25% */}
-                  <div style={{ position: 'absolute', top: '25%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
-                  {/* Нижняя точка: Между 4-й и 5-й струнами. Считаем от верха: (height / 6) * 4.5 ~ 75% */}
-                  <div style={{ position: 'absolute', top: '75%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
+                  {/* Верхняя точка: Между 2-й (B) и 3-й (G) струнами. Высота двух струн = 72px */}
+                  <div style={{ position: 'absolute', top: '72px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
+                  {/* Нижная точка: Между 4-й (D) и 5-й (A) струнами. Высота четырех струн = 144px */}
+                  <div style={{ position: 'absolute', top: '144px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
                 </>
               )}
             </div>
           ))}
         </div>
 
-        {/* Strings Layer */}
+        {/* Strings Layer (Каждая струна занимает ровно 36px) */}
         {strings.map((openNote, stringIdx) => (
           <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
             {/* String Line */}
