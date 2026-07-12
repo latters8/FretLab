@@ -34,8 +34,7 @@ export interface Lick {
 const API_KEY = ""; 
 
 const SYSTEM_PROMPT = `You are "TouchGrass 🎵", a FretLab guitar AI assistant.
-Return ONLY valid JSON matching: { "text": "...", "action": { "type": "OPEN_CHORD", "payload": { "chord": "Cmaj7" } } }
-Action types: OPEN_CHORD (requires chord like "Am", "Cmaj7"), OPEN_TAB_GEN, OPEN_AUTOTAB, SET_CONTEXT (requires key, mode, bpm, track).`;
+Return ONLY valid JSON matching: { "text": "...", "action": { "type": "OPEN_CHORD", "payload": { "chord": "Cmaj7" } } }`;
 
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
   if (API_KEY) {
@@ -62,28 +61,48 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   const lowerQuery = query.toLowerCase();
   await new Promise((resolve) => setTimeout(resolve, 500));
 
-  // 1. ДЕТЕКТОР ФРУСТРАЦИИ (Высший приоритет эмпатии)
+  // 🔥 1. ПАРСЕР ССЫЛОК YOUTUBE (ВИДЕО И ПЛЕЙЛИСТЫ)
+  const ytVideoMatch = query.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*embed\/|.*\/))([^&?\s]{11})/);
+  const ytListMatch = query.match(/[?&]list=([^&?\s]+)/);
+
+  if (ytVideoMatch || ytListMatch) {
+    let trackId = '';
+    if (ytVideoMatch && ytListMatch) {
+      trackId = `${ytVideoMatch[1]}&list=${ytListMatch[1]}`;
+    } else if (ytListMatch) {
+      trackId = `videoseries?list=${ytListMatch[1]}`;
+    } else if (ytVideoMatch) {
+      trackId = ytVideoMatch[1];
+    }
+
+    return {
+      text: "TouchGrass 🎵: Поймал ссылку! Распознал трек/плейлист и уже загрузил его в твой плеер. Управление у тебя!",
+      action: {
+        type: 'SET_CONTEXT',
+        payload: { track: { platform: 'youtube', id: trackId, title: 'Custom YouTube Link' } }
+      }
+    };
+  }
+
+  // 2. ДЕТЕКТОР ФРУСТРАЦИИ
   if (lowerQuery.includes('сложно') || lowerQuery.includes('болит') || lowerQuery.includes('бесит')) {
     return {
-      text: "TouchGrass 🎵: Так, выдыхаем! Отложи гитару на пару минут. Я сбросил темп метронома до спокойных 70 BPM и включил легкий минус, чтобы ты мог расслабиться.",
+      text: "TouchGrass 🎵: Так, выдыхаем! Отложи гитару на пару минут. Я сбросил темп метронома до 70 BPM и включил легкий минус.",
       action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 70, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Relaxed Practice Track' } } }
     };
   }
 
-  // 2. ГЕНЕРАТОР ТАБОВ И СОЛО (Приоритет над аккордами, чтобы "соло в Em" не открывало словарь)
+  // 3. ГЕНЕРАТОР ТАБОВ
   if (lowerQuery.includes('соло') || lowerQuery.includes('таб') || lowerQuery.includes('lick') || lowerQuery.includes('фраз')) {
-    return { 
-      text: "TouchGrass 🎵: Без проблем! Открываю панель генератора фраз. Выбери тональность на грифе, нажми 'Generate Lick', и я выдам свежую идею для соло!", 
-      action: { type: 'OPEN_TAB_GEN' } 
-    };
+    return { text: "TouchGrass 🎵: Открываю панель генератора фраз. Выбери тональность и нажми 'Generate Lick'!", action: { type: 'OPEN_TAB_GEN' } };
   }
 
-  // 3. AUTOTAB
+  // 4. AUTOTAB
   if (lowerQuery.includes('транскриб') || lowerQuery.includes('автотаб') || lowerQuery.includes('разбери')) {
-    return { text: "TouchGrass 🎵: Переключаю на мощный AutoTab транскрибатор. Загружай аудио, разберем по нотам!", action: { type: 'OPEN_AUTOTAB' } };
+    return { text: "TouchGrass 🎵: Переключаю на AutoTab транскрибатор. Загружай аудио!", action: { type: 'OPEN_AUTOTAB' } };
   }
 
-  // 4. ПОИСК ТРЕКОВ
+  // 5. ПОИСК ТРЕКОВ
   if (lowerQuery.includes('рок') || lowerQuery.includes('rock') || lowerQuery.includes('метал')) {
     return { text: "TouchGrass 🎵: Запускаю Heavy Rock Jam (120 BPM, A minor)!", action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 120, track: { platform: 'youtube', id: '8KpPab_M4t4', title: 'Heavy Rock Groove' } } } };
   }
@@ -94,7 +113,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
     return { text: "TouchGrass 🎵: Запускаю Slow Blues Jam (80 BPM, A minor)!", action: { type: 'SET_CONTEXT', payload: { key: 'A', mode: 'aeolian', bpm: 80, track: { platform: 'youtube', id: '3W1A142r-yE', title: 'Slow Blues Jam' } } } };
   }
 
-  // 5. ПОИСК АККОРДОВ (Низкий приоритет, чтобы не перебивать сложные команды)
+  // 6. ПОИСК АККОРДОВ
   if (lowerQuery.includes('аккорд') || lowerQuery.includes('chord') || query.match(/\b[A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?\b/i)) {
     const match = query.match(/([A-G][b#]?(?:m|maj|dim|aug)?(?:2|4|5|6|7|9|11|13)?(?:sus2|sus4)?(?:[b#]5|[b#]9|[b#]11)?)/i);
     let targetChord = 'Cmaj7'; 
@@ -102,14 +121,13 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       targetChord = match[0].charAt(0).toUpperCase() + match[0].slice(1);
     }
     return {
-      text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике! Там ты сможешь её послушать.`,
+      text: `TouchGrass 🎵: Открываю аппликатуру ${targetChord} в Справочнике!`,
       action: { type: 'OPEN_CHORD', payload: { chord: targetChord } }
     };
   }
 
-  // 6. БОГАТАЯ ПОДСКАЗКА (Fallback)
   return {
-    text: "TouchGrass 🎵: Привет! Я твой ИИ-наставник. Вот что я умею:\n\n🎸 **Искать аккорды:** Напиши «покажи аккорд F#m7b5»\n🎶 **Сочинять соло:** Попроси «сгенерируй соло в Em»\n📻 **Включать джем-треки:** Скажи «включи фанк минус» или «рок джем»\n🎼 **Разбирать песни (AutoTab):** Напиши «хочу транскрибировать песню»\n🧘‍♂️ **Помогать при усталости:** Если не получается баррэ или болят пальцы — просто пожалуйся мне!"
+    text: "TouchGrass 🎵: Привет! Я твой ИИ-наставник. Вставь ссылку на YouTube видео или плейлист, и я загружу его в плеер!"
   };
 };
 
@@ -139,14 +157,8 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     let technique: Technique = 'none';
     let tiedToNext = false;
     
-    if (i < phraseLength - 1 && Math.random() > 0.7) {
-       technique = Math.random() > 0.5 ? 'hammer' : 'slide';
-       tiedToNext = true;
-    }
-    if (i === phraseLength - 1) {
-       technique = 'vibrato';
-       durationObj = 'quarter';
-    }
+    if (i < phraseLength - 1 && Math.random() > 0.7) { technique = Math.random() > 0.5 ? 'hammer' : 'slide'; tiedToNext = true; }
+    if (i === phraseLength - 1) { technique = 'vibrato'; durationObj = 'quarter'; }
     notes.push({ string: currentString, fret: fret, duration: durationObj, technique, tiedToNext });
     if (Math.random() > 0.6) {
        currentString += Math.random() > 0.5 ? 1 : -1;
