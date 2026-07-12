@@ -1,155 +1,192 @@
 import React, { useState } from 'react';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
-import { useMusic } from '../../context/MusicContext';
 
-const ROOTS = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
-const QUALITIES = [
-  { name: 'Major', suffix: '' },
-  { name: 'Minor', suffix: 'm' },
-  { name: 'Dominant 7', suffix: '7' },
-  { name: 'Minor 7', suffix: 'm7' },
-  { name: 'Major 7', suffix: 'maj7' },
-  { name: 'Diminished', suffix: 'dim' }
-];
+const ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// 📚 Группируем ВСЕ наши новые расширенные аккорды по категориям для удобства навигации
+const CHORD_CATEGORIES = {
+  'Major': [
+    { suffix: '', label: 'Major (Triad)' },
+    { suffix: 'maj7', label: 'maj7 (Major 7th)' },
+    { suffix: 'maj9', label: 'maj9 (Major 9th)' },
+    { suffix: 'maj11', label: 'maj11 (Major 11th)' },
+    { suffix: 'maj9#11', label: 'maj9(#11) (Lydian)' },
+    { suffix: 'maj7b9', label: 'maj7(b9)' }
+  ],
+  'Minor': [
+    { suffix: 'm', label: 'Minor (Triad)' },
+    { suffix: 'm7', label: 'm7 (Minor 7th)' },
+    { suffix: 'm9', label: 'm9 (Minor 9th)' },
+    { suffix: 'm11', label: 'm11 (Minor 11th)' },
+    { suffix: 'm7b9', label: 'm7(b9)' }
+  ],
+  'Dominant': [
+    { suffix: '7', label: '7 (Dominant 7th)' },
+    { suffix: '9', label: '9 (Dominant 9th)' },
+    { suffix: '11', label: '11 (Dominant 11th)' },
+    { suffix: '7b9', label: '7b9 (Dominant b9)' },
+    { suffix: '7#9', label: '7#9 (Hendrix Chord)' }
+  ],
+  'Diminished / Alt': [
+    { suffix: 'm7b5', label: 'm7b5 (Half-Diminished)' },
+    { suffix: 'm9b5', label: 'm9b5 (Locrian 9th)' },
+    { suffix: 'm7b5b9', label: 'm7b5(b9)' },
+    { suffix: 'm11b5', label: 'm11b5' },
+    { suffix: 'dim7', label: 'dim7 (Full-Diminished)' },
+    { suffix: 'dim', label: 'dim (Diminished Triad)' }
+  ]
+};
+
+const STRINGS = ['e', 'B', 'G', 'D', 'A', 'E'];
 
 const ChordDictionary: React.FC = () => {
-  const { keyNote } = useMusic();
-  // По умолчанию открываем тонику из текущего контекста приложения
-  const [selectedRoot, setSelectedRoot] = useState<string>(keyNote);
+  const [selectedRoot, setSelectedRoot] = useState('C');
+  const [selectedSuffix, setSelectedSuffix] = useState('');
+  const [activeCategory, setActiveCategory] = useState<keyof typeof CHORD_CATEGORIES>('Major');
 
-  // 🎵 ЗВУКОВОЙ ДВИЖОК
-  const playChord = (voicing: Voicing) => {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioContextClass) return;
-    
-    const audioCtx = new AudioContextClass();
-    const baseMidiNotes = [40, 45, 50, 55, 59, 64]; 
-    
-    voicing.frets.forEach((fret, stringIdx) => {
-      if (fret === 'x') return;
-      const midiNote = baseMidiNotes[stringIdx] + (fret as number);
-      const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
-      
-      const osc = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      osc.type = stringIdx < 3 ? 'triangle' : 'sine'; 
-      osc.frequency.value = frequency;
-      
-      const startTime = audioCtx.currentTime + (stringIdx * 0.04); 
-      
-      gainNode.gain.setValueAtTime(0, startTime);
-      gainNode.gain.linearRampToValueAtTime(0.5, startTime + 0.05); 
-      gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + 2.0); 
-      
-      osc.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      osc.start(startTime);
-      osc.stop(startTime + 2.0);
-    });
+  const currentChordName = `${selectedRoot}${selectedSuffix}`;
+
+  // Ищем аппликатуру в статической БД, либо генерируем через наш умный алгоритм
+  const getVoicings = (): Voicing[] => {
+    if (CHORD_DB[currentChordName]) {
+      return CHORD_DB[currentChordName];
+    }
+    return generateFallbackVoicing(currentChordName);
   };
 
-  // 🎨 Рендер SVG-сетки
-  const renderChordSVG = (voicing: Voicing) => {
-    const width = 100;
-    const height = 120;
-    const stringSpacing = 16;
-    const fretSpacing = 22;
-
-    return (
-      <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ overflow: 'visible' }}>
-        {voicing.baseFret > 1 && (
-          <text x="-18" y="25" fill="var(--text-muted)" fontSize="11" fontWeight="bold">{voicing.baseFret}fr</text>
-        )}
-        {[0, 1, 2, 3, 4, 5].map((i) => (
-          <line key={`str-${i}`} x1={10 + i * stringSpacing} y1="15" x2={10 + i * stringSpacing} y2="105" stroke="var(--border-color)" strokeWidth={1 + (5 - i) * 0.3} />
-        ))}
-        {[0, 1, 2, 3, 4].map((i) => (
-          <line key={`fret-${i}`} x1="10" y1={15 + i * fretSpacing} x2="90" y2={15 + i * fretSpacing} stroke="var(--border-color)" strokeWidth={i === 0 && voicing.baseFret === 1 ? 4 : 1} />
-        ))}
-        {voicing.frets.map((fret, stringIdx) => {
-          const x = 10 + stringIdx * stringSpacing;
-          if (fret === 'x') return <text key={`mute-${stringIdx}`} x={x - 4} y="8" fill="var(--text-muted)" fontSize="11" fontWeight="bold">x</text>;
-          if (fret === 0) return <circle key={`open-${stringIdx}`} cx={x} cy="6" r="3" fill="none" stroke="var(--text-primary)" strokeWidth="1.5" />;
-          
-          const relativeFret = (fret as number) - voicing.baseFret + 1;
-          const y = 15 + (relativeFret - 0.5) * fretSpacing;
-          return <circle key={`dot-${stringIdx}`} cx={x} cy={y} r="5" fill="var(--accent)" stroke="#000" strokeWidth="1.5" />;
-        })}
-      </svg>
-    );
-  };
+  const voicings = getVoicings();
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
       
-      {/* Шапка справочника с фильтрами */}
-      <div style={{ padding: '24px 32px', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
-        <div style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>
-          // Master Chord Library
-        </div>
-        <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '24px' }}>
-          Explore Voicings & Inversions
-        </div>
-
-        {/* Выбор корневой ноты */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {ROOTS.map(root => (
-            <button
-              key={root}
-              onClick={() => setSelectedRoot(root)}
-              style={{
-                background: selectedRoot === root ? 'var(--accent)' : 'var(--bg-hover)',
-                color: selectedRoot === root ? '#000' : 'var(--text-primary)',
-                border: `1px solid ${selectedRoot === root ? 'var(--accent)' : 'var(--border-color)'}`,
-                padding: '8px 16px', borderRadius: '4px', cursor: 'pointer',
-                fontWeight: 800, fontSize: '14px', transition: 'all 0.2s'
-              }}
-            >
-              {root}
-            </button>
-          ))}
+      {/* Header */}
+      <div style={{ padding: '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <span style={{ fontSize: '20px' }}>📖</span>
+        <div style={{ display: 'flex', flexDirection: 'column' }}>
+          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Interactive Chord Dictionary</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Explore professional guitar voicings</span>
         </div>
       </div>
 
-      {/* Матрица аккордов (скроллируемая область) */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '32px', display: 'flex', flexDirection: 'column', gap: '40px' }}>
-        {QUALITIES.map(q => {
-          const chordName = `${selectedRoot}${q.suffix}`;
-          const voicings = CHORD_DB[chordName] || generateFallbackVoicing(chordName);
+      {/* Main Container */}
+      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="dictionary-layout">
+        
+        {/* LEFT COLUMN: ROOTS & CATEGORIES */}
+        <div style={{ width: '260px', borderRight: '1px solid var(--border-color)', background: 'var(--bg-primary)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+          
+          {/* Root Note Grid */}
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>1. Select Root Note</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              {ROOTS.map(root => (
+                <button
+                  key={root}
+                  onClick={() => setSelectedRoot(root)}
+                  style={{ background: selectedRoot === root ? 'var(--accent)' : 'var(--bg-secondary)', color: selectedRoot === root ? '#000' : 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 0', borderRadius: '6px', fontWeight: 800, fontSize: '13px', cursor: 'pointer', transition: '0.15s' }}
+                >
+                  {root}
+                </button>
+              ))}
+            </div>
+          </div>
 
-          if (voicings.length === 0) return null;
+          {/* Category Selector */}
+          <div>
+            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>2. Category</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {Object.keys(CHORD_CATEGORIES).map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setActiveCategory(cat as any);
+                    // Автоматически выбираем первый суффикс из новой категории, чтобы не было пустых экранов
+                    setSelectedSuffix(CHORD_CATEGORIES[cat as keyof typeof CHORD_CATEGORIES][0].suffix);
+                  }}
+                  style={{ background: activeCategory === cat ? 'var(--bg-hover)' : 'transparent', color: activeCategory === cat ? 'var(--accent)' : 'var(--text-secondary)', border: '1px solid transparent', padding: '10px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', textAlign: 'left', cursor: 'pointer', transition: '0.15s' }}
+                >
+                  {cat === 'Major' ? '🟢 ' : cat === 'Minor' ? '🔵 ' : cat === 'Dominant' ? '🟡 ' : '🔴 '}
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-          return (
-            <div key={q.name} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: '12px', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <span style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text-primary)' }}>{chordName}</span>
-                <span style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px' }}>{q.name}</span>
+        {/* CENTER COLUMN: SPECIFIC SUFFIXES */}
+        <div style={{ width: '300px', borderRight: '1px solid var(--border-color)', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>3. Select Extensions</div>
+          {CHORD_CATEGORIES[activeCategory].map(item => (
+            <button
+              key={item.suffix}
+              onClick={() => setSelectedSuffix(item.suffix)}
+              style={{ background: selectedSuffix === item.suffix ? 'var(--bg-primary)' : 'transparent', color: selectedSuffix === item.suffix ? 'var(--accent)' : 'var(--text-primary)', border: `1px solid ${selectedSuffix === item.suffix ? 'var(--border-color)' : 'transparent'}`, padding: '12px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '14px', textAlign: 'left', cursor: 'pointer', transition: '0.15s', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              onMouseEnter={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+              onMouseLeave={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <span>{selectedRoot}{item.suffix || ' (maj)'}</span>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>{item.label}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* RIGHT COLUMN: VISUAL SHAPE PREVIEW */}
+        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-root)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+            <h2 style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--accent)', textShadow: '0 0 20px rgba(0,255,157,0.2)' }}>
+              {currentChordName}
+            </h2>
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-muted)' }}>
+              Found {voicings.length} position(s) in database
+            </p>
+          </div>
+
+          {voicings.map((voicing, vIdx) => (
+            <div key={vIdx} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', padding: '24px', borderRadius: '12px', width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
+                <span>Shape: {voicing.name}</span>
+                <span style={{ color: 'var(--accent)' }}>Base Fret: {voicing.baseFret}</span>
               </div>
-              
-              <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
-                {voicings.map((v, i) => (
-                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '10px', color: 'var(--accent)', fontWeight: 800, textTransform: 'uppercase' }}>{v.name}</span>
-                    <div 
-                      onClick={() => playChord(v)}
-                      title={`Play ${chordName} (${v.name})`}
-                      style={{ 
-                        background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', 
-                        border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s' 
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'translateY(0)'; }}
-                    >
-                      {renderChordSVG(v)}
+
+              {/* Текстовый дамп ладов в линию для быстрой сверки */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', background: 'var(--bg-primary)', padding: '8px 12px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '14px', fontWeight: 700, color: 'var(--text-muted)' }}>
+                {voicing.frets.map((f, idx) => (
+                  <span key={idx} style={{ color: f !== 'x' ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                    {STRINGS[idx]}:{f}
+                  </span>
+                ))}
+              </div>
+
+              {/* Микро-сетка ладов (Гриф в миниатюре) */}
+              <div style={{ display: 'flex', flexDirection: 'column', background: 'var(--bg-primary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                {voicing.frets.map((fretVal, stringIdx) => (
+                  <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', height: '24px', position: 'relative' }}>
+                    
+                    {/* Линия струны */}
+                    <div style={{ position: 'absolute', left: '24px', right: 0, height: '1px', background: 'rgba(255,255,255,0.1)' }} />
+                    
+                    {/* Название струны */}
+                    <div style={{ width: '24px', fontSize: '11px', fontFamily: 'monospace', color: 'var(--text-muted)', fontWeight: 800 }}>
+                      {STRINGS[stringIdx]}
                     </div>
+
+                    {/* Индикатор лада */}
+                    <div style={{ flex: 1, display: 'flex', paddingLeft: '10px', fontSize: '13px', fontWeight: 900, zIndex: 2 }}>
+                      {fretVal === 'x' ? (
+                        <span style={{ color: '#ff4d4d' }}>✕</span>
+                      ) : (
+                        <span style={{ color: 'var(--accent)', background: 'var(--bg-secondary)', padding: '1px 8px', borderRadius: '4px', border: '1px solid var(--border-color)' }}>
+                          Lid: {fretVal}
+                        </span>
+                      )}
+                    </div>
+
                   </div>
                 ))}
               </div>
             </div>
-          );
-        })}
+          ))}
+        </div>
+
       </div>
     </div>
   );
