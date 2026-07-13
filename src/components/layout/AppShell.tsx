@@ -7,6 +7,7 @@ import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
 import AutoTab from '../tools/AutoTab';
+// 🔥 ИСПРАВЛЕНО: Явный импорт нового компонента контроллера
 import ToolBox from '../tools/ToolBox';
 
 const AppShell: React.FC = () => {
@@ -27,14 +28,9 @@ const AppShell: React.FC = () => {
       window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
     }
   };
-<aside className="right-column">
-    <CircleOfFifths />
-    <DiatonicChords />
-    <ToolBox /> {/* 🔥 Новый блок тут */}
-</aside>
+
   return (
     <div className="app-container">
-      {/* 🔥 Передаем AI Action в шапку! */}
       <Header onAIAction={handleAIAction} />
       
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
@@ -53,9 +49,12 @@ const AppShell: React.FC = () => {
                     <div className="fretboard-scroll-wrapper"><Fretboard /></div>
                     <Tablature />
                 </main>
-                <aside className="right-column">
+                
+                {/* 🔥 ИСПРАВЛЕНО: Добавлен принудительный независимый вертикальный скролл для правой колонки */}
+                <aside className="right-column" style={{ display: 'flex', flexDirection: 'column', gap: '24px', overflowY: 'auto', height: '100%' }}>
                     <CircleOfFifths />
                     <DiatonicChords />
+                    <ToolBox /> 
                 </aside>
               </>
             )}
