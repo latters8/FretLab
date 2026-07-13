@@ -16,6 +16,7 @@ const Player: React.FC<PlayerProps> = ({
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [urlInput, setUrlInput] = useState('');
 
+  // Базовая синхронизация Play/Pause (работает стабильно, если пользователь нажал Play в самом плеере хотя бы раз)
   useEffect(() => {
     if (!iframeRef.current || currentTrack?.platform !== 'youtube') return;
     try {
@@ -81,8 +82,7 @@ const Player: React.FC<PlayerProps> = ({
       return `https://vk.com/video_ext.php?oid=${oid}&id=${vid}&hd=2&autoplay=${autoplay ? 1 : 0}`;
     }
     
-    // 🔥 РАЗБЛОКИРОВКА YOUTUBE:
-    // Мы убрали rel=0 (теперь видно похожие треки) и loop=1 (теперь работает нативный автоплей Ютуба)
+    // YouTube Default: Нативные контролы ВКЛЮЧЕНЫ (controls=1)
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const params = new URLSearchParams({
       enablejsapi: '1', 
@@ -113,8 +113,8 @@ const Player: React.FC<PlayerProps> = ({
             YT
           </button>
 
-          {/* Исправлен цвет текста на белый, окантовка в цвет логотипа */}
-          <button type="button" onClick={() => handlePlatformSearch('rutube')} title="Search on RUTUBE" style={{ width: '24px', height: '24px', background: '#0A1128', color: '#FFF', border: '1px solid #0A1128', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '9px', cursor: 'pointer', transition: '0.2s', padding: 0 }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+          {/* 🔥 ИСПРАВЛЕНО: Убрана окантовка (border: 'none') */}
+          <button type="button" onClick={() => handlePlatformSearch('rutube')} title="Search on RUTUBE" style={{ width: '24px', height: '24px', background: '#0A1128', color: '#FFF', border: 'none', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '9px', cursor: 'pointer', transition: '0.2s', padding: 0 }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
             RU
           </button>
 
