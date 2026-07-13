@@ -12,10 +12,16 @@ export const useTuner = () => {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const rafIdRef = useRef<number | null>(null);
+  
+  // 🔥 Троттлинг: не даем React обновляться 60 раз в секунду, чтобы не было лагов
+  const lastUpdateRef = useRef<number>(0); 
 
   const startTuner = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // 🔥 КРИТИЧЕСКИЙ ФИКС: Отключаем шумоподавление браузера, иначе он глушит сустейн гитары!
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
+      });
       streamRef.current = stream;
       
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -25,14 +31,21 @@ export const useTuner = () => {
       analyser.fftSize = 2048;
       analyserRef.current = analyser;
 
+      // 🔥 КРИТИЧЕСКИЙ ФИКС 2: Low-pass фильтр. Срезаем высокие гармоники (звон струн),
+      // чтобы алгоритм четко видел фундаментальную ноту.
+      const filter = audioContext.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 1000; // 1kHz достаточно для гитары
+
       const source = audioContext.createMediaStreamSource(stream);
-      source.connect(analyser);
+      source.connect(filter);
+      filter.connect(analyser);
 
       setIsActive(true);
       tick();
     } catch (err) {
-      console.error("Microphone access denied or error:", err);
-      alert("Please allow microphone access to use the FretLab Tuner.");
+      console.error("Microphone error:", err);
+      alert("Please allow microphone access to use the Waza Tuner.");
     }
   };
 
@@ -47,16 +60,12 @@ export const useTuner = () => {
     setFrequency(0);
   };
 
-  // Алгоритм автокорреляции (вычисляет базовую частоту из звуковой волны)
   const autoCorrelate = (buf: Float32Array, sampleRate: number) => {
     let SIZE = buf.length;
     let rms = 0;
-    for (let i = 0; i < SIZE; i++) {
-      const val = buf[i];
-      rms += val * val;
-    }
+    for (let i = 0; i < SIZE; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / SIZE);
-    if (rms < 0.01) return -1; // Недостаточно звука (тишина)
+    if (rms < 0.02) return -1; // Увеличен порог тишины, чтобы не ловить шум комнаты
 
     let r1 = 0, r2 = SIZE - 1, thres = 0.2;
     for (let i = 0; i < SIZE / 2; i++) if (Math.abs(buf[i]) < thres) { r1 = i; break; }
@@ -67,19 +76,14 @@ export const useTuner = () => {
 
     let c = new Array(SIZE).fill(0);
     for (let i = 0; i < SIZE; i++) {
-      for (let j = 0; j < SIZE - i; j++) {
-        c[i] = c[i] + buf[j] * buf[j + i];
-      }
+      for (let j = 0; j < SIZE - i; j++) c[i] = c[i] + buf[j] * buf[j + i];
     }
 
     let d = 0;
     while (c[d] > c[d + 1]) d++;
     let maxval = -1, maxpos = -1;
     for (let i = d; i < SIZE; i++) {
-      if (c[i] > maxval) {
-        maxval = c[i];
-        maxpos = i;
-      }
+      if (c[i] > maxval) { maxval = c[i]; maxpos = i; }
     }
     let T0 = maxpos;
     let x1 = c[T0 - 1], x2 = c[T0], x3 = c[T0 + 1];
@@ -95,30 +99,32 @@ export const useTuner = () => {
     
     const buf = new Float32Array(analyserRef.current.fftSize);
     analyserRef.current.getFloatTimeDomainData(buf);
-    const ac = autoCorrelate(buf, audioCtxRef.current.sampleRate);
+    const pitch = autoCorrelate(buf, audioCtxRef.current.sampleRate);
     
-    if (ac !== -1) {
-      const pitch = ac;
-      setFrequency(Math.round(pitch));
-      
-      const noteNum = 12 * (Math.log(pitch / 440) / Math.log(2));
-      const noteIndex = (Math.round(noteNum) + 69) % 12;
-      const noteName = NOTE_STRINGS[noteIndex >= 0 ? noteIndex : noteIndex + 12];
-      
-      // Вычисление отклонения (центы: от -50 до +50)
-      const expectedFreq = 440 * Math.pow(2, (Math.round(noteNum)) / 12);
-      let centsOff = Math.floor(1200 * Math.log2(pitch / expectedFreq));
-      centsOff = Math.max(-50, Math.min(50, centsOff)); // Ограничиваем шкалу
-      
-      setNote(noteName);
-      setCents(centsOff);
+    const now = performance.now();
+    // 🔥 Обновляем UI только раз в 60 мс (~15 раз в секунду). Это спасет React от лагов.
+    if (now - lastUpdateRef.current > 60) {
+      if (pitch !== -1) {
+        setFrequency(Math.round(pitch));
+        const noteNum = 12 * (Math.log(pitch / 440) / Math.log(2));
+        const noteIndex = (Math.round(noteNum) + 69) % 12;
+        const noteName = NOTE_STRINGS[noteIndex >= 0 ? noteIndex : noteIndex + 12];
+        
+        const expectedFreq = 440 * Math.pow(2, Math.round(noteNum) / 12);
+        let centsOff = Math.floor(1200 * Math.log2(pitch / expectedFreq));
+        centsOff = Math.max(-50, Math.min(50, centsOff)); 
+        
+        setNote(noteName);
+        setCents(centsOff);
+      }
+      lastUpdateRef.current = now;
     }
 
     rafIdRef.current = requestAnimationFrame(tick);
   };
 
   useEffect(() => {
-    return () => stopTuner(); // Очистка при закрытии компонента
+    return () => stopTuner();
   }, []);
 
   return { isActive, startTuner, stopTuner, note, cents, frequency };
