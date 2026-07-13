@@ -111,9 +111,9 @@ const Fretboard: React.FC = () => {
               {/* 🔥 ГЕНЕРАТОР ЛАЗЕРНОГО СВЕЧЕНИЯ ЛАДОВ */}
               {isCyberpunk && f !== 0 && (
                 <div style={{
-                  position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '2px',
+                  position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '1px',
                   background: 'var(--accent)',
-                  boxShadow: '0 0 10px var(--accent), 0 0 20px var(--accent)',
+                  boxShadow: '0 0 2px var(--accent), 0 0 2px var(--accent)',
                   opacity: 0.85, zIndex: 0
                 }} />
               )}
