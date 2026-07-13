@@ -6,7 +6,8 @@ import Fretboard from '../fretboard/Fretboard';
 import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
-import AutoTab from '../tools/AutoTab'; 
+import AISearchBar from '../ai/AISearchBar';
+import AutoTab from '../tools/AutoTab';
 
 const AppShell: React.FC = () => {
   const [activeModule, setActiveModule] = useState<'engine' | 'dictionary' | 'autotab'>('engine');
@@ -14,25 +15,22 @@ const AppShell: React.FC = () => {
 
   const handleAIAction = (action: any) => {
     if (!action) return;
-    
     if (action.type === 'OPEN_CHORD') {
       setActiveModule('dictionary');
-      if (action.payload && action.payload.chord) {
-        setAiTargetChord(action.payload.chord);
-      }
+      if (action.payload && action.payload.chord) setAiTargetChord(action.payload.chord);
     } else if (action.type === 'OPEN_TAB_GEN') {
       setActiveModule('engine');
     } else if (action.type === 'OPEN_AUTOTAB') {
       setActiveModule('autotab');
     } else if (action.type === 'SEARCH_YOUTUBE') {
-      // 🔥 Открываем безопасную новую вкладку с результатами поиска
       const query = encodeURIComponent(action.payload.query + ' guitar backing track');
       window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
     }
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: 'var(--bg-secondary)' }}>
+    // 🔥 Используем класс бронебойного контейнера
+    <div className="app-container">
       <Header onAIAction={handleAIAction} />
       
       <div className="app-layout">
@@ -46,6 +44,7 @@ const AppShell: React.FC = () => {
           {activeModule === 'engine' && (
             <>
               <main className="center-column">
+                  <AISearchBar onAction={handleAIAction} />
                   <Player />
                   <div className="fretboard-scroll-wrapper"><Fretboard /></div>
                   <Tablature />
