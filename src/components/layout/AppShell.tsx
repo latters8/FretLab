@@ -7,6 +7,7 @@ import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
 import AutoTab from '../tools/AutoTab';
+import ToolBox from '../tools/ToolBox';
 
 const AppShell: React.FC = () => {
   const [activeModule, setActiveModule] = useState<'engine' | 'dictionary' | 'autotab'>('engine');
@@ -26,7 +27,11 @@ const AppShell: React.FC = () => {
       window.open(`https://www.youtube.com/results?search_query=${query}`, '_blank', 'noopener,noreferrer');
     }
   };
-
+<aside className="right-column">
+    <CircleOfFifths />
+    <DiatonicChords />
+    <ToolBox /> {/* 🔥 Новый блок тут */}
+</aside>
   return (
     <div className="app-container">
       {/* 🔥 Передаем AI Action в шапку! */}

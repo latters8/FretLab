@@ -1,5 +1,3 @@
-// src/components/harmony/DiatonicChords.tsx
-
 import React, { useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
@@ -136,14 +134,17 @@ const DiatonicChords: React.FC = () => {
             {chords.map((c, i) => {
               const isTonic = i === 0 && activeFilter === 'DIA';
               
-              // 🔥 ПРАВИЛЬНАЯ ТИПИЗАЦИЯ:
-              // Безопасно извлекаем массив Voicing[], обрабатывая оба варианта структуры данных
+              // 🔥 БРОНЕБОЙНАЯ ТИПИЗАЦИЯ TS: устраняет ошибку `voicings does not exist`
               const dbResult = CHORD_DB[c.chord];
-              const voicings: Voicing[] = Array.isArray(dbResult) 
-                ? dbResult 
-                : (dbResult && typeof dbResult === 'object' && 'voicings' in dbResult 
-                    ? (dbResult as any).voicings 
-                    : [generateFallbackVoicing(c.chord)]);
+              let voicings: Voicing[] = [];
+              if (Array.isArray(dbResult)) {
+                  voicings = dbResult;
+              } else if (dbResult && typeof dbResult === 'object' && 'voicings' in dbResult) {
+                  voicings = (dbResult as any).voicings;
+              } else {
+                  const fallback = generateFallbackVoicing(c.chord);
+                  voicings = Array.isArray(fallback) ? fallback : [fallback];
+              }
               
               return (
                 <div key={i} style={{ 
@@ -152,18 +153,21 @@ const DiatonicChords: React.FC = () => {
                     boxShadow: isTonic ? 'inset 3px 0 0 var(--accent)' : 'none'
                   }}>
                   
+                  {/* 🔥 КЛИК СЮДА ОТПРАВЛЯЕТ АККОРД НА ГРИФ ДЛЯ ОБЫГРЫВАНИЯ */}
                   <div 
                     onClick={() => handlePlayOverChord(c.chord)}
                     style={{ display: 'flex', alignItems: 'center', width: '80px', cursor: 'pointer', transition: '0.2s' }}
                     title={`Click to map ${c.chord} arpeggio on Fretboard`}
+                    onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                    onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
                   >
                     <span style={{ color: 'var(--text-muted)', fontSize: '11px', fontWeight: 800, width: '35px' }}>{c.roman}</span>
                     <span style={{ color: isTonic ? 'var(--accent)' : 'var(--text-primary)', fontWeight: 800, fontSize: '14px' }}>{c.chord}</span>
                   </div>
 
+                  {/* ПРАВАЯ ЧАСТЬ - ОСТАЛАСЬ БЕЗ ИЗМЕНЕНИЙ (ЗВУК + ВИЗУАЛ) */}
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', flex: 1, justifyContent: 'flex-end' }}>
-                    {/* 🔥 Явное указание типов v: Voicing и idx: number */}
-                    {voicings.slice(0, 2).map((v: Voicing, idx: number) => (
+                    {voicings.slice(0, 2).map((v, idx) => (
                       <div 
                         key={idx}
                         onClick={(e) => {
@@ -193,7 +197,7 @@ const DiatonicChords: React.FC = () => {
                     {voicings.length > 2 && (
                       <div 
                         onClick={() => setModalConfig({ chord: c.chord })}
-                        style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '0 4px', cursor: 'pointer' }}
+                        style={{ fontSize: '10px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: '0 4px', cursor: 'pointer', transition: '0.2s' }}
                         onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
                         onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
                       >
