@@ -113,7 +113,7 @@ const Fretboard: React.FC = () => {
                 <div style={{
                   position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '0.5px',
                   background: 'var(--accent)',
-                  boxShadow: '0 0 0.5px var(--accent), 0 0 0.5px var(--accent)',
+                  boxShadow: '0 0 1px var(--accent), 0 0 1px var(--accent)',
                   opacity: 0.85, zIndex: 0
                 }} />
               )}
