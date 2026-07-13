@@ -134,12 +134,12 @@ const Fretboard: React.FC = () => {
 
               const noteAlpha = material === 'maple' ? '1' : '0.4';
               
-              // 🔥 ИСПРАВЛЕНО: ТОНИКА (ROOT NOTE) ТЕПЕРЬ ТЕМНО-ЧЕРНАЯ С НЕОНОВОЙ ОКАНТОВКОЙ
-              // Если это тоника — красим в угольно-черный цвет (#111216). Иначе стандартный белый/полупрозрачный.
-              const noteBgColor = isRoot ? '#111216' : `rgba(255,255,255, ${noteAlpha})`;
+              // 🔥 ИСПРАВЛЕНО: ТОНИКА ТЕПЕРЬ ТОЛЬКО СПЛОШНОЙ КРУГ БЕЗ ОКАНТОВКИ
+              // Фон тоники — сплошной акцентный цвет (var(--accent))
+              const noteBgColor = isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`;
               
-              // Если это тоника — текст ВСЕГДА кристально белый (#fff).
-              const noteTextColor = isRoot ? '#fff' : (material === 'maple' ? '#111216' : '#fff');
+              // Текст тоники — темно-серый (#22242e) для идеального контраста на зеленом
+              const noteTextColor = isRoot ? '#22242e' : (material === 'maple' ? '#111216' : '#fff');
 
               return (
                 <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
@@ -149,10 +149,10 @@ const Fretboard: React.FC = () => {
                       fontSize: '11px', fontWeight: '900',
                       background: noteBgColor,
                       color: noteTextColor,
-                      // 🔥 Для тоники добавляем четкую окантовку фирменного неонового цвета и убираем ослепляющую тень
-                      border: isRoot ? '2px solid var(--accent)' : 'none',
-                      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-                      boxShadow: isRoot ? '0 0 8px rgba(0, 255, 157, 0.4)' : 'none',
+                      // 🔥 Убрали border: isRoot ? ... и boxShadow: isRoot ? ...
+                      border: 'none', 
+                      textShadow: 'none',
+                      boxShadow: 'none',
                       zIndex: 3
                     }}>
                       {note}
