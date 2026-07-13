@@ -48,7 +48,9 @@ const Tablature: React.FC = () => {
       const quarterDuration = 60 / currentBpm; 
 
       currentLick.notes.forEach((note, index) => {
-        const freq = OPEN_FREQS[note.string] * Math.pow(2, note.fret / 12);
+        // Если fret === null, используем 0 (открытая струна)
+      const fretValue = note.fret ?? 0;
+      const freq = OPEN_FREQS[note.string] * Math.pow(2, fretValue / 12);
         
         let noteDuration = quarterDuration;
         if (note.duration === 'eighth') noteDuration = quarterDuration / 2;
