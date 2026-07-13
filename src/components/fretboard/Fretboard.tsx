@@ -106,7 +106,7 @@ const Fretboard: React.FC = () => {
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
           {frets.map(f => (
-            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '5px solid #bba182' : `1.5px solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
+            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '5px solid #bba182' : `2px solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
               
               {/* 🔥 ГЕНЕРАТОР ЛАЗЕРНОГО СВЕЧЕНИЯ ЛАДОВ */}
               {isCyberpunk && f !== 0 && (
