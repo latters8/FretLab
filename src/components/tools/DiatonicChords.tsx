@@ -4,6 +4,10 @@ import ChordDictionaryModal from './ChordDictionaryModal';
 
 type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
 
+// 🔥 ИСПРАВЛЕНО: Маппинг бемолей для кликов по аккордам
+const ENHARMONIC_MAP: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
+const normalize = (note: string) => ENHARMONIC_MAP[note] || note;
+
 const DiatonicChords: React.FC = () => {
   const { getDiatonicChords, mode, keyNote, setKeyNote, setMode } = useMusic();
   const [activeFilter, setActiveFilter] = useState<FilterType>('7TH');
@@ -42,7 +46,9 @@ const DiatonicChords: React.FC = () => {
     const root = match[1];
     const quality = match[2].toLowerCase();
 
-    setKeyNote(root);
+    // 🔥 ИСПРАВЛЕНО: Безопасная отправка ноты в стейт (перевод бемоля в диез)
+    setKeyNote(normalize(root));
+    
     if (quality.includes('alt')) setMode('altered');
     else if (quality.includes('maj7') || quality.includes('maj9')) setMode('maj7_arp');
     else if (quality.includes('m7') || quality.includes('m9') || quality.includes('m11')) setMode('min7_arp');
@@ -89,8 +95,6 @@ const DiatonicChords: React.FC = () => {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '8px' }}>
             {chords.map((c, i) => {
               const isTonic = i === 0 && (isArpeggioOrAltered || activeFilter === 'DIA');
-              
-              // ❌ Удален неиспользуемый блок кода с voicings
 
               return (
                 <div key={i} style={{ 

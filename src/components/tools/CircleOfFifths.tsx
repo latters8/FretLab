@@ -4,42 +4,47 @@ import { useMusic } from '../../context/MusicContext';
 const KEYS_MAJOR = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
 const KEYS_MINOR = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'Bbm', 'Fm', 'Cm', 'Gm', 'Dm'];
 
+// 🔥 ИСПРАВЛЕНО: Маппинг бемолей в диезы для корректной работы ядра
+const ENHARMONIC_MAP: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
+const normalize = (note: string) => ENHARMONIC_MAP[note] || note;
+const isEnharmonic = (n1: string, n2: string) => normalize(n1) === normalize(n2);
+
 const CircleOfFifths: React.FC = () => {
   const { keyNote, mode, setKeyNote, setMode } = useMusic();
 
   const isMinorMode = mode === 'minor';
   
-  // Вычисляем индекс вращения на основе текущей активной ноты
-  let activeIndex = KEYS_MAJOR.indexOf(keyNote);
+  // 🔥 Вычисляем индекс с учетом энгармонизмов (Bb === A#)
+  let activeIndex = KEYS_MAJOR.findIndex(k => isEnharmonic(k, keyNote));
   if (activeIndex === -1) {
-    activeIndex = KEYS_MINOR.indexOf(keyNote + 'm');
+    activeIndex = KEYS_MINOR.findIndex(k => isEnharmonic(k.replace('m', ''), keyNote));
   }
   if (activeIndex === -1) activeIndex = 0;
 
   const rotation = -activeIndex * 30;
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', padding: '24px 16px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+    // 🔥 ИСПРАВЛЕНО: Жесткая высота и запрет на сжатие (flexShrink: 0)
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', height: '280px', flexShrink: 0 }}>
       
-      {/* 🔥 ИСПРАВЛЕНО: Компактный размер 230px гарантирует 100% вход в границы сайдбара */}
       <div style={{ position: 'relative', width: '230px', height: '230px', transition: 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)', transform: `rotate(${rotation}deg)` }}>
         
         <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', border: '1px dashed var(--border-color)', opacity: 0.3, pointerEvents: 'none' }} />
 
-        {/* 1. ВНЕШНЕЕ КОЛЬЦО (МАЖОР) */}
+        {/* ВНЕШНЕЕ КОЛЬЦО (МАЖОР) */}
         {KEYS_MAJOR.map((key, i) => {
           const angle = i * 30;
           const rad = (angle - 90) * (Math.PI / 180);
           const x = 115 + 98 * Math.cos(rad); 
           const y = 115 + 98 * Math.sin(rad);
-          const isActive = key === keyNote && !isMinorMode;
+          const isActive = isEnharmonic(key, keyNote) && !isMinorMode;
           
           return (
             <div 
               key={key}
               onClick={() => {
-                setKeyNote(key);
-                setMode('major'); // 🔥 Автоматический мажор при клике на внешний круг
+                setKeyNote(normalize(key)); // 🔥 Нормализуем перед отправкой в State
+                setMode('major'); 
               }}
               style={{
                 position: 'absolute', left: `${x}px`, top: `${y}px`, transform: `translate(-50%, -50%) rotate(${-rotation}deg)`,
@@ -59,7 +64,7 @@ const CircleOfFifths: React.FC = () => {
           );
         })}
         
-        {/* 2. ВНУТРЕННЕЕ КОЛЬЦО (МИНОР) */}
+        {/* ВНУТРЕННЕЕ КОЛЬЦО (МИНОР) */}
         {KEYS_MINOR.map((key, i) => {
           const angle = i * 30;
           const rad = (angle - 90) * (Math.PI / 180);
@@ -67,14 +72,14 @@ const CircleOfFifths: React.FC = () => {
           const y = 115 + 60 * Math.sin(rad);
           
           const cleanKey = key.replace('m', '');
-          const isActive = cleanKey === keyNote && isMinorMode;
+          const isActive = isEnharmonic(cleanKey, keyNote) && isMinorMode;
           
           return (
             <div 
               key={key}
               onClick={() => {
-                setKeyNote(cleanKey);
-                setMode('minor'); // 🔥 Автоматический минор при клике на внутренний круг
+                setKeyNote(normalize(cleanKey)); // 🔥 Нормализуем перед отправкой в State
+                setMode('minor'); 
               }}
               style={{
                 position: 'absolute', left: `${x}px`, top: `${y}px`, transform: `translate(-50%, -50%) rotate(${-rotation}deg)`,
@@ -94,8 +99,8 @@ const CircleOfFifths: React.FC = () => {
           );
         })}
 
-        {/* 3. ЦЕНТРАЛЬНЫЙ ДИСПЛЕЙ */}
         <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${-rotation}deg)`, textAlign: 'center', pointerEvents: 'none' }}>
+            {/* Отрисовываем исходную ноту, даже если внутри это диез */}
             <div style={{ color: 'var(--text-primary)', fontSize: '24px', fontWeight: 900, lineHeight: 1 }}>{keyNote}{isMinorMode ? 'm' : ''}</div>
             <div style={{ color: 'var(--accent)', fontSize: '8px', fontWeight: 800, letterSpacing: '0.5px', marginTop: '4px' }}>TONIC</div>
         </div>
