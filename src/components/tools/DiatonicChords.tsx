@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
-import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 
 type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
 
@@ -14,7 +13,6 @@ const DiatonicChords: React.FC = () => {
   const isArpeggioOrAltered = mode.includes('_arp') || mode === 'altered' || mode === 'pentatonic' || mode === 'blues';
 
   const getDisplayedChords = () => {
-    // Режим умных предложений для изолированных обыгрываний
     if (isArpeggioOrAltered) {
       switch(mode) {
         case 'min7_arp': return [{roman: 'i7', chord: keyNote+'m7'}, {roman: 'i9', chord: keyNote+'m9'}, {roman: 'i11', chord: keyNote+'m11'}, {roman: 'i13', chord: keyNote+'m13'}];
@@ -29,7 +27,6 @@ const DiatonicChords: React.FC = () => {
       }
     }
 
-    // 🔥 ИСПРАВЛЕНО: Генерация корректной мажорной/минорной диатоники в зависимости от колеса квинт
     return baseChords.map(c => {
       if (activeFilter === 'DIA') return { roman: c.baseRoman, chord: c.triad };
       if (activeFilter === '7TH') return { roman: c.seventhRoman, chord: c.seventhChord };
@@ -46,7 +43,6 @@ const DiatonicChords: React.FC = () => {
     const quality = match[2].toLowerCase();
 
     setKeyNote(root);
-    // Настраиваем гриф, но НЕ закрываем и не ломаем панель
     if (quality.includes('alt')) setMode('altered');
     else if (quality.includes('maj7') || quality.includes('maj9')) setMode('maj7_arp');
     else if (quality.includes('m7') || quality.includes('m9') || quality.includes('m11')) setMode('min7_arp');
@@ -94,13 +90,7 @@ const DiatonicChords: React.FC = () => {
             {chords.map((c, i) => {
               const isTonic = i === 0 && (isArpeggioOrAltered || activeFilter === 'DIA');
               
-              // Безопасное извлечение аппликатур для проверки длины массива
-              const dbResult = CHORD_DB[c.chord];
-              const voicings: Voicing[] = Array.isArray(dbResult) 
-                ? dbResult 
-                : (dbResult && typeof dbResult === 'object' && 'voicings' in dbResult 
-                    ? (dbResult as any).voicings 
-                    : [generateFallbackVoicing(c.chord)]);
+              // ❌ Удален неиспользуемый блок кода с voicings
 
               return (
                 <div key={i} style={{ 
