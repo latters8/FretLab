@@ -5,7 +5,7 @@ import { useMusic } from '../../context/MusicContext';
 import { generateSmartLick, type Lick } from '../../services/AIEngine';
 
 const Tablature: React.FC = () => {
-  const { mode, keyNote, getScaleNotes, bpm } = useMusic();
+  const { mode, keyNote, getScaleNotes, bpm, timeSignature } = useMusic();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentLick, setCurrentLick] = useState<Lick | null>(null);
@@ -17,8 +17,8 @@ const Tablature: React.FC = () => {
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     const safeKey = keyNote || 'C';
     const safeMode = mode || 'major';
-    setCurrentLick(generateSmartLick(safeScale, safeKey, safeMode, bpm));
-  }, [keyNote, mode, bpm]);
+    setCurrentLick(generateSmartLick(safeScale, safeKey, safeMode, bpm, timeSignature));
+  }, [keyNote, mode, bpm, timeSignature]);
 
   const handleGenerate = () => {
     if (isPlayingAudio) return;
@@ -26,7 +26,7 @@ const Tablature: React.FC = () => {
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
     setTimeout(() => {
-      setCurrentLick(generateSmartLick(safeScale, keyNote || 'C', mode || 'major', bpm));
+      setCurrentLick(generateSmartLick(safeScale, keyNote || 'C', mode || 'major', bpm, timeSignature));
       setIsGenerating(false);
       setLocalActiveStep(-1);
     }, 400);
@@ -130,16 +130,16 @@ const Tablature: React.FC = () => {
           graceOsc.stop(startTime);
         }
 
-        // 🔥 ГРОМКОСТЬ (УВЕЛИЧЕНА В 2 РАЗА!)
+        // 🔥 ГРОМКОСТЬ
         let attackTime = 0.008 + Math.random() * 0.01;
-        let sustainLevel = 0.8 * accentFactor; // было 0.4 → 0.8
+        let sustainLevel = 0.8 * accentFactor;
 
         if (note.technique === 'hammer') {
           attackTime = 0.005;
-          sustainLevel = 0.6 * accentFactor; // было 0.3 → 0.6
+          sustainLevel = 0.6 * accentFactor;
         } else if (note.technique === 'pull') {
           attackTime = 0.005;
-          sustainLevel = 0.55 * accentFactor; // было 0.25 → 0.55
+          sustainLevel = 0.55 * accentFactor;
         }
 
         gainNode.gain.setValueAtTime(0, startTime);
@@ -183,6 +183,11 @@ const Tablature: React.FC = () => {
           <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--accent)' }}>
             {currentLick ? currentLick.name : 'Initializing...'}
           </span>
+          {currentLick && (
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, background: 'var(--bg-secondary)', padding: '2px 10px', borderRadius: '12px' }}>
+              {timeSignature.beats}/{timeSignature.noteValue}
+            </span>
+          )}
         </div>
         
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>

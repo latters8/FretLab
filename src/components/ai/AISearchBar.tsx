@@ -1,7 +1,7 @@
 // src/components/ai/AISearchBar.tsx
 
-import React, { useState, useRef, useEffect, type KeyboardEvent } from 'react';
-import { processAIQuery, type TrackOption, type VideoPlatform, type AIResponse } from '../../services/AIEngine';
+import React, { useState, useRef, useEffect } from 'react';
+import { processAIQuery, type TrackOption, type VideoPlatform } from '../../services/AIEngine';
 import { useMusic } from '../../context/MusicContext';
 
 interface AISearchBarProps {
@@ -18,6 +18,7 @@ interface ChatMessage {
   searchQuery?: string;
 }
 
+// 🔥 ПОДСКАЗКИ ДЛЯ ПОЛЯ ВВОДА
 const HINTS = [
   "Ask TouchGrass AI...",
   "🎸 Try: 'Find a blues backing track in Am'",
@@ -25,6 +26,26 @@ const HINTS = [
   "🎼 Try: 'How to play over E7 alt?'",
   "⚡ Try: 'Generate a Dorian lick'"
 ];
+
+// 🔥 БЫСТРЫЕ ДЕЙСТВИЯ (кликабельные подсказки)
+const QUICK_PROMPTS = [
+  { label: "🎸 Find backing track", query: "Find a blues backing track in Am" },
+  { label: "🎹 Show chord", query: "Show me Cmaj7 chord" },
+  { label: "🎼 Play over", query: "How to play over E7 alt?" },
+  { label: "⚡ Generate lick", query: "Generate a Dorian lick" },
+  { label: "🎵 Set tempo", query: "Set tempo to 96 BPM" }
+];
+
+// 🔥 ПРИВЕТСТВИЕ
+const WELCOME_MESSAGE = {
+  text: "🤖 Привет! Я TouchGrass AI — ваш музыкальный ассистент.\n\n" +
+        "🎸 Что я умею:\n" +
+        "• Находить минусовки: *«Найди блюз минус в Am»*\n" +
+        "• Показывать аккорды: *«Покажи Cmaj7»*\n" +
+        "• Подсвечивать лады: *«Как обыграть E7?»*\n" +
+        "• Генерировать табы: *«Придумай фразу в Dorian»*\n\n" +
+        "Напиши свой запрос или выбери одно из действий ниже 👇"
+};
 
 // 🔥 КОМПОНЕНТ ВЫБОРА ПЛАТФОРМЫ
 const PlatformSelector: React.FC<{ 
@@ -38,16 +59,118 @@ const PlatformSelector: React.FC<{
           key={p.platform}
           onClick={() => onSelect(p.platform)}
           style={{
-            display: 'flex', alignItems: 'center', gap: '6px',
-            background: 'var(--bg-panel)', border: '1px solid var(--border-color)',
-            padding: '8px 12px', borderRadius: '8px', cursor: 'pointer',
-            color: 'var(--text-primary)', fontSize: '12px', fontWeight: 800,
-            transition: 'all 0.2s'
+            background: 'rgba(0, 255, 157, 0.08)',
+            border: '1px solid rgba(0, 255, 157, 0.2)',
+            color: 'var(--accent)',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
           }}
-          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
-          onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(0, 255, 157, 0.15)';
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(0, 255, 157, 0.08)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
         >
-          <span>{p.icon}</span> {p.label}
+          {p.icon} {p.label}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// 🔥 КОМПОНЕНТ ОПЦИЙ
+const OptionsRenderer: React.FC<{ 
+  options: TrackOption[];
+  onSelect: (opt: TrackOption) => void;
+}> = ({ options, onSelect }) => {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '12px' }}>
+      {options.map(opt => (
+        <button
+          key={opt.id}
+          onClick={() => onSelect(opt)}
+          style={{
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            padding: '10px 14px',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            textAlign: 'left',
+            fontSize: '13px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            transition: 'all 0.2s',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(0, 255, 157, 0.05)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
+          }}
+        >
+          {opt.icon && <span style={{ fontSize: '16px' }}>{opt.icon}</span>}
+          {opt.title}
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// 🔥 КОМПОНЕНТ БЫСТРЫХ ДЕЙСТВИЙ (кликабельные подсказки)
+const QuickPrompts: React.FC<{ onSelect: (query: string) => void }> = ({ onSelect }) => {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      flexWrap: 'wrap', 
+      gap: '8px', 
+      marginTop: '12px',
+      justifyContent: 'center'
+    }}>
+      {QUICK_PROMPTS.map((prompt, idx) => (
+        <button
+          key={idx}
+          onClick={() => onSelect(prompt.query)}
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            color: 'var(--text-secondary)',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          onMouseEnter={e => {
+            e.currentTarget.style.background = 'rgba(0, 255, 157, 0.08)';
+            e.currentTarget.style.borderColor = 'var(--accent)';
+            e.currentTarget.style.color = 'var(--text-primary)';
+            e.currentTarget.style.transform = 'scale(1.02)';
+          }}
+          onMouseLeave={e => {
+            e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+            e.currentTarget.style.color = 'var(--text-secondary)';
+            e.currentTarget.style.transform = 'scale(1)';
+          }}
+        >
+          {prompt.label}
         </button>
       ))}
     </div>
@@ -59,13 +182,24 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [currentHintIndex, setCurrentHintIndex] = useState(0);
+  const [hintIndex, setHintIndex] = useState(0);
+  const [hasWelcomed, setHasWelcomed] = useState(false);
   
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { setKeyNote, setMode } = useMusic();
+  const { setKeyNote, setMode, setBpm } = useMusic();
 
+  // 🔥 РОТАЦИЯ ПОДСКАЗОК
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHintIndex((prev) => (prev + 1) % HINTS.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // 🔥 ЗАКРЫТИЕ ПО КЛИКУ МИМО
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -76,56 +210,63 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // 🔥 ESC ДЛЯ ЗАКРЫТИЯ
+  useEffect(() => {
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    document.addEventListener('keydown', handleEsc);
+    return () => document.removeEventListener('keydown', handleEsc);
+  }, []);
+
+  // 🔥 ПРИВЕТСТВИЕ ПРИ ПЕРВОМ ОТКРЫТИИ
+  useEffect(() => {
+    if (isOpen && !hasWelcomed && messages.length === 0) {
+      setHasWelcomed(true);
+      addMessage({
+        role: 'ai',
+        text: WELCOME_MESSAGE.text
+      });
+    }
+  }, [isOpen, hasWelcomed, messages.length]);
+
+  // 🔥 СКРОЛЛ К ПОСЛЕДНЕМУ СООБЩЕНИЮ
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isOpen]);
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (!query && !isOpen) {
-        setCurrentHintIndex(prev => (prev + 1) % HINTS.length);
-      }
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [query, isOpen]);
-
   const addMessage = (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => {
-    const newMessage: ChatMessage = {
-      ...msg,
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      timestamp: Date.now()
-    };
-    setMessages(prev => [...prev, newMessage]);
+    setMessages(prev => [...prev, { 
+      ...msg, 
+      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      timestamp: Date.now() 
+    }]);
   };
 
-  const applyChordToEngine = (chordStr: string) => {
-    const match = chordStr.match(/^([A-G][b#]?)(.*)$/);
-    if (!match) return;
-    const root = match[1];
-    const quality = match[2].toLowerCase();
+  const handleAction = (action: any) => {
+    if (!action) return;
+    const normalize = (n: string) => ({ 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' }[n] || n);
 
-    const ENHARMONIC_MAP: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
-    const normalize = (n: string) => ENHARMONIC_MAP[n] || n;
-
-    setKeyNote(normalize(root));
-    
-    if (quality.includes('alt')) setMode('altered');
-    else if (quality.includes('maj7') || quality.includes('maj9')) setMode('maj7_arp');
-    else if (quality.includes('m7') || quality.includes('m9') || quality.includes('m11')) setMode('min7_arp');
-    else if (quality.includes('9')) setMode('dom9_arp');
-    else if (quality.includes('7')) setMode('dom7_arp');
-    else if (quality.includes('m') && !quality.includes('dim')) setMode('minor');
-    else if (quality.includes('dim')) setMode('locrian');
-    else setMode('major');
+    if (action.type === 'SET_BPM') {
+      setBpm(action.payload?.bpm);
+    } else if (action.type === 'SET_CONTEXT') {
+      if (action.payload?.key) setKeyNote(normalize(action.payload.key));
+      if (action.payload?.mode) setMode(action.payload.mode);
+    } else if (action.type === 'OPEN_AUTOTAB') {
+      if (action.payload?.key) setKeyNote(normalize(action.payload.key));
+      if (action.payload?.mode) setMode(action.payload.mode);
+      if (onAction) onAction({ type: 'OPEN_AUTOTAB' });
+    } else if (onAction) {
+      onAction(action);
+    }
   };
 
-  const handleSearch = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!query.trim()) return;
+  const handleSearch = async (text?: string) => {
+    const userText = (text || query).trim();
+    if (!userText) return;
     
-    const userText = query.trim();
     setQuery('');
     setIsOpen(true);
     addMessage({ role: 'user', text: userText });
@@ -138,219 +279,256 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
         text: res.text,
         options: res.options,
         platformOptions: res.platformOptions,
-        searchQuery: res.searchQuery
+        searchQuery: res.searchQuery,
       });
-
-      if (res.action && onAction) onAction(res.action);
+      if (res.action) handleAction(res.action);
     } catch (error) {
-      addMessage({ role: 'ai', text: 'Ошибка соединения с ИИ. Попробуй позже.' });
+      addMessage({ role: 'ai', text: '❌ Something went wrong. Please try again.' });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleSearch();
-    }
-  };
-
-  const handleOptionClick = (opt: TrackOption) => {
+  const handleOptionSelect = (opt: TrackOption) => {
     if (!opt.action) return;
-
-    if (opt.action.type === 'FIND_BACKING_TRACK') {
-      const aiResp: AIResponse = {
-        text: `Отлично! Выбери стриминг, где будем искать джем для **${opt.action.payload.chord}**: 🎧`,
-        platformOptions: [
-          { platform: 'youtube', label: 'YouTube', icon: '📺' },
-          { platform: 'vk', label: 'VK Видео', icon: '🟦' },
-          { platform: 'rutube', label: 'RuTube', icon: '▶️' }
-        ],
-        searchQuery: `${opt.action.payload.chord} guitar backing track` 
-      };
-      addMessage({ role: 'ai', ...aiResp });
+    
+    if (opt.action.type === 'OPEN_CHORD') {
+      if (onAction) onAction(opt.action);
+      setIsOpen(false);
       return;
     }
-
-    if (opt.action.type === 'PLAY_OVER_CHORD') {
-      applyChordToEngine(opt.action.payload.chord);
-      if (onAction) onAction({ type: 'OPEN_TAB_GEN' }); 
-      addMessage({ role: 'ai', text: `Гриф перестроен для обыгрывания аккорда **${opt.action.payload.chord}**! Готово! 🔥` });
+    
+    if (opt.action.type === 'SEARCH_BACKING') {
+      const query = opt.action.payload?.query || 'guitar backing track';
+      const encoded = encodeURIComponent(query);
+      window.open(`https://www.youtube.com/results?search_query=${encoded}`, '_blank');
+      setIsOpen(false);
       return;
     }
-
-    if (opt.action.type === 'GENERATE_LICK') {
-      applyChordToEngine(opt.action.payload.chord);
-      if (onAction) onAction({ type: 'OPEN_AUTOTAB' }); 
-      addMessage({ role: 'ai', text: `Запускаю генератор соло-фраз в тональности **${opt.action.payload.chord}**! ⚡` });
+    
+    if (opt.action.type === 'OPEN_AUTOTAB') {
+      if (opt.action.payload?.key) {
+        const normalize = (n: string) => ({ 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' }[n] || n);
+        setKeyNote(normalize(opt.action.payload.key));
+        if (opt.action.payload?.mode) setMode(opt.action.payload.mode);
+      }
+      if (onAction) onAction({ type: 'OPEN_AUTOTAB' });
+      setIsOpen(false);
       return;
     }
-
-    if (onAction) {
-      onAction(opt.action);
-    }
+    
+    handleAction(opt.action);
+    setIsOpen(false);
   };
 
-  const handlePlatformSelect = (platform: VideoPlatform, q?: string) => {
-    if (!q) return;
-    const encoded = encodeURIComponent(q);
-    
-    if (platform === 'youtube') window.open(`https://www.youtube.com/results?search_query=${encoded}`, '_blank', 'noopener,noreferrer');
-    else if (platform === 'vk') window.open(`https://vk.com/video?q=${encoded}`, '_blank', 'noopener,noreferrer');
-    else if (platform === 'rutube') window.open(`https://rutube.ru/search/?query=${encoded}`, '_blank', 'noopener,noreferrer');
-    
-    const pName = platform === 'youtube' ? 'YouTube' : platform === 'vk' ? 'VK Видео' : 'RuTube';
-    addMessage({ role: 'ai', text: `Открываю поиск для "${q}" на платформе ${pName}! 🎸` });
+  const handlePlatformSelect = (platform: VideoPlatform, searchQuery: string) => {
+    const encoded = encodeURIComponent(searchQuery);
+    const urls = {
+      youtube: `https://www.youtube.com/results?search_query=${encoded}`,
+      rutube: `https://rutube.ru/search/?query=${encoded}`,
+      vk: `https://vk.com/video?q=${encoded}`
+    };
+    window.open(urls[platform], '_blank', 'noopener,noreferrer');
+    setIsOpen(false);
+  };
+
+  const handleQuickPrompt = (query: string) => {
+    handleSearch(query);
+  };
+
+  const clearChat = () => {
+    setMessages([]);
+    setHasWelcomed(false);
   };
 
   return (
-    <div ref={wrapperRef} style={{ position: 'relative', width: '100%', maxWidth: '800px', margin: '0 auto', zIndex: 1000 }}>
+    <div ref={wrapperRef} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
       
-      {isOpen && (
-        <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, background: 'var(--bg-root)', border: '1px solid var(--border-color)', borderRadius: '16px 16px 0 0', borderBottom: 'none', padding: '16px', maxHeight: '400px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '16px', boxShadow: '0 -10px 40px rgba(0,0,0,0.5)', animation: 'fadeIn 0.2s ease-out' }}>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
-            <span style={{ fontSize: '20px' }}>🤖</span>
-            <span style={{ fontWeight: 900, color: 'var(--accent)', fontSize: '14px', letterSpacing: '1px' }}>TOUCHGRASS AI</span>
-            <button onClick={() => setIsOpen(false)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '18px' }}>×</button>
-          </div>
+      {/* ===== СТРОКА ПОИСКА ===== */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        background: 'var(--bg-secondary)',
+        border: `1px solid ${isOpen ? 'var(--accent)' : 'var(--border-color)'}`,
+        borderRadius: '24px',
+        padding: '4px 16px 4px 20px',
+        transition: 'all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+        boxShadow: isOpen ? '0 4px 20px rgba(0,255,157,0.1)' : 'none',
+      }}>
+        <span style={{ fontSize: '18px', marginRight: '10px', opacity: 0.6 }}>🤖</span>
+        
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          onFocus={() => {
+            setIsOpen(true);
+            if (messages.length === 0 && !hasWelcomed) {
+              setHasWelcomed(true);
+              addMessage({
+                role: 'ai',
+                text: WELCOME_MESSAGE.text
+              });
+            }
+          }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSearch();
+            }
+          }}
+          placeholder={HINTS[hintIndex]}
+          style={{
+            flex: 1,
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-primary)',
+            outline: 'none',
+            fontSize: '14px',
+            padding: '10px 0',
+            fontWeight: 500,
+          }}
+        />
+        
+        {isLoading ? (
+          <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 700, padding: '0 8px' }}>
+            ...
+          </span>
+        ) : query && (
+          <button
+            onClick={() => handleSearch()}
+            style={{
+              background: 'var(--accent)',
+              color: '#000',
+              border: 'none',
+              borderRadius: '20px',
+              padding: '6px 16px',
+              fontWeight: 800,
+              fontSize: '12px',
+              cursor: 'pointer',
+              transition: '0.2s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+          >
+            Send
+          </button>
+        )}
+      </div>
 
-          {messages.length === 0 && !isLoading && (
-            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px', padding: '20px 0' }}>
-              Ask me to find chords, backing tracks, or generate licks! 🎸
+      {/* ===== ВЫПАДАЮЩИЙ ЧАТ ===== */}
+      {isOpen && (
+        <div style={{
+          position: 'absolute',
+          top: 'calc(100% + 8px)',
+          left: 0,
+          right: 0,
+          background: 'var(--bg-panel)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '16px',
+          maxHeight: '400px',
+          overflowY: 'auto',
+          padding: '16px',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+          zIndex: 1000,
+        }}>
+          
+          {/* КНОПКА ОЧИСТКИ */}
+          {messages.length > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+              <button
+                onClick={clearChat}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--text-muted)',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: '0.2s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              >
+                ✕ Clear chat
+              </button>
             </div>
           )}
 
+          {/* СООБЩЕНИЯ */}
           {messages.map((msg) => (
-            <div key={msg.id} style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
-              <div style={{
-                background: msg.role === 'user' ? 'var(--accent)' : 'var(--bg-panel)',
-                color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
-                padding: '12px 16px',
-                borderRadius: msg.role === 'user' ? '16px 16px 0 16px' : '16px 16px 16px 0',
-                maxWidth: '85%',
-                fontSize: '14px',
-                lineHeight: '1.5',
-                border: msg.role === 'ai' ? '1px solid var(--border-color)' : 'none',
-                fontWeight: msg.role === 'user' ? 700 : 500
-              }}>
+            <div
+              key={msg.id}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                marginBottom: '12px',
+              }}
+            >
+              <div
+                style={{
+                  background: msg.role === 'user' ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
+                  color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
+                  padding: '10px 14px',
+                  borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  maxWidth: '90%',
+                  fontSize: '13px',
+                  lineHeight: '1.5',
+                  fontWeight: msg.role === 'user' ? 700 : 400,
+                  border: msg.role === 'ai' ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                }}
+              >
                 {msg.text}
               </div>
 
-              {msg.platformOptions && msg.searchQuery && (
-                <PlatformSelector 
-                  platforms={msg.platformOptions} 
-                  onSelect={(p) => handlePlatformSelect(p, msg.searchQuery)} 
-                />
+              {msg.options && (
+                <OptionsRenderer options={msg.options} onSelect={handleOptionSelect} />
               )}
 
-              {msg.options && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px', width: '100%', maxWidth: '300px' }}>
-                  {msg.options.map(opt => (
-                    <button
-                      key={opt.id}
-                      onClick={() => handleOptionClick(opt)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: '12px',
-                        background: 'var(--bg-primary)', border: '1px solid var(--border-color)',
-                        padding: '10px 16px', borderRadius: '8px', cursor: 'pointer',
-                        color: 'var(--text-primary)', textAlign: 'left',
-                        transition: 'all 0.2s', fontSize: '13px', fontWeight: 800
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.transform = 'translateX(4px)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'translateX(0)'; }}
-                    >
-                      {opt.title}
-                    </button>
-                  ))}
-                </div>
+              {msg.platformOptions && msg.searchQuery && (
+                <PlatformSelector
+                  platforms={msg.platformOptions}
+                  onSelect={(p) => handlePlatformSelect(p, msg.searchQuery!)}
+                />
               )}
             </div>
           ))}
 
           {isLoading && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent)', fontSize: '13px', fontWeight: 800, padding: '12px' }}>
-              <span style={{ animation: 'pulse 1s infinite' }}>●</span> AI is thinking...
+            <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '8px 0' }}>
+              <span style={{ 
+                display: 'inline-block',
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                background: 'var(--accent)',
+                marginRight: '8px',
+                animation: 'pulse 1s infinite',
+              }} />
+              Thinking...
             </div>
           )}
+
+          {/* 🔥 КЛИКАБЕЛЬНЫЕ ПОДСКАЗКИ */}
+          {messages.length === 0 && (
+            <QuickPrompts onSelect={handleQuickPrompt} />
+          )}
+          {messages.length > 0 && messages[messages.length - 1]?.role === 'ai' && (
+            <QuickPrompts onSelect={handleQuickPrompt} />
+          )}
+
           <div ref={messagesEndRef} />
         </div>
       )}
 
-      <div style={{ position: 'relative', zIndex: 1001 }}>
-        <div style={{ 
-          background: isOpen ? 'var(--bg-panel)' : 'var(--bg-secondary)', 
-          border: `1px solid ${isOpen ? 'var(--accent)' : 'var(--border-color)'}`,
-          borderRadius: isOpen ? '0 0 24px 24px' : '24px', 
-          padding: '8px 8px 8px 24px', 
-          display: 'flex', 
-          alignItems: 'center',
-          boxShadow: isOpen ? '0 10px 30px rgba(0,0,0,0.5)' : 'none',
-          transition: 'all 0.3s ease'
-        }}>
-          <span style={{ marginRight: '12px', opacity: isOpen ? 1 : 0.5, fontSize: '18px', transition: '0.3s', filter: isOpen ? 'drop-shadow(0 0 8px var(--accent))' : 'none' }}>✨</span>
-          
-          <div style={{ flex: 1, position: 'relative' }}>
-            {!query && !isOpen && (
-              <div style={{ position: 'absolute', top: '50%', left: 0, transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none', fontSize: '14px', fontWeight: 600, transition: 'opacity 0.3s' }}>
-                {HINTS[currentHintIndex]}
-              </div>
-            )}
-            <form onSubmit={handleSearch} style={{ display: 'flex', width: '100%', alignItems: 'center' }}>
-              <input
-                type="text"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => setIsOpen(true)}
-                style={{ 
-                  width: '100%', 
-                  background: 'transparent', 
-                  border: 'none', 
-                  color: 'var(--text-primary)', 
-                  outline: 'none', 
-                  fontSize: '15px', 
-                  fontWeight: 600,
-                  padding: '8px 0',
-                  position: 'relative',
-                  zIndex: 2
-                }}
-              />
-              <button 
-                type="submit" 
-                disabled={isLoading} 
-                style={{ 
-                  background: isLoading ? 'var(--text-muted)' : 'var(--accent)', 
-                  color: '#000', 
-                  border: 'none', 
-                  padding: '10px 28px', 
-                  borderRadius: '24px', 
-                  fontWeight: 900, 
-                  cursor: isLoading ? 'default' : 'pointer', 
-                  transition: '0.2s',
-                  fontSize: '13px',
-                  letterSpacing: '0.5px',
-                  marginLeft: '12px'
-                }}
-                onMouseEnter={e => { if (!isLoading) e.currentTarget.style.transform = 'scale(1.05)'; }}
-                onMouseLeave={e => { if (!isLoading) e.currentTarget.style.transform = 'scale(1)'; }}
-              >
-                SEND
-              </button>
-            </form>
-          </div>
-        </div>
-      </div>
-
       <style>{`
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.3; }
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.3; transform: scale(0.8); }
         }
       `}</style>
     </div>

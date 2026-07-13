@@ -1,129 +1,339 @@
+// src/components/tools/ToolBox.tsx
+
 import React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { useMetronome } from '../../hooks/useMetronome';
 import { useTuner } from '../../hooks/useTuner';
 
 const ToolBox: React.FC = () => {
-  const { bpm, setBpm, isPlaying, togglePlay } = useMusic();
-  useMetronome(bpm);
+  const { 
+    bpm, setBpm, isPlaying, togglePlay, 
+    timeSignature, setTimeSignature 
+  } = useMusic();
+  useMetronome(bpm, timeSignature);
   
-  const { isActive: isTunerActive, startTuner, stopTuner, note: tunerNote, cents, frequency } = useTuner();
+  const { 
+    isActive: isTunerActive, 
+    startTuner, 
+    stopTuner, 
+    note: tunerNote, 
+    cents, 
+    frequency
+  } = useTuner();
 
-  // Логика цвета и LED-индикации
-  const isPerfectPitch = Math.abs(cents) < 5;
-  //const isSharp = cents > 0;
-  
-  // Создаем массив из 21 деления (от -10 до +10), каждое деление = 5 центов
-  const leds = Array.from({ length: 21 }, (_, i) => i - 10);
-  const activeLedIndex = Math.round(cents / 5);
+  const getTunerColor = () => {
+    if (!isTunerActive) return 'var(--text-muted)';
+    const absCents = Math.abs(cents);
+    if (absCents < 3) return 'var(--accent)';
+    if (absCents < 10) return '#ffb800';
+    if (absCents < 20) return '#ff8800';
+    return '#ff3333';
+  };
+
+  const isInTune = isTunerActive && Math.abs(cents) < 3 && tunerNote !== '-' && tunerNote !== '...';
+  const tunerColor = getTunerColor();
+
+  // 🔥 ДОСТУПНЫЕ РАЗМЕРЫ
+  const TIME_SIGNATURES = [
+    { beats: 4, noteValue: 4, label: '4/4' },
+    { beats: 3, noteValue: 4, label: '3/4' },
+    { beats: 2, noteValue: 4, label: '2/4' },
+    { beats: 6, noteValue: 8, label: '6/8' },
+    { beats: 5, noteValue: 4, label: '5/4' },
+    { beats: 7, noteValue: 4, label: '7/4' },
+    { beats: 12, noteValue: 8, label: '12/8' },
+  ];
+
+  //const currentSigLabel = TIME_SIGNATURES.find(
+    //s => s.beats === timeSignature.beats && s.noteValue === timeSignature.noteValue
+  //)?.label || `${timeSignature.beats}/${timeSignature.noteValue}`;
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px', flexShrink: 0 }}>
+    <div style={{ 
+      background: 'var(--bg-panel)', 
+      borderRadius: 'var(--radius)', 
+      border: '1px solid var(--border-color)', 
+      padding: '20px', 
+      display: 'flex', 
+      flexDirection: 'column', 
+      gap: '16px',
+      flexShrink: 0,
+      minWidth: '200px'
+    }}>
       
       <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
         🎛️ Control Center
       </div>
 
-      {/* 1. METRONOME */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-root)', padding: '12px 16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>TEMPO</span>
-          <span style={{ fontSize: '14px', color: 'var(--text-primary)', fontWeight: 900 }}>BPM</span>
+      {/* ===== МЕТРОНОМ С РАЗМЕРОМ ===== */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        gap: '8px',
+        background: 'var(--bg-root)', 
+        padding: '10px 14px', 
+        borderRadius: '10px', 
+        border: '1px solid var(--border-color)' 
+      }}>
+        {/* Верхняя строка: BPM + Play */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
+            <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>TEMPO</span>
+            <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: 900 }}>BPM</span>
+          </div>
+          
+          <input 
+            type="number" 
+            value={bpm} 
+            onChange={(e) => setBpm(Number(e.target.value))} 
+            style={{ 
+              width: '60px', 
+              background: 'var(--bg-secondary)', 
+              border: '1px solid var(--border-color)', 
+              borderRadius: '6px',
+              color: 'var(--text-primary)', 
+              fontWeight: 900, 
+              fontSize: '16px', 
+              outline: 'none', 
+              textAlign: 'center',
+              padding: '4px 0'
+            }} 
+          />
+          
+          <button 
+            onClick={togglePlay} 
+            style={{ 
+              marginLeft: 'auto', 
+              width: '36px', 
+              height: '36px', 
+              borderRadius: '50%', 
+              background: isPlaying ? 'var(--accent)' : 'var(--bg-secondary)', 
+              color: isPlaying ? '#000' : 'var(--accent)', 
+              border: `2px solid var(--accent)`, 
+              cursor: 'pointer', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              fontWeight: 900,
+              fontSize: '14px',
+              transition: '0.2s',
+              boxShadow: isPlaying ? '0 0 12px var(--accent)' : 'none'
+            }}
+          >
+            {isPlaying ? '■' : '▶'}
+          </button>
         </div>
-        
-        <input 
-          type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} 
-          style={{ width: '70px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', color: 'var(--text-primary)', fontWeight: 900, fontSize: '18px', outline: 'none', textAlign: 'center', padding: '4px 0' }} 
-        />
-        
-        <button 
-          onClick={togglePlay} 
-          style={{ marginLeft: 'auto', width: '42px', height: '42px', borderRadius: '50%', background: isPlaying ? 'var(--accent)' : 'var(--bg-secondary)', color: isPlaying ? '#000' : 'var(--accent)', border: `2px solid var(--accent)`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '16px', transition: '0.2s', boxShadow: isPlaying ? '0 0 12px var(--accent)' : 'none' }}
-        >
-          {isPlaying ? '■' : '▶'}
-        </button>
+
+        {/* 🔥 НИЖНЯЯ СТРОКА: ВЫБОР РАЗМЕРА */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '9px', color: 'var(--text-muted)', fontWeight: 700, letterSpacing: '0.5px' }}>
+            TIME
+          </span>
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {TIME_SIGNATURES.map(sig => (
+              <button
+                key={sig.label}
+                onClick={() => setTimeSignature({ beats: sig.beats, noteValue: sig.noteValue })}
+                style={{
+                  background: timeSignature.beats === sig.beats && timeSignature.noteValue === sig.noteValue 
+                    ? 'var(--accent)' 
+                    : 'var(--bg-secondary)',
+                  color: timeSignature.beats === sig.beats && timeSignature.noteValue === sig.noteValue 
+                    ? '#000' 
+                    : 'var(--text-muted)',
+                  border: 'none',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: '0.2s',
+                  fontFamily: 'monospace'
+                }}
+                onMouseEnter={e => {
+                  if (!(timeSignature.beats === sig.beats && timeSignature.noteValue === sig.noteValue)) {
+                    e.currentTarget.style.color = 'var(--text-primary)';
+                  }
+                }}
+                onMouseLeave={e => {
+                  if (!(timeSignature.beats === sig.beats && timeSignature.noteValue === sig.noteValue)) {
+                    e.currentTarget.style.color = 'var(--text-muted)';
+                  }
+                }}
+              >
+                {sig.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* 2. WAZA / KORG STYLE TUNER */}
-      <div style={{ background: '#0a0a0c', padding: '20px 16px', borderRadius: '12px', border: '2px solid #1a1a20', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 10px 30px rgba(0,0,0,0.8)' }}>
+      {/* ===== ТЮНЕР ===== */}
+      <div style={{ 
+        background: 'var(--bg-root)', 
+        padding: '14px', 
+        borderRadius: '10px', 
+        border: `1px solid ${isTunerActive ? 'var(--accent)' : 'var(--border-color)'}`,
+        boxShadow: isTunerActive ? '0 0 20px rgba(0,255,157,0.05)' : 'none',
+        transition: 'all 0.3s'
+      }}>
         
-        {/* Блик на "стекле" прибора */}
-        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '40%', background: 'linear-gradient(to bottom, rgba(255,255,255,0.05), transparent)', pointerEvents: 'none' }} />
-
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', zIndex: 1 }}>
-          <span style={{ fontSize: '10px', color: '#666', fontWeight: 900, letterSpacing: '1px', fontFamily: 'monospace' }}>PITCHBLACK ENGINE</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '14px' }}>🎙️</span>
+            <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>TUNER</span>
+            {isTunerActive && (
+              <span style={{ 
+                fontSize: '8px', 
+                color: 'var(--accent)',
+                fontWeight: 700,
+                background: 'rgba(0,255,157,0.1)',
+                padding: '2px 8px',
+                borderRadius: '8px'
+              }}>
+                🎵 ACTIVE
+              </span>
+            )}
+          </div>
+          
           <button 
             onClick={isTunerActive ? stopTuner : startTuner}
             style={{
-              background: isTunerActive ? 'transparent' : '#1a1a20',
-              color: isTunerActive ? 'var(--accent)' : '#666',
-              border: `1px solid ${isTunerActive ? 'var(--accent)' : '#333'}`,
-              padding: '4px 12px', borderRadius: '4px', fontSize: '10px', fontWeight: 900, cursor: 'pointer', transition: '0.2s',
-              boxShadow: isTunerActive ? 'inset 0 0 8px rgba(0,255,157,0.2), 0 0 8px rgba(0,255,157,0.4)' : 'none'
+              background: isTunerActive ? 'var(--accent)' : 'transparent',
+              color: isTunerActive ? '#000' : 'var(--text-muted)',
+              border: `1px solid ${isTunerActive ? 'var(--accent)' : 'var(--border-color)'}`,
+              padding: '2px 14px', 
+              borderRadius: '12px', 
+              fontSize: '9px', 
+              fontWeight: 900, 
+              cursor: 'pointer', 
+              transition: '0.2s',
+              boxShadow: isTunerActive ? '0 0 12px rgba(0,255,157,0.3)' : 'none'
             }}
           >
-            {isTunerActive ? 'BYPASS (ON)' : 'ENGAGE (OFF)'}
+            {isTunerActive ? 'ON' : 'OFF'}
           </button>
         </div>
 
         {isTunerActive ? (
-          <div style={{ textAlign: 'center', zIndex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            
-            {/* LED Дисплей (Нота) */}
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'baseline', gap: '8px' }}>
-              <div style={{ fontSize: '48px', fontWeight: 900, color: isPerfectPitch ? 'var(--accent)' : '#fff', lineHeight: 1, textShadow: isPerfectPitch ? '0 0 24px var(--accent)' : '0 0 12px rgba(255,255,255,0.4)', transition: 'color 0.1s', fontFamily: 'sans-serif', letterSpacing: '-2px' }}>
-                {tunerNote || '-'}
-              </div>
+          <div style={{ textAlign: 'center', position: 'relative' }}>
+            <div style={{ 
+              fontSize: '40px', 
+              fontWeight: 900, 
+              color: tunerColor, 
+              lineHeight: 1, 
+              textShadow: isInTune ? `0 0 30px ${tunerColor}` : 'none',
+              transition: 'color 0.1s, text-shadow 0.3s',
+              letterSpacing: '2px',
+              fontFamily: 'monospace'
+            }}>
+              {tunerNote || '-'}
             </div>
             
-            {/* Шкала стробоскопа (LED Array) */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '24px', padding: '0 8px', marginTop: '8px' }}>
-              {leds.map(led => {
-                const isCenter = led === 0;
-                const isActive = tunerNote && led === activeLedIndex;
-                
-                let ledBg = '#222';
-                let ledShadow = 'none';
-
-                if (isActive) {
-                  if (isCenter) {
-                    ledBg = 'var(--accent)';
-                    ledShadow = '0 0 12px var(--accent), 0 0 24px var(--accent)';
-                  } else {
-                    ledBg = led < 0 ? '#ff3333' : '#ff3333'; // Красный для отклонений
-                    ledShadow = '0 0 8px #ff3333';
-                  }
-                } else if (isCenter) {
-                  // Центральный светодиод всегда слегка подсвечен как ориентир
-                  ledBg = 'rgba(0, 255, 157, 0.15)'; 
-                }
-
-                return (
-                  <div key={led} style={{
-                    width: isCenter ? '6px' : '4px',
-                    height: isCenter ? '24px' : (Math.abs(led) % 5 === 0 ? '16px' : '8px'), // Риски высоты
-                    background: ledBg,
-                    borderRadius: '2px',
-                    boxShadow: ledShadow,
-                    transition: 'background 0.05s ease-out, box-shadow 0.05s ease-out'
-                  }} />
-                );
-              })}
-            </div>
-
-            {/* Инфо панель */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', color: '#666', fontSize: '9px', fontWeight: 800, fontFamily: 'monospace', marginTop: '4px' }}>
-              <span>FLAT</span>
-              <span style={{ color: isPerfectPitch ? 'var(--accent)' : '#666' }}>
-                {tunerNote ? `${frequency} Hz | ${cents > 0 ? '+' : ''}${cents} ¢` : 'AWAITING SIGNAL...'}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '16px', marginTop: '2px' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600 }}>
+                {frequency > 0 ? `${frequency} Hz` : '—'}
               </span>
-              <span>SHARP</span>
+              <span style={{ 
+                fontSize: '11px', 
+                color: isInTune ? 'var(--accent)' : 'var(--text-muted)',
+                fontWeight: 700
+              }}>
+                {isInTune ? '✓ IN TUNE' : (tunerNote !== '-' && tunerNote !== '...' ? `${cents > 0 ? '♯' : '♭'} ${Math.abs(cents)}¢` : '—')}
+              </span>
             </div>
 
+            <div style={{ 
+              width: '100%', 
+              height: '28px', 
+              background: 'var(--bg-secondary)', 
+              marginTop: '10px', 
+              borderRadius: '4px', 
+              position: 'relative', 
+              overflow: 'hidden',
+              boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.4)'
+            }}>
+              <div style={{ 
+                position: 'absolute', 
+                top: 0, 
+                bottom: 0, 
+                width: '2px', 
+                background: 'var(--text-muted)', 
+                left: '50%', 
+                transform: 'translateX(-50%)', 
+                zIndex: 2,
+                opacity: 0.3
+              }} />
+              
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                bottom: 0,
+                left: '10%',
+                right: '10%',
+                background: `linear-gradient(to right, #ff3333, #ff8800, #ffb800, var(--accent), var(--accent), #ffb800, #ff8800, #ff3333)`,
+                opacity: 0.12,
+                borderRadius: '4px'
+              }} />
+
+              {tunerNote && tunerNote !== '-' && tunerNote !== '...' && (
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '2px', 
+                  bottom: '2px',
+                  width: '4px', 
+                  borderRadius: '2px',
+                  background: tunerColor,
+                  left: `calc(50% + ${Math.max(-80, Math.min(80, cents))}%)`, 
+                  transform: 'translateX(-50%)', 
+                  transition: 'left 0.05s linear, background 0.1s',
+                  zIndex: 3,
+                  boxShadow: `0 0 12px ${tunerColor}`
+                }} />
+              )}
+
+              {isInTune && (
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  fontSize: '9px',
+                  fontWeight: 900,
+                  color: 'var(--accent)',
+                  letterSpacing: '1px',
+                  textShadow: '0 0 20px var(--accent)',
+                  zIndex: 4,
+                  background: 'var(--bg-secondary)',
+                  padding: '0 12px',
+                  borderRadius: '2px'
+                }}>
+                  ✓ TUNE
+                </div>
+              )}
+            </div>
+
+            <div style={{ 
+              width: '100%', 
+              height: '3px', 
+              background: 'var(--bg-secondary)', 
+              marginTop: '6px', 
+              borderRadius: '2px',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                width: '50%',
+                height: '100%',
+                background: 'var(--accent)',
+                transition: 'width 0.1s',
+                borderRadius: '2px'
+              }} />
+            </div>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', color: '#444', fontSize: '11px', padding: '32px 0', fontWeight: 800, letterSpacing: '1px' }}>
-            TUNER BYPASSED
+          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px', padding: '20px 0', opacity: 0.5 }}>
+            <span style={{ fontSize: '28px', display: 'block', marginBottom: '8px' }}>🎙️</span>
+            Click <strong style={{ color: 'var(--accent)' }}>ON</strong> to tune your guitar
           </div>
         )}
       </div>

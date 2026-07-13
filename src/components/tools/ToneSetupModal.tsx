@@ -56,20 +56,6 @@ export const ToneSetupModal: React.FC<ToneSetupModalProps> = ({ isOpen, onClose 
           <strong>Bring Your Own Key (BYOK):</strong> Вставь свой личный API-ключ DeepSeek. Он будет надежно сохранен в локальном хранилище твоего браузера (localStorage) и никогда не утечет в публичный репозиторий GitHub.
         </div>
 
-        {/* Input Field */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <label style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase' }}>
-            DeepSeek API Key
-          </label>
-          <input 
-            type="password" 
-            placeholder="sk-..." 
-            value={apiKey}
-            onChange={(e) => setApiKey(e.target.value)}
-            style={{ background: 'var(--bg-primary)', color: '#fff', border: '1px solid var(--border-color)', padding: '12px', borderRadius: '6px', outline: 'none', fontSize: '14px', fontFamily: 'monospace' }}
-          />
-        </div>
-
         {/* Actions */}
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '10px' }}>
           <button 

@@ -1,7 +1,8 @@
+// src/context/MusicContext.tsx
+
 import { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
-// 🔥 ДОБАВЛЕНЫ НОВЫЕ РЕЖИМЫ: Арпеджио и Альтерированная гамма
 export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian' | 'maj7_arp' | 'min7_arp' | 'dom7_arp' | 'dom9_arp' | 'altered';
 
 export interface DiatonicChord {
@@ -23,6 +24,12 @@ export interface TrackInfo {
   title: string;
 }
 
+// 🔥 ДОБАВЛЯЕМ ТИП ДЛЯ РАЗМЕРА
+export interface TimeSignature {
+  beats: number;     // числитель (4, 3, 6...)
+  noteValue: number; // знаменатель (4, 8, 2...)
+}
+
 interface MusicContextType {
   keyNote: string;
   mode: Mode;
@@ -30,10 +37,12 @@ interface MusicContextType {
   isPlaying: boolean;
   activeStep: number;
   currentTrack: TrackInfo;
+  timeSignature: TimeSignature;
   setKeyNote: (key: string) => void;
   setMode: (mode: Mode) => void;
   setBpm: (bpm: number) => void;
   setCurrentTrack: (track: TrackInfo) => void;
+  setTimeSignature: (sig: TimeSignature) => void;
   togglePlay: () => void;
   getScaleNotes: () => string[];
   getDiatonicChords: () => DiatonicChord[];
@@ -54,7 +63,6 @@ const INTERVALS: Record<Mode, number[]> = {
   melodic_minor: [0, 2, 3, 5, 7, 9, 11],
   pentatonic: [0, 2, 4, 7, 9],
   blues: [0, 3, 5, 6, 7, 10],
-  // 🔥 ИНТЕРВАЛЫ ОБЫГРЫВАНИЯ
   maj7_arp: [0, 4, 7, 11],
   min7_arp: [0, 3, 7, 10],
   dom7_arp: [0, 4, 7, 10],
@@ -68,10 +76,11 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [keyNote, setKeyNote] = useState<string>('E');
   const [mode, setMode] = useState<Mode>('aeolian');
   const [bpm, setBpm] = useState<number>(120);
+  const [timeSignature, setTimeSignature] = useState<TimeSignature>({ beats: 4, noteValue: 4 });
   
   const [currentTrack, setCurrentTrack] = useState<TrackInfo>({
     platform: 'youtube',
-    id: 'HdsP-KYQZDQ', 
+    id: 'HdsP-KYQZDQ',
     title: 'Liquid Groove Fusion Backing Track - Em'
   });
 
@@ -98,13 +107,16 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const scheduler = useCallback(() => {
     while (nextNoteTime.current < audioContext.current!.currentTime + 0.1) {
       const current = stepRef.current;
-      if (current % 4 === 0) playClick(nextNoteTime.current, current % 16 === 0);
+      // Акцент на первой доле каждого такта
+      const isAccent = current % timeSignature.beats === 0;
+      playClick(nextNoteTime.current, isAccent);
       setActiveStep(current);
+      // Шаг = 1/4 ноты (16-я) для точности визуализации
       nextNoteTime.current += (60.0 / bpm) / 4;
       stepRef.current = (current + 1) % 32;
     }
     timerID.current = requestAnimationFrame(scheduler);
-  }, [bpm]);
+  }, [bpm, timeSignature]);
 
   useEffect(() => {
     if (isPlaying) {
@@ -233,7 +245,12 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   return (
-    <MusicContext.Provider value={{ keyNote, mode, bpm, isPlaying, activeStep, currentTrack, setKeyNote, setMode, setBpm, setCurrentTrack, togglePlay, getScaleNotes, getDiatonicChords }}>
+    <MusicContext.Provider value={{
+      keyNote, mode, bpm, isPlaying, activeStep, currentTrack,
+      timeSignature,
+      setKeyNote, setMode, setBpm, setCurrentTrack, setTimeSignature,
+      togglePlay, getScaleNotes, getDiatonicChords
+    }}>
       {children}
     </MusicContext.Provider>
   );
