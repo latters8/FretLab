@@ -10,22 +10,22 @@ interface TabNote {
   articulation: 'none' | 'vibrato';
 }
 
-// Вероятностная модель длительностей (взвешенный рандом)
 const DURATION_WEIGHTS = [
-  { dur: '16n', weight: 45, width: 30 }, // Быстрые ноты (шаг 30px)
-  { dur: '8n',  weight: 35, width: 60 }, // Средние ноты (шаг 60px)
-  { dur: '4n',  weight: 15, width: 120}, // Длинные ноты (шаг 120px)
-  { dur: '8t',  weight: 5,  width: 40 }  // Триоли (шаг 40px)
+  { dur: '16n', weight: 50, width: 35 }, 
+  { dur: '8n',  weight: 30, width: 60 }, 
+  { dur: '4n',  weight: 15, width: 120}, 
+  { dur: '8t',  weight: 5,  width: 45 }  
 ];
 
-// Бокс Ми-минорной пентатоники (12 позиция) от тонкой к толстой
+// 🔥 ИСПРАВЛЕНО: Массив выстроен СТРОГО от самой толстой (6) до самой тонкой (1) струны
+// Это позволяет алгоритму "бегать" по струнам вверх и вниз.
 const SCALE_BOX = [
-  { s: 0, f: 15 }, { s: 0, f: 12 },
-  { s: 1, f: 15 }, { s: 1, f: 12 },
-  { s: 2, f: 14 }, { s: 2, f: 12 },
-  { s: 3, f: 14 }, { s: 3, f: 12 },
-  { s: 4, f: 14 }, { s: 4, f: 12 },
-  { s: 5, f: 15 }, { s: 5, f: 12 }
+  { s: 5, f: 12 }, { s: 5, f: 15 }, // 6 струна (Low E)
+  { s: 4, f: 12 }, { s: 4, f: 14 }, // 5 струна (A)
+  { s: 3, f: 12 }, { s: 3, f: 14 }, // 4 струна (D)
+  { s: 2, f: 12 }, { s: 2, f: 14 }, // 3 струна (G)
+  { s: 1, f: 12 }, { s: 1, f: 15 }, // 2 струна (B)
+  { s: 0, f: 12 }, { s: 0, f: 15 }  // 1 струна (High E)
 ];
 
 const AutoTab: React.FC = () => {
@@ -34,42 +34,58 @@ const AutoTab: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [fileName, setFileName] = useState('');
   
-  // Хранилище сгенерированной человечной фразы
   const [tabData, setTabData] = useState<{phrase: TabNote[], totalWidth: number} | null>(null);
 
-  // 🔥 ЯДРО АЛГОРИТМА ЧЕЛОВЕЧНОСТИ (HUMAN PHRASING ENGINE)
+  // 🔥 ОБНОВЛЕННОЕ ЯДРО (Инерция и направленные пробежки)
   const generateHumanPhrase = () => {
-    let currentX = 60; // Начальный отступ
+    let currentX = 60;
     const phrase: TabNote[] = [];
     
-    let currentScaleIdx = 5; // Начинаем где-то с 3-й струны
+    let currentScaleIdx = Math.floor(SCALE_BOX.length / 2); // Начинаем с середины грифа
+    let direction = Math.random() > 0.5 ? 1 : -1; // 1 = идем к тонким струнам, -1 = к толстым
     let notesInBurst = 0;
-    let maxBurst = Math.floor(Math.random() * 4) + 3; // "Пачка" от 3 до 6 нот
+    let maxBurst = Math.floor(Math.random() * 5) + 3; // Пачка от 3 до 7 нот
 
-    for (let i = 0; i < 30; i++) { // Генерируем фразу из ~30 элементов
+    for (let i = 0; i < 35; i++) { 
       
-      // 1. ЛОГИКА ДЫХАНИЯ: Если сыграли пачку, делаем паузу
+      // 1. ДЫХАНИЕ (Паузы)
       if (notesInBurst >= maxBurst) {
         const isLongRest = Math.random() > 0.5;
-        const restWidth = isLongRest ? 120 : 60;
-        
         phrase.push({ x: currentX, string: 0, fret: null, isRest: true, articulation: 'none' });
         
-        currentX += restWidth;
+        currentX += isLongRest ? 120 : 60;
         notesInBurst = 0;
-        maxBurst = Math.floor(Math.random() * 5) + 2; // Следующая пачка будет другой длины
+        maxBurst = Math.floor(Math.random() * 5) + 3;
+        
+        // Часто после длинной паузы гитарист меняет направление движения
+        if (Math.random() > 0.4) direction *= -1;
         continue;
       }
 
-      // 2. ЛОГИКА ПЛАВНОСТИ: 75% шанс сыграть соседнюю ноту в боксе, 25% скачок
-      if (Math.random() > 0.25) {
-        const step = Math.random() > 0.5 ? 1 : -1;
-        currentScaleIdx = Math.max(0, Math.min(SCALE_BOX.length - 1, currentScaleIdx + step));
-      } else {
-        currentScaleIdx = Math.floor(Math.random() * SCALE_BOX.length);
+      // 2. ИНЕРЦИЯ (Моментум)
+      // С шансом 20% гитарист меняет направление ПРЯМО во время пассажа
+      if (Math.random() > 0.8) {
+        direction *= -1; 
       }
 
-      // 3. ЛОГИКА РИТМИКИ: Взвешенный рандом
+      // 3. СКАЧКИ (Интервалы)
+      // С шансом 15% делаем широкий скачок (через струну), иначе играем соседнюю ноту
+      if (Math.random() > 0.85) {
+        currentScaleIdx += direction * (Math.floor(Math.random() * 2) + 2); 
+      } else {
+        currentScaleIdx += direction;
+      }
+
+      // 4. ГРАНИЦЫ (Отскок от краев грифа)
+      if (currentScaleIdx < 0) {
+        currentScaleIdx = Math.abs(currentScaleIdx); // Ушли слишком низко - отскакиваем вверх
+        direction = 1;
+      } else if (currentScaleIdx >= SCALE_BOX.length) {
+        currentScaleIdx = SCALE_BOX.length - 2; // Ушли слишком высоко - отскакиваем вниз
+        direction = -1;
+      }
+
+      // 5. РИТМИКА
       const totalWeight = DURATION_WEIGHTS.reduce((a, b) => a + b.weight, 0);
       let rnd = Math.random() * totalWeight;
       let selectedDur = DURATION_WEIGHTS[1];
@@ -78,7 +94,6 @@ const AutoTab: React.FC = () => {
         rnd -= d.weight;
       }
 
-      // 4. ЛОГИКА АРТИКУЛЯЦИИ: Длинные ноты получают вибрато
       const isLongNote = selectedDur.dur === '4n';
       
       phrase.push({
@@ -118,7 +133,7 @@ const AutoTab: React.FC = () => {
     const steps = [
       { p: 15, msg: 'Extracting tonal centers & scales...' },
       { p: 40, msg: 'Mapping pentatonic CAGED boxes...' },
-      { p: 65, msg: 'Applying rhythmic weighted randomization...' },
+      { p: 65, msg: 'Applying rhythmic momentum and inertia...' },
       { p: 85, msg: 'Injecting organic rests and vibrato articulations...' },
       { p: 100, msg: 'Done! Rendering generated tablature...' }
     ];
@@ -131,7 +146,6 @@ const AutoTab: React.FC = () => {
         currentStep++;
       } else {
         clearInterval(interval);
-        // Генерируем УНИКАЛЬНУЮ табулатуру перед показом
         setTabData(generateHumanPhrase());
         setTimeout(() => setStep('result'), 800);
       }
@@ -141,13 +155,12 @@ const AutoTab: React.FC = () => {
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
       
-      {/* Header */}
       <div style={{ padding: '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <span style={{ fontSize: '20px' }}>🎼</span>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>AI Solo Generator & Transcription</span>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Organic Phrasing Engine</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Organic Phrasing Engine v2.0</span>
           </div>
         </div>
         {step === 'result' && (
@@ -157,7 +170,6 @@ const AutoTab: React.FC = () => {
         )}
       </div>
 
-      {/* Main Area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '24px', overflowY: 'auto', background: 'var(--bg-root)' }}>
         
         {step === 'upload' && (
@@ -199,26 +211,22 @@ const AutoTab: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div>
                 <h2 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>{fileName.replace(/\.[^/.]+$/, "")} (Generated Solo)</h2>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Key: E Minor Pentatonic | Organic Phrasing Applied</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Key: E Minor Pentatonic | Momentum Phrasing Applied</div>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button style={{ background: 'var(--accent)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#000', fontSize: '16px', boxShadow: '0 0 12px var(--accent)' }}>▶</button>
               </div>
             </div>
 
-            {/* ДИНАМИЧЕСКИЙ РЕНДЕР ТАБУЛАТУРЫ */}
             <div style={{ background: 'var(--bg-panel)', padding: '24px', borderRadius: '8px', border: '1px solid var(--border-color)', overflowX: 'auto' }}>
                <svg viewBox={`0 0 ${tabData.totalWidth} 120`} style={{ width: tabData.totalWidth, minWidth: '800px', display: 'block' }}>
                  
-                 {/* Линии струн */}
                  {[0,1,2,3,4,5].map(i => <line key={i} x1="20" y1={20+i*15} x2={tabData.totalWidth - 20} y2={20+i*15} stroke="rgba(255,255,255,0.1)" strokeWidth="1"/>)}
                  
-                 {/* Названия струн слева */}
                  {['e','B','G','D','A','E'].map((n, i) => <text key={n} x="0" y={24+i*15} fill="var(--text-muted)" fontSize="12" fontFamily="monospace">{n}</text>)}
                  
-                 {/* Отрисовка сгенерированных нот */}
                  {tabData.phrase.map((n, i) => {
-                   if (n.isRest) return null; // Паузы просто оставляют пустое пространство (дыхание)
+                   if (n.isRest) return null; 
                    
                    const yPos = 24 + n.string * 15;
                    
@@ -227,7 +235,6 @@ const AutoTab: React.FC = () => {
                        <rect x={n.x - 10} y={yPos - 12} width="20" height="16" fill="var(--bg-panel)" />
                        <text x={n.x} y={yPos} fill="var(--text-primary)" fontSize="14" fontWeight="900" textAnchor="middle">{n.fret}</text>
                        
-                       {/* Отрисовка волны вибрато для длинных нот */}
                        {n.articulation === 'vibrato' && (
                          <path 
                            d={`M ${n.x - 6} ${yPos - 18} Q ${n.x - 3} ${yPos - 21} ${n.x} ${yPos - 18} T ${n.x + 6} ${yPos - 18}`} 
