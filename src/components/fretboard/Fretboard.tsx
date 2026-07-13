@@ -164,10 +164,11 @@ const Fretboard: React.FC = () => {
                       };
                     } else {
                       const isMaple = material === 'maple';
+                      // 🔥 ИСПРАВЛЕНО: Для не-тоники добавлена мягкая полупрозрачная серая заливка (rgba)
                       displayStyle = {
                         width: '24px', height: '24px', borderRadius: '4px',
-                        background: 'transparent',
-                        border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.6)'}`,
+                        background: isMaple ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
+                        border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.4)'}`,
                         color: isMaple ? '#5c4314' : 'var(--text-primary)',
                         fontWeight: '800'
                       };
@@ -186,7 +187,6 @@ const Fretboard: React.FC = () => {
                   <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3 }}>
                     {isInScale && (
                       <div style={{
-                        /* 🔥 ИСПРАВЛЕНО: Убрана опечатка justifyCcontent */
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '11px', border: 'none', zIndex: 4,
                         boxShadow: (isRoot && displayMode !== 'caged') ? '0 2px 4px rgba(0,0,0,0.5)' : 'none',
