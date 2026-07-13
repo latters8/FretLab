@@ -24,7 +24,6 @@ const Fretboard: React.FC = () => {
   const [tuningName, setTuningName] = useState<keyof typeof TUNINGS>('Standard E');
   const [material, setMaterial] = useState<keyof typeof MATERIALS>('glass');
   
-  // 🔥 1. Переключатель цвета ладов (по умолчанию темные — 'dark')
   const [fretColor, setFretColor] = useState<'dark' | 'light'>('dark');
 
   const strings = TUNINGS[tuningName].slice().reverse(); 
@@ -38,8 +37,6 @@ const Fretboard: React.FC = () => {
   };
 
   const currentMat = MATERIALS[material];
-
-  // Магический цвет ладов на основе выбранного стейта
   const currentFretColor = fretColor === 'dark' ? '#1e1f24' : '#c0c0c0';
 
   return (
@@ -62,17 +59,14 @@ const Fretboard: React.FC = () => {
         </div>
         
         <div style={{ display: 'flex', gap: '16px' }}>
-          {/* 🔥 Дописано "Tuning" в конце каждой фразы строя */}
           <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t} Tuning</option>)}
           </select>
           
-          {/* 🔥 Дописано "Neck" к цвету/материалу грифа */}
           <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m} Neck</option>)}
           </select>
 
-          {/* 🔥 Переключатель цвета ладов сразу после выбора накладки */}
           <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
             <option value="dark">Dark Frets</option>
             <option value="light">Light Frets</option>
@@ -138,21 +132,27 @@ const Fretboard: React.FC = () => {
               const isInScale = scaleNotes.includes(note);
               const isRoot = note === keyNote;
 
-              // 🔥 2. Для накладки maple прозрачность нот равна 0 (альфа-канал = 1, полная заливка)
               const noteAlpha = material === 'maple' ? '1' : '0.4';
-              const noteBgColor = isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`;
+              
+              // 🔥 ИСПРАВЛЕНО: ТОНИКА (ROOT NOTE) ТЕПЕРЬ ТЕМНО-ЧЕРНАЯ С НЕОНОВОЙ ОКАНТОВКОЙ
+              // Если это тоника — красим в угольно-черный цвет (#111216). Иначе стандартный белый/полупрозрачный.
+              const noteBgColor = isRoot ? '#111216' : `rgba(255,255,255, ${noteAlpha})`;
+              
+              // Если это тоника — текст ВСЕГДА кристально белый (#fff).
+              const noteTextColor = isRoot ? '#fff' : (material === 'maple' ? '#111216' : '#fff');
 
               return (
                 <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
                   {isInScale && (
                     <div style={{
                       width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: '11px', fontWeight: isRoot ? '800' : '600',
+                      fontSize: '11px', fontWeight: '900',
                       background: noteBgColor,
-                      // Подстраховка контраста: на сплошном белом фоне клёна буквы делаем темными, чтобы они читались
-                      color: isRoot ? '#000' : (material === 'maple' ? '#111216' : '#fff'),
-                      textShadow: isRoot ? 'none' : '0 1px 2px rgba(0,0,0,0.8)',
-                      boxShadow: isRoot ? '0 0 12px var(--accent)' : 'none',
+                      color: noteTextColor,
+                      // 🔥 Для тоники добавляем четкую окантовку фирменного неонового цвета и убираем ослепляющую тень
+                      border: isRoot ? '2px solid var(--accent)' : 'none',
+                      textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                      boxShadow: isRoot ? '0 0 8px rgba(0, 255, 157, 0.4)' : 'none',
                       zIndex: 3
                     }}>
                       {note}
