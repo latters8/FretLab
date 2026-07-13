@@ -9,34 +9,16 @@ const TUNINGS = {
 };
 
 const MATERIALS = {
-  ebony: { 
-    bg: '#1a1a1a', 
-    dot: '#e0e0e0',
-    fretDark: '#111215',  
-    fretLight: '#c0c0c0'  
-  },
-  rosewood: { 
-    bg: '#3e2723', 
-    dot: '#d7ccc8',
-    fretDark: '#211512',  
-    fretLight: '#d7ccc8'  
-  },
-  maple: { 
-    bg: '#f1ba54', 
-    dot: '#3e2723',
-    fretDark: '#5c4314',  
-    fretLight: '#fafafa'  
-  },
-  glass: { 
-    bg: 'rgba(255,255,255,0.04)', 
-    dot: 'var(--accent)',
-    fretDark: 'rgba(255,255,255,0.15)', 
-    // 🔥 ИСПРАВЛЕНО: Теперь база лада привязана к переменной текущей темы!
-    fretLight: 'var(--accent)' 
-  }
+  ebony: { bg: '#1a1a1a', dot: '#e0e0e0', fretDark: '#111215', fretLight: '#c0c0c0', fretWidth: '1px' },
+  rosewood: { bg: '#3e2723', dot: '#d7ccc8', fretDark: '#211512', fretLight: '#d7ccc8', fretWidth: '1px' },
+  maple: { bg: '#f1ba54', dot: '#3e2723', fretDark: '#5c4314', fretLight: '#fafafa', fretWidth: '1px' },
+  glass: { bg: 'rgba(255,255,255,0.04)', dot: 'var(--accent)', fretDark: 'rgba(255,255,255,0.15)', fretLight: 'var(--accent)', fretWidth: '1px' }
 };
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+// 🔥 ИСПРАВЛЕНО: Массив реалистичных толщин струн (от тонкой к толстой)
+const STRING_GAUGES = [1, 1.4, 2, 2.8, 3.8, 5];
 
 const Fretboard: React.FC = () => {
   const { keyNote, mode, getScaleNotes, setKeyNote, setMode } = useMusic();
@@ -51,11 +33,9 @@ const Fretboard: React.FC = () => {
   const doubleDots = [12, 24];
 
   const getNoteAtFret = (openNote: string, fret: number) => ALL_NOTES[(ALL_NOTES.indexOf(openNote) + fret) % 12];
-  
   const currentMat = MATERIALS[material];
   const currentFretColor = fretColor === 'dark' ? currentMat.fretDark : currentMat.fretLight;
   
-  // 🔥 ТРИГГЕР КИБЕРПАНК-РЕЖИМА
   const isCyberpunk = material === 'glass' && fretColor === 'light';
 
   return (
@@ -63,17 +43,13 @@ const Fretboard: React.FC = () => {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Fretboard Engine</div>
-          
-          <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
+           <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Fretboard Engine</div>
+           <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
-          
           <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
             <optgroup label="Standard Scales">
-              {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
-                <option key={m} value={m}>{m.replace('_', ' ')}</option>
-              ))}
+              {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
             </optgroup>
             <optgroup label="Arpeggios (Play Over)">
               <option value="maj7_arp">Maj7 Arpeggio</option>
@@ -84,15 +60,14 @@ const Fretboard: React.FC = () => {
             </optgroup>
           </select>
         </div>
-        
         <div style={{ display: 'flex', gap: '16px' }}>
-          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none' }}>
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t} Tuning</option>)}
           </select>
-          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
+          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', textTransform: 'capitalize', outline: 'none' }}>
             {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m} Neck</option>)}
           </select>
-          <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+          <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none' }}>
             <option value="dark">Dark Frets</option>
             <option value="light">Light Frets</option>
           </select>
@@ -104,26 +79,32 @@ const Fretboard: React.FC = () => {
       </div>
 
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
+        
+        {/* 🔥 ИСПРАВЛЕНО: top и bottom теперь 18px. Лады четко ограничены первой и шестой струнами! */}
+        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 0 }}>
           {frets.map(f => (
-            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '5px solid #bba182' : `2px solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
+            <div key={`dotcol-${f}`} style={{ 
+                flex: 1, 
+                position: 'relative', 
+                borderRight: f === 0 ? '4px solid #bba182' : `${isCyberpunk ? 'transparent' : currentMat.fretWidth} solid ${isCyberpunk ? 'transparent' : currentFretColor}` 
+            }}>
               
-              {/* 🔥 ГЕНЕРАТОР ЛАЗЕРНОГО СВЕЧЕНИЯ ЛАДОВ */}
               {isCyberpunk && f !== 0 && (
                 <div style={{
-                  position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '0.5px',
+                  position: 'absolute', right: '-1px', top: 0, bottom: 0, width: currentMat.fretWidth,
                   background: 'var(--accent)',
-                  boxShadow: '0 0 1px var(--accent), 0 0 1px var(--accent)',
-                  opacity: 0.85, zIndex: 0
+                  boxShadow: '0 0 2px var(--accent), 0 0 4px var(--accent)', 
+                  opacity: 0.25, zIndex: 0
                 }} />
               )}
 
-              {/* 🔥 МАРКЕРЫ ТОЖЕ СВЕТЯТСЯ В ЦВЕТ ТЕМЫ */}
-              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />}
+              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />}
+              
+              {/* 🔥 ИСПРАВЛЕНО: Двойные точки позиционируются в процентах (30% и 70%), чтобы всегда быть между нужными струнами */}
               {doubleDots.includes(f) && (
                 <>
-                  <div style={{ position: 'absolute', top: '72px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />
-                  <div style={{ position: 'absolute', top: '144px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />
+                  <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />
+                  <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />
                 </>
               )}
             </div>
@@ -131,8 +112,9 @@ const Fretboard: React.FC = () => {
         </div>
 
         {strings.map((openNote, stringIdx) => {
-          const thickness = 1 + Math.pow(stringIdx, 1.4) * 0.4;
-
+          // 🔥 ИСПРАВЛЕНО: Берем точное значение толщины струны из нашего массива
+          const thickness = STRING_GAUGES[stringIdx];
+          
           return (
             <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
               <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 1, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
@@ -143,7 +125,6 @@ const Fretboard: React.FC = () => {
                 const isInScale = scaleNotes.includes(note);
                 const isRoot = note === keyNote;
                 const noteAlpha = material === 'maple' ? '1' : '0.75';
-                
                 const noteBgColor = isRoot ? '#3a3d45' : `rgba(255,255,255, ${noteAlpha})`;
                 const noteTextColor = isRoot ? '#fff' : '#111216';
 
