@@ -42,7 +42,6 @@ const Fretboard: React.FC = () => {
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', minWidth: '800px' }}>
       
-      {/* Toolbar */}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>
@@ -51,10 +50,21 @@ const Fretboard: React.FC = () => {
           <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
+          
+          {/* 🔥 ИСПРАВЛЕНО: Группировка на гаммы и арпеджио */}
           <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none' }}>
-            {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
+            <optgroup label="Standard Scales">
+              {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
+                <option key={m} value={m}>{m.replace('_', ' ')}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Arpeggios (Play Over)">
+              <option value="maj7_arp">Maj7 Arpeggio</option>
+              <option value="min7_arp">Min7 Arpeggio</option>
+              <option value="dom7_arp">Dom7 Arpeggio</option>
+              <option value="dom9_arp">Dom9 Arpeggio</option>
+              <option value="altered">Altered Scale (alt)</option>
+            </optgroup>
           </select>
         </div>
         
@@ -74,7 +84,6 @@ const Fretboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Fret Numbers Top */}
       <div style={{ display: 'flex', paddingLeft: '40px', marginBottom: '8px' }}>
         {frets.map(f => (
           <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>
@@ -83,10 +92,8 @@ const Fretboard: React.FC = () => {
         ))}
       </div>
 
-      {/* The Fretboard */}
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         
-        {/* Dots Layer */}
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
           {frets.map(f => (
             <div key={`dotcol-${f}`} style={{ 
@@ -107,7 +114,6 @@ const Fretboard: React.FC = () => {
           ))}
         </div>
 
-        {/* Strings Layer */}
         {strings.map((openNote, stringIdx) => (
           <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
             
@@ -121,25 +127,18 @@ const Fretboard: React.FC = () => {
               boxShadow: '0 2px 4px rgba(0,0,0,0.5)' 
             }} />
             
-            {/* Open Note Label */}
             <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 2, background: 'var(--bg-panel)' }}>
               {openNote}
             </div>
 
-            {/* Frets for this string */}
             {frets.map(fret => {
               const note = getNoteAtFret(openNote, fret);
               const isInScale = scaleNotes.includes(note);
               const isRoot = note === keyNote;
 
               const noteAlpha = material === 'maple' ? '1' : '0.4';
-              
-              // 🔥 ИСПРАВЛЕНО: ТОНИКА ТЕПЕРЬ ТОЛЬКО СПЛОШНОЙ КРУГ БЕЗ ОКАНТОВКИ
-              // Фон тоники — сплошной акцентный цвет (var(--accent))
-              const noteBgColor = isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`;
-              
-              // Текст тоники — темно-серый (#22242e) для идеального контраста на зеленом
-              const noteTextColor = isRoot ? '#22242e' : (material === 'maple' ? '#111216' : '#fff');
+              const noteBgColor = isRoot ? '#22242e' : `rgba(255,255,255, ${noteAlpha})`;
+              const noteTextColor = isRoot ? '#fff' : (material === 'maple' ? '#111216' : '#fff');
 
               return (
                 <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
@@ -149,7 +148,6 @@ const Fretboard: React.FC = () => {
                       fontSize: '11px', fontWeight: '900',
                       background: noteBgColor,
                       color: noteTextColor,
-                      // 🔥 Убрали border: isRoot ? ... и boxShadow: isRoot ? ...
                       border: 'none', 
                       textShadow: 'none',
                       boxShadow: 'none',
@@ -165,7 +163,6 @@ const Fretboard: React.FC = () => {
         ))}
       </div>
 
-      {/* Fret Numbers Bottom */}
       <div style={{ display: 'flex', paddingLeft: '40px', marginTop: '8px' }}>
         {frets.map(f => (
           <div key={`bottom-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>

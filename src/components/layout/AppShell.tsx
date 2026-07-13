@@ -6,7 +6,6 @@ import Fretboard from '../fretboard/Fretboard';
 import Tablature from '../fretboard/Tablature';
 import DiatonicChords from '../tools/DiatonicChords';
 import ChordDictionary from '../tools/ChordDictionary';
-import AISearchBar from '../ai/AISearchBar';
 import AutoTab from '../tools/AutoTab';
 
 const AppShell: React.FC = () => {
@@ -30,16 +29,10 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="app-container">
-      <Header />
+      {/* 🔥 Передаем AI Action в шапку! */}
+      <Header onAIAction={handleAIAction} />
       
-      {/* Глобальная обертка под шапкой */}
       <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-        
-        {/* 🔥 ИСПРАВЛЕНО: AI Bar вынесен на самый верх рабочей зоны, над всеми модулями и скроллами */}
-        <div style={{ padding: '12px 24px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center' }}>
-          <AISearchBar onAction={handleAIAction} />
-        </div>
-
         <div className="app-layout">
           <aside className="left-sidebar">
               <div onClick={() => setActiveModule('engine')} style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Fretboard Engine">🎸</div>
@@ -51,7 +44,6 @@ const AppShell: React.FC = () => {
             {activeModule === 'engine' && (
               <>
                 <main className="center-column">
-                    {/* Отсюда AISearchBar удален, чтобы он не уезжал вместе с плеером */}
                     <Player />
                     <div className="fretboard-scroll-wrapper"><Fretboard /></div>
                     <Tablature />
@@ -76,7 +68,6 @@ const AppShell: React.FC = () => {
             )}
           </div>
         </div>
-
       </div>
     </div>
   );

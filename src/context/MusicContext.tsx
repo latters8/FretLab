@@ -1,7 +1,8 @@
 import { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
-export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian';
+// 🔥 ДОБАВЛЕНЫ НОВЫЕ РЕЖИМЫ: Арпеджио и Альтерированная гамма
+export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian' | 'maj7_arp' | 'min7_arp' | 'dom7_arp' | 'dom9_arp' | 'altered';
 
 export interface DiatonicChord {
   baseRoman: string;
@@ -53,6 +54,12 @@ const INTERVALS: Record<Mode, number[]> = {
   melodic_minor: [0, 2, 3, 5, 7, 9, 11],
   pentatonic: [0, 2, 4, 7, 9],
   blues: [0, 3, 5, 6, 7, 10],
+  // 🔥 ИНТЕРВАЛЫ ОБЫГРЫВАНИЯ
+  maj7_arp: [0, 4, 7, 11],
+  min7_arp: [0, 3, 7, 10],
+  dom7_arp: [0, 4, 7, 10],
+  dom9_arp: [0, 4, 7, 10, 2],
+  altered: [0, 1, 3, 4, 8, 10] // Super Locrian
 };
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -122,7 +129,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return modeIntervals.map(interval => ALL_NOTES[(rootIndex + interval) % 12]);
   };
 
-  // 🔥 СТРОГАЯ ДИАТОНИЧЕСКАЯ ГЕНЕРАЦИЯ: Трезвучия -> 7 -> 9 -> 11
   const getDiatonicChords = (): DiatonicChord[] => {
     const scale = getScaleNotes();
     if (scale.length < 7) return [];
@@ -152,7 +158,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const int9 = (ninthIdx - rootIdx + 12) % 12;
       const int11 = (eleventhIdx - rootIdx + 12) % 12;
 
-      // 1. Формируем трезвучие
       let triadQuality = '';
       let baseRoman = romanMaj[i];
       let isMinor = false;
@@ -165,7 +170,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       const triad = root + triadQuality;
 
-      // 2. Добавляем 7 ступень
       let seventhQuality = triadQuality;
       let seventhRoman = baseRoman;
 
@@ -178,7 +182,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       const seventhChord = root + seventhQuality;
 
-      // 3. Добавляем 9 ступень
       let ninthQuality = seventhQuality;
       let ninthRoman = seventhRoman;
 
@@ -203,7 +206,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       const ninthChord = root + ninthQuality;
 
-      // 4. Добавляем 11 ступень (ALT)
       let eleventhQuality = ninthQuality;
       let eleventhRoman = ninthRoman;
 
