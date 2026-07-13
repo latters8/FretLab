@@ -1,19 +1,20 @@
 import React, { useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
+import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 
 type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
 
 const DiatonicChords: React.FC = () => {
   const { getDiatonicChords, mode, keyNote, setKeyNote, setMode } = useMusic();
   const [activeFilter, setActiveFilter] = useState<FilterType>('7TH');
-  const [modalConfig, setModalConfig] = useState<{chord: string, voicing?: string} | null>(null);
+  const [modalConfig, setModalConfig] = useState<{chord: string} | null>(null);
 
   const baseChords = getDiatonicChords();
   const isArpeggioOrAltered = mode.includes('_arp') || mode === 'altered' || mode === 'pentatonic' || mode === 'blues';
 
   const getDisplayedChords = () => {
-    // 🔥 ГЕНЕРАТОР ПРЕДЛОЖЕНИЙ (SUGGESTIONS): Если выбрано обыгрывание, мы выдаем аккорды, которые идеально звучат с этой гаммой.
+    // Режим умных предложений для изолированных обыгрываний
     if (isArpeggioOrAltered) {
       switch(mode) {
         case 'min7_arp': return [{roman: 'i7', chord: keyNote+'m7'}, {roman: 'i9', chord: keyNote+'m9'}, {roman: 'i11', chord: keyNote+'m11'}, {roman: 'i13', chord: keyNote+'m13'}];
@@ -28,7 +29,7 @@ const DiatonicChords: React.FC = () => {
       }
     }
 
-    // Если это классическая диатоника — применяем стандартные фильтры
+    // 🔥 ИСПРАВЛЕНО: Генерация корректной мажорной/минорной диатоники в зависимости от колеса квинт
     return baseChords.map(c => {
       if (activeFilter === 'DIA') return { roman: c.baseRoman, chord: c.triad };
       if (activeFilter === '7TH') return { roman: c.seventhRoman, chord: c.seventhChord };
@@ -45,6 +46,7 @@ const DiatonicChords: React.FC = () => {
     const quality = match[2].toLowerCase();
 
     setKeyNote(root);
+    // Настраиваем гриф, но НЕ закрываем и не ломаем панель
     if (quality.includes('alt')) setMode('altered');
     else if (quality.includes('maj7') || quality.includes('maj9')) setMode('maj7_arp');
     else if (quality.includes('m7') || quality.includes('m9') || quality.includes('m11')) setMode('min7_arp');
@@ -63,10 +65,9 @@ const DiatonicChords: React.FC = () => {
         
         <div>
             <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '12px', textAlign: 'center' }}>
-            {isArpeggioOrAltered ? '💡 Suggested Harmony' : '🎹 Diatonic Chords'} <span style={{ color: 'var(--accent)' }}>({keyNote} {mode.replace('_', ' ')})</span>
+            {isArpeggioOrAltered ? '💡 Suggested Harmony' : '🎹 Diatonic Harmony'} <span style={{ color: 'var(--accent)' }}>({keyNote} {mode.replace('_', ' ')})</span>
             </div>
             
-            {/* Скрываем кнопки фильтров, если мы находимся в режиме Suggestion */}
             {!isArpeggioOrAltered && (
               <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', background: 'var(--bg-primary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   {(['DIA', '7TH', '9TH', 'ALT'] as FilterType[]).map(type => (
@@ -93,6 +94,14 @@ const DiatonicChords: React.FC = () => {
             {chords.map((c, i) => {
               const isTonic = i === 0 && (isArpeggioOrAltered || activeFilter === 'DIA');
               
+              // Безопасное извлечение аппликатур для проверки длины массива
+              const dbResult = CHORD_DB[c.chord];
+              const voicings: Voicing[] = Array.isArray(dbResult) 
+                ? dbResult 
+                : (dbResult && typeof dbResult === 'object' && 'voicings' in dbResult 
+                    ? (dbResult as any).voicings 
+                    : [generateFallbackVoicing(c.chord)]);
+
               return (
                 <div key={i} style={{ 
                     display: 'flex', alignItems: 'center', background: isTonic ? 'var(--bg-hover)' : 'var(--bg-primary)', 
@@ -103,7 +112,7 @@ const DiatonicChords: React.FC = () => {
                   <div 
                     onClick={() => handlePlayOverChord(c.chord)}
                     style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
-                    title={`Click to map ${c.chord} on Fretboard`}
+                    title={`Click to map ${c.chord} notes on Fretboard`}
                     onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                   >
@@ -111,7 +120,6 @@ const DiatonicChords: React.FC = () => {
                     <span style={{ color: isTonic ? 'var(--accent)' : 'var(--text-primary)', fontWeight: 900, fontSize: '15px' }}>{c.chord}</span>
                   </div>
 
-                  {/* 🔥 ЕДИНАЯ КНОПКА SHOW: Открывает модалку с детализацией */}
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -139,7 +147,6 @@ const DiatonicChords: React.FC = () => {
       {modalConfig && (
         <ChordDictionaryModal 
           chord={modalConfig.chord} 
-          highlightVoicing={modalConfig.voicing} 
           onClose={() => setModalConfig(null)} 
         />
       )}

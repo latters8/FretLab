@@ -17,8 +17,8 @@ const MATERIALS = {
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-// 🔥 ИСПРАВЛЕНО: Массив реалистичных толщин струн (от тонкой к толстой)
-const STRING_GAUGES = [1, 1.4, 2, 2.8, 3.8, 5];
+// 🔥 ИСПРАВЛЕНО: Идеальная кастомная прогрессия толщины каждой струны
+const STRING_GAUGES = [1.2, 1.8, 2.4, 3.2, 4.2, 5.4];
 
 const Fretboard: React.FC = () => {
   const { keyNote, mode, getScaleNotes, setKeyNote, setMode } = useMusic();
@@ -36,6 +36,7 @@ const Fretboard: React.FC = () => {
   const currentMat = MATERIALS[material];
   const currentFretColor = fretColor === 'dark' ? currentMat.fretDark : currentMat.fretLight;
   
+  // 🔥 ИСПРАВЛЕНО: Безупречный триггер киберпанк-режима без риска залипания стейта
   const isCyberpunk = material === 'glass' && fretColor === 'light';
 
   return (
@@ -78,10 +79,14 @@ const Fretboard: React.FC = () => {
         {frets.map(f => <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
       </div>
 
-      <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+      {/* 🔥 ИСПРАВЛЕНО: Корпус грифа стал абсолютно черным (#000), полностью отделяя игровую зону */}
+      <div style={{ position: 'relative', background: '#000', border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         
-        {/* 🔥 ИСПРАВЛЕНО: top и bottom теперь 18px. Лады четко ограничены первой и шестой струнами! */}
-        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 0 }}>
+        {/* 🔥 ИСПРАВЛЕНО: Текстура дерева/стекла накладывается СТРОГО между 1-й и 6-й струнами (top/bottom: 18px) */}
+        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', background: currentMat.bg, zIndex: 0, pointerEvents: 'none' }} />
+
+        {/* 🔥 ИСПРАВЛЕНО: Сетка ладов сжата и изолирована строго границами струн */}
+        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 1 }}>
           {frets.map(f => (
             <div key={`dotcol-${f}`} style={{ 
                 flex: 1, 
@@ -94,17 +99,16 @@ const Fretboard: React.FC = () => {
                   position: 'absolute', right: '-1px', top: 0, bottom: 0, width: currentMat.fretWidth,
                   background: 'var(--accent)',
                   boxShadow: '0 0 2px var(--accent), 0 0 4px var(--accent)', 
-                  opacity: 0.25, zIndex: 0
+                  opacity: 0.25, zIndex: 2
                 }} />
               )}
 
-              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />}
+              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />}
               
-              {/* 🔥 ИСПРАВЛЕНО: Двойные точки позиционируются в процентах (30% и 70%), чтобы всегда быть между нужными струнами */}
               {doubleDots.includes(f) && (
                 <>
-                  <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />
-                  <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none' }} />
+                  <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
+                  <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
                 </>
               )}
             </div>
@@ -112,13 +116,12 @@ const Fretboard: React.FC = () => {
         </div>
 
         {strings.map((openNote, stringIdx) => {
-          // 🔥 ИСПРАВЛЕНО: Берем точное значение толщины струны из нашего массива
           const thickness = STRING_GAUGES[stringIdx];
           
           return (
             <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
-              <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 1, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
-              <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 2, background: 'var(--bg-panel)' }}>{openNote}</div>
+              <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+              <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 3, background: 'var(--bg-panel)' }}>{openNote}</div>
               
               {frets.map(fret => {
                 const note = getNoteAtFret(openNote, fret);
@@ -129,11 +132,11 @@ const Fretboard: React.FC = () => {
                 const noteTextColor = isRoot ? '#fff' : '#111216';
 
                 return (
-                  <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2 }}>
+                  <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3 }}>
                     {isInScale && (
                       <div style={{
                         width: '24px', height: '24px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '11px', fontWeight: '900', background: noteBgColor, color: noteTextColor, border: 'none', zIndex: 3,
+                        fontSize: '11px', fontWeight: '900', background: noteBgColor, color: noteTextColor, border: 'none', zIndex: 4,
                         boxShadow: isRoot ? '0 2px 4px rgba(0,0,0,0.5)' : 'none'
                       }}>
                         {note}
