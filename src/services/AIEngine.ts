@@ -1,5 +1,3 @@
-import { TRACK_DB } from './TrackDatabase';
-
 export interface TrackOption {
   id: string;
   title: string;
@@ -69,7 +67,6 @@ export interface LickNote {
   duration?: string;
   isRest?: boolean;
   articulation?: string;
-  // Добавлены недостающие свойства для старого кода
   technique?: 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend';
   tiedToNext?: boolean;
 }
