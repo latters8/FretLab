@@ -8,31 +8,31 @@ const TUNINGS = {
   'D Standard': ['D', 'G', 'C', 'F', 'A', 'D'],
 };
 
-// 🔥 ИСПРАВЛЕНО: Матрица адаптивных ладов интегрирована прямо в свойства материалов грифа
 const MATERIALS = {
   ebony: { 
     bg: '#1a1a1a', 
     dot: '#e0e0e0',
-    fretDark: '#111215',  // Глубокий графит
-    fretLight: '#c0c0c0'  // Серебристый никель
+    fretDark: '#111215',  
+    fretLight: '#c0c0c0'  
   },
   rosewood: { 
     bg: '#3e2723', 
     dot: '#d7ccc8',
-    fretDark: '#211512',  // Насыщенный темно-коричневый порог
-    fretLight: '#d7ccc8'  // Светлый хром
+    fretDark: '#211512',  
+    fretLight: '#d7ccc8'  
   },
   maple: { 
     bg: '#f1ba54', 
     dot: '#3e2723',
-    fretDark: '#5c4314',  // Эффект жженого дерева для максимальной читаемости
-    fretLight: '#fafafa'  // Белый перламутр
+    fretDark: '#5c4314',  
+    fretLight: '#fafafa'  
   },
   glass: { 
     bg: 'rgba(255,255,255,0.04)', 
     dot: 'var(--accent)',
-    fretDark: 'rgba(255,255,255,0.15)', // Полупрозрачные матовые насечки (лекарство от невидимости!)
-    fretLight: 'rgba(0, 255, 157, 0.35)' // 🔥 Эффект футуристичных лазерных неоновых ладов
+    fretDark: 'rgba(255,255,255,0.15)', 
+    // 🔥 ИСПРАВЛЕНО: Теперь база лада привязана к переменной текущей темы!
+    fretLight: 'var(--accent)' 
   }
 };
 
@@ -51,13 +51,16 @@ const Fretboard: React.FC = () => {
   const doubleDots = [12, 24];
 
   const getNoteAtFret = (openNote: string, fret: number) => ALL_NOTES[(ALL_NOTES.indexOf(openNote) + fret) % 12];
-  const currentMat = MATERIALS[material];
   
-  // 🔥 МАГИЯ ГРАДАЦИИ: Цвет лада теперь вычисляется динамически на базе выбранного дерева/стекла
+  const currentMat = MATERIALS[material];
   const currentFretColor = fretColor === 'dark' ? currentMat.fretDark : currentMat.fretLight;
+  
+  // 🔥 ТРИГГЕР КИБЕРПАНК-РЕЖИМА
+  const isCyberpunk = material === 'glass' && fretColor === 'light';
 
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', minWidth: '800px' }}>
+      
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px' }}>Fretboard Engine</div>
@@ -103,12 +106,24 @@ const Fretboard: React.FC = () => {
       <div style={{ position: 'relative', background: currentMat.bg, border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
         <div style={{ position: 'absolute', top: 0, left: '40px', right: 0, bottom: 0, display: 'flex', pointerEvents: 'none', height: '100%' }}>
           {frets.map(f => (
-            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `1px solid ${currentFretColor}` }}>
-              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />}
+            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `1px solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
+              
+              {/* 🔥 ГЕНЕРАТОР ЛАЗЕРНОГО СВЕЧЕНИЯ ЛАДОВ */}
+              {isCyberpunk && f !== 0 && (
+                <div style={{
+                  position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '2px',
+                  background: 'var(--accent)',
+                  boxShadow: '0 0 10px var(--accent), 0 0 20px var(--accent)',
+                  opacity: 0.85, zIndex: 0
+                }} />
+              )}
+
+              {/* 🔥 МАРКЕРЫ ТОЖЕ СВЕТЯТСЯ В ЦВЕТ ТЕМЫ */}
+              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />}
               {doubleDots.includes(f) && (
                 <>
-                  <div style={{ position: 'absolute', top: '72px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
-                  <div style={{ position: 'absolute', top: '144px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
+                  <div style={{ position: 'absolute', top: '72px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />
+                  <div style={{ position: 'absolute', top: '144px', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 12px var(--accent)' : 'none' }} />
                 </>
               )}
             </div>
