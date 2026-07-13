@@ -8,11 +8,32 @@ const TUNINGS = {
   'D Standard': ['D', 'G', 'C', 'F', 'A', 'D'],
 };
 
+// 🔥 ИСПРАВЛЕНО: Матрица адаптивных ладов интегрирована прямо в свойства материалов грифа
 const MATERIALS = {
-  ebony: { bg: '#1a1a1a', dot: '#e0e0e0' },
-  rosewood: { bg: '#3e2723', dot: '#d7ccc8' },
-  maple: { bg: '#f1ba54', dot: '#3e2723' },
-  glass: { bg: 'rgba(255,255,255,0.05)', dot: 'var(--accent)' }
+  ebony: { 
+    bg: '#1a1a1a', 
+    dot: '#e0e0e0',
+    fretDark: '#111215',  // Глубокий графит
+    fretLight: '#c0c0c0'  // Серебристый никель
+  },
+  rosewood: { 
+    bg: '#3e2723', 
+    dot: '#d7ccc8',
+    fretDark: '#211512',  // Насыщенный темно-коричневый порог
+    fretLight: '#d7ccc8'  // Светлый хром
+  },
+  maple: { 
+    bg: '#f1ba54', 
+    dot: '#3e2723',
+    fretDark: '#5c4314',  // Эффект жженого дерева для максимальной читаемости
+    fretLight: '#fafafa'  // Белый перламутр
+  },
+  glass: { 
+    bg: 'rgba(255,255,255,0.04)', 
+    dot: 'var(--accent)',
+    fretDark: 'rgba(255,255,255,0.15)', // Полупрозрачные матовые насечки (лекарство от невидимости!)
+    fretLight: 'rgba(0, 255, 157, 0.35)' // 🔥 Эффект футуристичных лазерных неоновых ладов
+  }
 };
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -31,7 +52,9 @@ const Fretboard: React.FC = () => {
 
   const getNoteAtFret = (openNote: string, fret: number) => ALL_NOTES[(ALL_NOTES.indexOf(openNote) + fret) % 12];
   const currentMat = MATERIALS[material];
-  const currentFretColor = fretColor === 'dark' ? '#1e1f24' : '#c0c0c0';
+  
+  // 🔥 МАГИЯ ГРАДАЦИИ: Цвет лада теперь вычисляется динамически на базе выбранного дерева/стекла
+  const currentFretColor = fretColor === 'dark' ? currentMat.fretDark : currentMat.fretLight;
 
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', minWidth: '800px' }}>
@@ -104,15 +127,9 @@ const Fretboard: React.FC = () => {
                 const note = getNoteAtFret(openNote, fret);
                 const isInScale = scaleNotes.includes(note);
                 const isRoot = note === keyNote;
-                
-                // 🔥 ИСПРАВЛЕНО: Ноты гаммы стали заметно плотнее (менее прозрачными)
-                // Значение альфа-канала изменено с 0.4 до 0.75 для отличной видимости ступеней.
                 const noteAlpha = material === 'maple' ? '1' : '0.75';
                 
                 const noteBgColor = isRoot ? '#3a3d45' : `rgba(255,255,255, ${noteAlpha})`;
-                
-                // 🔥 ИСПРАВЛЕНО: Контраст текста для плотных нот
-                // На темно-графитовой тонике текст белый (#fff), а на плотных белых нотах — контрастный темный (#111216).
                 const noteTextColor = isRoot ? '#fff' : '#111216';
 
                 return (
