@@ -74,7 +74,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
 };
 
 // ============================================================================
-// 🔥 ВОССТАНОВЛЕННЫЕ ТИПЫ ДЛЯ TABLATURE.TSX (ЧТОБЫ ПОЧИНИТЬ СБОРКУ)
+// 🔥 ВОССТАНОВЛЕННЫЕ ТИПЫ ДЛЯ TABLATURE.TSX
 // ============================================================================
 
 export interface LickNote {
@@ -91,9 +91,8 @@ export interface Lick {
   notes: LickNote[];
 }
 
-// Мы используем (...args: any[]), чтобы функция гарантированно приняла любые 
-// параметры, которые Tablature.tsx пытается в нее отправить.
-export const generateSmartLick = (...args: any[]): Lick => {
+// 🔥 ИСПРАВЛЕНО: Добавлен префикс "_" для игнорирования неиспользуемого аргумента
+export const generateSmartLick = (..._args: any[]): Lick => {
   return {
     id: `lick-${Math.random()}`,
     name: "AI Smart Lick",
