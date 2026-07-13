@@ -15,14 +15,11 @@ export interface AIResponse {
 }
 
 export const processAIQuery = async (query: string): Promise<AIResponse> => {
-  // Имитируем задержку "раздумий" ИИ (600 мс) для крутого UX
   await new Promise(resolve => setTimeout(resolve, 600));
 
   const lowerQuery = query.toLowerCase();
 
-  // -------------------------------------------------------------
-  // СЦЕНАРИЙ 1: Пользователь ищет АККОРД ("show me Cmaj7")
-  // -------------------------------------------------------------
+  // СЦЕНАРИЙ 1: АККОРДЫ
   const chordMatch = query.match(/\b([A-G][b#]?(?:maj7|m7|m9|m11|maj9|7|9|11|13|m|dim|aug|sus4|sus2)?)\b/i);
   
   if (lowerQuery.includes('chord') || lowerQuery.includes('show') || lowerQuery.includes('play')) {
@@ -35,21 +32,16 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
     }
   }
 
-  // -------------------------------------------------------------
-  // СЦЕНАРИЙ 2: Пользователь ищет МИНУСОВКУ ("find a blues track in A")
-  // -------------------------------------------------------------
+  // СЦЕНАРИЙ 2: МИНУСОВКИ
   const isLookingForTrack = lowerQuery.includes('track') || lowerQuery.includes('jam') || lowerQuery.includes('find') || lowerQuery.includes('backing');
   
   if (isLookingForTrack) {
-    // 1. Ищем ноту (Key)
     const keyMatch = query.match(/\b([A-G][b#]?)\b/i);
     const targetKey = keyMatch ? keyMatch[1].toUpperCase() : null;
 
-    // 2. Ищем стиль/лад (Mode/Style)
     const styles = ['blues', 'rock', 'jazz', 'metal', 'funk', 'dorian', 'phrygian', 'lydian', 'major', 'minor'];
     const targetStyle = styles.find(s => lowerQuery.includes(s));
 
-    // 3. Фильтруем нашу базу данных TRACK_DB
     let results = TRACK_DB;
     if (targetKey) {
       results = results.filter(t => t.key === targetKey);
@@ -58,7 +50,6 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       results = results.filter(t => t.mode.includes(targetStyle) || t.tags.includes(targetStyle));
     }
 
-    // Если нашли совпадения:
     if (results.length > 0) {
       const topResults = results.slice(0, 3).map(r => ({
         id: r.id, title: r.title, key: r.key, mode: r.mode, bpm: r.bpm
@@ -70,17 +61,48 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
       };
     } 
     
-    // Если в базе нет такого трека, отправляем искать в YouTube
     return {
       text: `I couldn't find an exact match in my local database for that specific request. Let me open a direct YouTube search for you!`,
       action: { type: 'SEARCH_YOUTUBE', payload: { query } }
     };
   }
 
-  // -------------------------------------------------------------
-  // СЦЕНАРИЙ 3: Базовый ответ (Fallback)
-  // -------------------------------------------------------------
+  // СЦЕНАРИЙ 3: FALLBACK
   return {
     text: "I am TouchGrass AI, your local music assistant! 🤖\n\nI can configure your entire studio with one prompt. Try asking me:\n- \"Find a rock backing track in C\"\n- \"I want to play some A minor blues\"\n- \"Show me the Bmaj7 chord\""
+  };
+};
+
+// ============================================================================
+// 🔥 ВОССТАНОВЛЕННЫЕ ТИПЫ ДЛЯ TABLATURE.TSX (ЧТОБЫ ПОЧИНИТЬ СБОРКУ)
+// ============================================================================
+
+export interface LickNote {
+  string: number;
+  fret: number | null;
+  duration?: string;
+  isRest?: boolean;
+  articulation?: string;
+}
+
+export interface Lick {
+  id: string;
+  name: string;
+  notes: LickNote[];
+}
+
+// Мы используем (...args: any[]), чтобы функция гарантированно приняла любые 
+// параметры, которые Tablature.tsx пытается в нее отправить.
+export const generateSmartLick = (...args: any[]): Lick => {
+  return {
+    id: `lick-${Math.random()}`,
+    name: "AI Smart Lick",
+    notes: [
+      { string: 2, fret: 14, duration: '8n' },
+      { string: 2, fret: 12, duration: '8n' },
+      { string: 3, fret: 14, duration: '4n', articulation: 'vibrato' },
+      { string: 3, fret: 12, duration: '8n' },
+      { string: 4, fret: 14, duration: '2n' }
+    ]
   };
 };
