@@ -2,11 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { useMetronome } from '../../hooks/useMetronome';
 
-interface HeaderProps {
-  onAIAction?: (action: any) => void;
-}
+// 🔥 Убрали интерфейс HeaderProps, так как шапке больше не нужны входящие функции
 
-const Header: React.FC<HeaderProps> = ({ onAIAction }) => {
+const Header: React.FC = () => {
   const { keyNote, mode, bpm, setBpm, isPlaying, togglePlay } = useMusic();
   const [theme, setTheme] = useState(() => localStorage.getItem('fretlab_theme') || 'default');
 
@@ -18,7 +16,6 @@ const Header: React.FC<HeaderProps> = ({ onAIAction }) => {
   useMetronome(bpm);
 
   return (
-    // 🔥 Заменили жесткие inline-стили на класс .app-header
     <header className="app-header">
       <div className="header-brand">
         <div style={{ color: 'var(--accent)', fontWeight: 900, fontSize: '20px', letterSpacing: '2px', whiteSpace: 'nowrap' }}>

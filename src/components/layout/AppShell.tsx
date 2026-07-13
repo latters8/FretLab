@@ -29,9 +29,9 @@ const AppShell: React.FC = () => {
   };
 
   return (
-    // 🔥 Используем класс бронебойного контейнера
     <div className="app-container">
-      <Header onAIAction={handleAIAction} />
+      {/* 🔥 Убрали onAIAction={handleAIAction} из Header, так как он там больше не нужен */}
+      <Header />
       
       <div className="app-layout">
         <aside className="left-sidebar">
