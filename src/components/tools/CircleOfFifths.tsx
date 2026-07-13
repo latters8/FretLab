@@ -1,114 +1,82 @@
 import React from 'react';
 import { useMusic } from '../../context/MusicContext';
 
-const CIRCLE_KEYS = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'G#', 'D#', 'A#', 'F'];
-const MINOR_KEYS = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'A#m', 'Fm', 'Cm', 'Gm', 'Dm'];
-
-const polarToCartesian = (cx: number, cy: number, r: number, angleInDegrees: number) => {
-  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-  return { x: cx + (r * Math.cos(angleInRadians)), y: cy + (r * Math.sin(angleInRadians)) };
-};
-
-const describeArc = (x: number, y: number, innerRadius: number, outerRadius: number, startAngle: number, endAngle: number) => {
-  const startOuter = polarToCartesian(x, y, outerRadius, endAngle);
-  const endOuter = polarToCartesian(x, y, outerRadius, startAngle);
-  const startInner = polarToCartesian(x, y, innerRadius, endAngle);
-  const endInner = polarToCartesian(x, y, innerRadius, startAngle);
-  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
-
-  return [
-    "M", startOuter.x, startOuter.y,
-    "A", outerRadius, outerRadius, 0, largeArcFlag, 0, endOuter.x, endOuter.y,
-    "L", endInner.x, endInner.y,
-    "A", innerRadius, innerRadius, 0, largeArcFlag, 1, startInner.x, startInner.y,
-    "Z"
-  ].join(" ");
-};
+const KEYS_MAJOR = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
+const KEYS_MINOR = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'Bbm', 'Fm', 'Cm', 'Gm', 'Dm'];
 
 const CircleOfFifths: React.FC = () => {
-  const { keyNote, mode, setKeyNote, setMode } = useMusic();
+  const { keyNote, setKeyNote } = useMusic();
 
-  const cx = 160;
-  const cy = 160;
-  const majorOuter = 150;
-  const majorInner = 100;
-  const minorOuter = 100;
-  const minorInner = 50;
-
-  const handleKeyClick = (key: string, isMinor: boolean) => {
-    const rootNote = isMinor ? key.replace('m', '') : key;
-    setKeyNote(rootNote);
-    setMode(isMinor ? 'aeolian' : 'major');
-  };
+  const activeIndex = Math.max(0, KEYS_MAJOR.indexOf(keyNote));
+  const rotation = -activeIndex * 30;
 
   return (
-    <div style={{ background: 'var(--bg-primary)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)' }}>
-      <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '20px', textAlign: 'center' }}>
-        🔄 Circle of Fifths
-      </div>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', padding: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'center' }}>
-        <svg viewBox="0 0 320 320" style={{ width: '100%', maxWidth: '320px', height: 'auto' }}>
+      <div style={{ position: 'relative', width: '280px', height: '280px', transition: 'transform 0.6s cubic-bezier(0.22, 1, 0.36, 1)', transform: `rotate(${rotation}deg)` }}>
+        
+        {/* Внутреннее декоративное кольцо */}
+        <div style={{ position: 'absolute', top: '20px', left: '20px', right: '20px', bottom: '20px', borderRadius: '50%', border: '1px dashed var(--border-color)', opacity: 0.5, pointerEvents: 'none' }} />
+
+        {/* Мажорное внешнее кольцо */}
+        {KEYS_MAJOR.map((key, i) => {
+          const angle = i * 30;
+          const rad = (angle - 90) * (Math.PI / 180);
+          const x = 140 + 120 * Math.cos(rad); 
+          const y = 140 + 120 * Math.sin(rad);
+          const isActive = key === keyNote;
           
-          {/* Сектора МАЖОРА */}
-          {CIRCLE_KEYS.map((key, i) => {
-            const startAngle = i * 30 - 15;
-            const endAngle = i * 30 + 15;
-            const isActive = key === keyNote && mode === 'major';
-            const pathData = describeArc(cx, cy, majorInner, majorOuter, startAngle, endAngle);
-            const textPos = polarToCartesian(cx, cy, (majorInner + majorOuter) / 2, i * 30);
+          return (
+            <div 
+              key={key}
+              onClick={() => setKeyNote(key)}
+              style={{
+                position: 'absolute', left: `${x}px`, top: `${y}px`, transform: `translate(-50%, -50%) rotate(${-rotation}deg)`,
+                width: '38px', height: '38px', borderRadius: '50%',
+                background: isActive ? 'var(--accent)' : 'var(--bg-primary)',
+                color: isActive ? '#000' : 'var(--text-primary)',
+                border: isActive ? 'none' : '1px solid var(--border-color)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '12px', fontWeight: 900, cursor: 'pointer', transition: 'all 0.3s ease',
+                boxShadow: isActive ? '0 0 20px var(--accent)' : 'none', zIndex: isActive ? 10 : 1
+              }}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--accent)'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.borderColor = 'var(--border-color)'; }}
+            >
+              {key}
+            </div>
+          );
+        })}
+        
+        {/* Минорное внутреннее кольцо */}
+        {KEYS_MINOR.map((key, i) => {
+          const angle = i * 30;
+          const rad = (angle - 90) * (Math.PI / 180);
+          const x = 140 + 75 * Math.cos(rad); 
+          const y = 140 + 75 * Math.sin(rad);
+          const isRelative = i === activeIndex;
+          
+          return (
+            <div 
+              key={key}
+              style={{
+                position: 'absolute', left: `${x}px`, top: `${y}px`, transform: `translate(-50%, -50%) rotate(${-rotation}deg)`,
+                color: isRelative ? 'var(--accent)' : 'var(--text-muted)', 
+                fontSize: '11px', fontWeight: isRelative ? 900 : 600, pointerEvents: 'none',
+                transition: 'all 0.3s ease'
+              }}
+            >
+              {key}
+            </div>
+          );
+        })}
 
-            return (
-              <g key={`maj-${key}`} onClick={() => handleKeyClick(key, false)} style={{ cursor: 'pointer' }}>
-                <path 
-                  d={pathData} 
-                  fill={isActive ? 'var(--accent)' : 'var(--bg-panel)'} 
-                  stroke="var(--border-color)" 
-                  strokeWidth="2"
-                  style={{ transition: 'fill 0.3s' }}
-                />
-                <text 
-                  x={textPos.x} y={textPos.y + 8} textAnchor="middle" 
-                  style={{ fill: isActive ? '#000' : 'var(--text-primary)', fontSize: '24px', fontWeight: 800, transition: 'fill 0.3s' }}>
-                  {key}
-                </text>
-              </g>
-            );
-          })}
+        {/* Центр: Индикатор тональности */}
+        <div style={{ position: 'absolute', top: '50%', left: '50%', transform: `translate(-50%, -50%) rotate(${-rotation}deg)`, textAlign: 'center', pointerEvents: 'none' }}>
+            <div style={{ color: 'var(--text-primary)', fontSize: '32px', fontWeight: 900, textShadow: '0 0 12px rgba(255,255,255,0.2)' }}>{keyNote}</div>
+            <div style={{ color: 'var(--accent)', fontSize: '10px', fontWeight: 800, letterSpacing: '1px', marginTop: '4px' }}>KEY</div>
+        </div>
 
-          {/* Сектора МИНОРА */}
-          {MINOR_KEYS.map((key, i) => {
-            const startAngle = i * 30 - 15;
-            const endAngle = i * 30 + 15;
-            const root = key.replace('m', '');
-            
-            // Исправлено: теперь минор проверяет строго лад aeolian
-            const isActive = root === keyNote && mode === 'aeolian';
-            const pathData = describeArc(cx, cy, minorInner, minorOuter, startAngle, endAngle);
-            const textPos = polarToCartesian(cx, cy, (minorInner + minorOuter) / 2, i * 30);
-
-            return (
-              <g key={`min-${key}`} onClick={() => handleKeyClick(key, true)} style={{ cursor: 'pointer' }}>
-                <path 
-                  d={pathData} 
-                  // 🔥 ИСПРАВЛЕНО: Вместо сломанной var(--accent-blue) используется валидная var(--accent-blue) из index.css
-                  fill={isActive ? 'var(--accent-blue)' : 'var(--bg-secondary)'} 
-                  stroke="var(--border-color)" 
-                  strokeWidth="2"
-                  style={{ transition: 'fill 0.3s' }}
-                />
-                <text 
-                  x={textPos.x} y={textPos.y + 6} textAnchor="middle" 
-                  style={{ fill: isActive ? '#000' : 'var(--text-secondary)', fontSize: '18px', fontWeight: 700, transition: 'fill 0.3s' }}>
-                  {key}
-                </text>
-              </g>
-            );
-          })}
-
-          {/* Пустой центр */}
-          <circle cx={cx} cy={cy} r={minorInner} fill="var(--bg-primary)" stroke="var(--border-color)" strokeWidth="2" />
-        </svg>
       </div>
     </div>
   );
