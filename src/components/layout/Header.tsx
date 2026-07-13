@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { useMetronome } from '../../hooks/useMetronome';
 
-// 🔥 Убрали интерфейс HeaderProps, так как шапке больше не нужны входящие функции
-
 const Header: React.FC = () => {
   const { keyNote, mode, bpm, setBpm, isPlaying, togglePlay } = useMusic();
   const [theme, setTheme] = useState(() => localStorage.getItem('fretlab_theme') || 'default');
@@ -33,15 +31,43 @@ const Header: React.FC = () => {
         </select>
       </div>
 
-      <div className="header-controls">
-        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800 }}>
+      <div className="header-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', gap: '12px', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, flexShrink: 0 }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Key <span style={{ color: 'var(--text-primary)', fontSize: '14px' }}>{keyNote}</span></span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>Mode <span style={{ color: 'var(--accent)', fontSize: '14px' }}>{mode}</span></span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--bg-primary)', padding: '4px 12px', borderRadius: '20px', border: '1px solid var(--border-color)' }}>
-          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>BPM</span>
-          <input type="number" value={bpm} onChange={(e) => setBpm(Number(e.target.value))} style={{ width: '40px', background: 'transparent', border: 'none', color: 'var(--text-primary)', fontWeight: 800, fontSize: '14px', outline: 'none', textAlign: 'center' }} />
+        {/* 🔥 ИСПРАВЛЕНО: БРОНЕБОЙНЫЙ КОНТЕЙНЕР МЕТРОНОМА */}
+        {/* Добавлен flexShrink: 0 (запрет сжатия), minWidth: 110px и увеличен размер инпута */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px', 
+          background: 'var(--bg-primary)', 
+          padding: '6px 16px', 
+          borderRadius: '20px', 
+          border: '1px solid var(--border-color)',
+          flexShrink: 0,
+          minWidth: '110px',
+          justifyContent: 'center'
+        }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '0.5px' }}>BPM</span>
+          <input 
+            type="number" 
+            value={bpm} 
+            onChange={(e) => setBpm(Number(e.target.value))} 
+            style={{ 
+              width: '50px', // Увеличили ширину под 3 символа
+              background: 'transparent', 
+              border: 'none', 
+              color: 'var(--text-primary)', 
+              fontWeight: 800, 
+              fontSize: '14px', 
+              outline: 'none', 
+              textAlign: 'center',
+              padding: 0
+            }} 
+          />
         </div>
 
         <button onClick={togglePlay} style={{ width: '40px', height: '40px', borderRadius: '50%', background: isPlaying ? 'var(--accent)' : 'var(--bg-primary)', color: isPlaying ? '#000' : 'var(--accent)', border: `2px solid var(--accent)`, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: '0.2s', boxShadow: isPlaying ? '0 0 16px var(--accent)' : 'none', flexShrink: 0 }}>

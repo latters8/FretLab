@@ -30,44 +30,53 @@ const AppShell: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* 🔥 Убрали onAIAction={handleAIAction} из Header, так как он там больше не нужен */}
       <Header />
       
-      <div className="app-layout">
-        <aside className="left-sidebar">
-            <div onClick={() => setActiveModule('engine')} style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Fretboard Engine">🎸</div>
-            <div onClick={() => setActiveModule('dictionary')} style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Chord Dictionary">📖</div>
-            <div onClick={() => setActiveModule('autotab')} style={{ padding: '12px', background: activeModule === 'autotab' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'autotab' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="AutoTab / Songsterr Mode">🎼</div>
-        </aside>
-
-        <div className="main-workspace">
-          {activeModule === 'engine' && (
-            <>
-              <main className="center-column">
-                  <AISearchBar onAction={handleAIAction} />
-                  <Player />
-                  <div className="fretboard-scroll-wrapper"><Fretboard /></div>
-                  <Tablature />
-              </main>
-              <aside className="right-column">
-                  <CircleOfFifths />
-                  <DiatonicChords />
-              </aside>
-            </>
-          )}
-
-          {activeModule === 'dictionary' && (
-            <main className="center-column" style={{ overflowY: 'hidden' }}>
-                <ChordDictionary targetChord={aiTargetChord} />
-            </main>
-          )}
-
-          {activeModule === 'autotab' && (
-            <main className="center-column" style={{ overflowY: 'hidden' }}>
-                <AutoTab />
-            </main>
-          )}
+      {/* Глобальная обертка под шапкой */}
+      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
+        
+        {/* 🔥 ИСПРАВЛЕНО: AI Bar вынесен на самый верх рабочей зоны, над всеми модулями и скроллами */}
+        <div style={{ padding: '12px 24px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'center' }}>
+          <AISearchBar onAction={handleAIAction} />
         </div>
+
+        <div className="app-layout">
+          <aside className="left-sidebar">
+              <div onClick={() => setActiveModule('engine')} style={{ padding: '12px', background: activeModule === 'engine' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'engine' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Fretboard Engine">🎸</div>
+              <div onClick={() => setActiveModule('dictionary')} style={{ padding: '12px', background: activeModule === 'dictionary' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'dictionary' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="Chord Dictionary">📖</div>
+              <div onClick={() => setActiveModule('autotab')} style={{ padding: '12px', background: activeModule === 'autotab' ? 'var(--bg-hover)' : 'transparent', color: activeModule === 'autotab' ? 'var(--accent)' : 'var(--text-muted)', borderRadius: '12px', cursor: 'pointer', fontSize: '24px', transition: '0.2s' }} title="AutoTab / Songsterr Mode">🎼</div>
+          </aside>
+
+          <div className="main-workspace">
+            {activeModule === 'engine' && (
+              <>
+                <main className="center-column">
+                    {/* Отсюда AISearchBar удален, чтобы он не уезжал вместе с плеером */}
+                    <Player />
+                    <div className="fretboard-scroll-wrapper"><Fretboard /></div>
+                    <Tablature />
+                </main>
+                <aside className="right-column">
+                    <CircleOfFifths />
+                    <DiatonicChords />
+                </aside>
+              </>
+            )}
+
+            {activeModule === 'dictionary' && (
+              <main className="center-column" style={{ overflowY: 'hidden' }}>
+                  <ChordDictionary targetChord={aiTargetChord} />
+              </main>
+            )}
+
+            {activeModule === 'autotab' && (
+              <main className="center-column" style={{ overflowY: 'hidden' }}>
+                  <AutoTab />
+              </main>
+            )}
+          </div>
+        </div>
+
       </div>
     </div>
   );
