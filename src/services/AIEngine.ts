@@ -60,7 +60,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
 };
 
 // ============================================================================
-// 🔥 НОВЫЙ ГЕНЕРАТОР ФРАЗ (С РАЗНЫМИ ДЛИТЕЛЬНОСТЯМИ, ТЕХНИКАМИ, СМЕНОЙ СТРУН)
+// 🔥 ГЕНЕРАТОР ФРАЗ (С РАЗНЫМИ ДЛИТЕЛЬНОСТЯМИ, ТЕХНИКАМИ, СМЕНОЙ СТРУН)
 // ============================================================================
 
 export type Technique = 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend' | 'ghost' | 'choke';
@@ -232,11 +232,13 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     }
     
     // 7. Связь с предыдущей нотой
-    const tiedToNext = (i < phraseLength - 1 && 
+    const prevNote = notes.length > 0 ? notes[notes.length - 1] : null;
+    const prevFret = prevNote?.fret ?? 0;
+    const tiedToNext = i < phraseLength - 1 && 
                         Math.random() < 0.15 && 
                         notes.length > 0 && 
                         notes[notes.length - 1]?.string === targetString &&
-                        Math.abs(notes[notes.length - 1]?.fret - fret) <= 2);
+                        Math.abs(prevFret - fret) <= 2;
     
     // 8. Добавляем ноту
     notes.push({
@@ -256,12 +258,17 @@ export const generateSmartLick = (scaleNotes: string[], keyNote: string, mode: s
     const prev = filteredNotes[filteredNotes.length - 1];
     const current = notes[i];
     
-    if (prev && prev.string === current.string && prev.fret === current.fret) {
+    if (prev && 
+        prev.string === current.string && 
+        prev.fret !== null && 
+        current.fret !== null && 
+        prev.fret === current.fret) {
       if (current.technique === 'none' && Math.random() < 0.6) {
+        const newFret = current.fret + (Math.random() > 0.5 ? 1 : -1);
         filteredNotes.push({
           ...current,
           technique: Math.random() > 0.5 ? 'slide' : 'hammer',
-          fret: current.fret + (Math.random() > 0.5 ? 1 : -1)
+          fret: Math.max(0, Math.min(24, newFret))
         });
         continue;
       }
