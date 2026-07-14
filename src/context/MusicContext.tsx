@@ -24,10 +24,9 @@ export interface TrackInfo {
   title: string;
 }
 
-// 🔥 ДОБАВЛЯЕМ ТИП ДЛЯ РАЗМЕРА
 export interface TimeSignature {
-  beats: number;     // числитель (4, 3, 6...)
-  noteValue: number; // знаменатель (4, 8, 2...)
+  beats: number;
+  noteValue: number;
 }
 
 interface MusicContextType {
@@ -67,7 +66,7 @@ const INTERVALS: Record<Mode, number[]> = {
   min7_arp: [0, 3, 7, 10],
   dom7_arp: [0, 4, 7, 10],
   dom9_arp: [0, 4, 7, 10, 2],
-  altered: [0, 1, 3, 4, 8, 10] // Super Locrian
+  altered: [0, 1, 3, 4, 8, 10]
 };
 
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
@@ -93,25 +92,25 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const stepRef = useRef(0);
 
   const playClick = (time: number, isAccent: boolean) => {
-    const osc = audioContext.current!.createOscillator();
-    const gain = audioContext.current!.createGain();
+    if (!audioContext.current) return;
+    const osc = audioContext.current.createOscillator();
+    const gain = audioContext.current.createGain();
     osc.frequency.value = isAccent ? 1200 : 800;
     gain.gain.setValueAtTime(0.5, time);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
     osc.connect(gain);
-    gain.connect(audioContext.current!.destination);
+    gain.connect(audioContext.current.destination);
     osc.start(time);
     osc.stop(time + 0.1);
   };
 
   const scheduler = useCallback(() => {
-    while (nextNoteTime.current < audioContext.current!.currentTime + 0.1) {
+    if (!audioContext.current) return;
+    while (nextNoteTime.current < audioContext.current.currentTime + 0.1) {
       const current = stepRef.current;
-      // Акцент на первой доле каждого такта
       const isAccent = current % timeSignature.beats === 0;
       playClick(nextNoteTime.current, isAccent);
       setActiveStep(current);
-      // Шаг = 1/4 ноты (16-я) для точности визуализации
       nextNoteTime.current += (60.0 / bpm) / 4;
       stepRef.current = (current + 1) % 32;
     }
@@ -125,9 +124,18 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       nextNoteTime.current = audioContext.current.currentTime + 0.1;
       stepRef.current = 0;
       scheduler();
+      
+      // Отправляем событие для метронома
+      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
+        detail: { isPlaying: true } 
+      }));
     } else {
       cancelAnimationFrame(timerID.current);
       setActiveStep(-1);
+      
+      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
+        detail: { isPlaying: false } 
+      }));
     }
     return () => cancelAnimationFrame(timerID.current);
   }, [isPlaying, scheduler]);

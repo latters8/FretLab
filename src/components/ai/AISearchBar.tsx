@@ -18,25 +18,23 @@ interface ChatMessage {
   searchQuery?: string;
 }
 
-// 🔥 ПОДСКАЗКИ ДЛЯ ПОЛЯ ВВОДА
 const HINTS = [
   "Ask TouchGrass AI...",
   "🎸 Try: 'Find a blues backing track in Am'",
   "🎹 Try: 'Show me the Cmaj7 chord'",
   "🎼 Try: 'How to play over E7 alt?'",
-  "⚡ Try: 'Generate a Dorian lick'"
+  "⚡ Try: 'Generate a Dorian lick'",
+  "🎵 Try: 'Set tempo to 96 BPM'"
 ];
 
-// 🔥 БЫСТРЫЕ ДЕЙСТВИЯ (кликабельные подсказки)
 const QUICK_PROMPTS = [
   { label: "🎸 Find backing track", query: "Find a blues backing track in Am" },
   { label: "🎹 Show chord", query: "Show me Cmaj7 chord" },
   { label: "🎼 Play over", query: "How to play over E7 alt?" },
-  { label: "⚡ Generate lick", query: "Generate a Dorian lick" },
+  { label: "⚡ Generate lick", query: "Generate a Dorian lick in E" },
   { label: "🎵 Set tempo", query: "Set tempo to 96 BPM" }
 ];
 
-// 🔥 ПРИВЕТСТВИЕ
 const WELCOME_MESSAGE = {
   text: "🤖 Привет! Я TouchGrass AI — ваш музыкальный ассистент.\n\n" +
         "🎸 Что я умею:\n" +
@@ -47,7 +45,6 @@ const WELCOME_MESSAGE = {
         "Напиши свой запрос или выбери одно из действий ниже 👇"
 };
 
-// 🔥 КОМПОНЕНТ ВЫБОРА ПЛАТФОРМЫ
 const PlatformSelector: React.FC<{ 
   platforms: { platform: VideoPlatform; label: string; icon: string }[];
   onSelect: (platform: VideoPlatform) => void;
@@ -88,7 +85,6 @@ const PlatformSelector: React.FC<{
   );
 };
 
-// 🔥 КОМПОНЕНТ ОПЦИЙ
 const OptionsRenderer: React.FC<{ 
   options: TrackOption[];
   onSelect: (opt: TrackOption) => void;
@@ -131,7 +127,6 @@ const OptionsRenderer: React.FC<{
   );
 };
 
-// 🔥 КОМПОНЕНТ БЫСТРЫХ ДЕЙСТВИЙ (кликабельные подсказки)
 const QuickPrompts: React.FC<{ onSelect: (query: string) => void }> = ({ onSelect }) => {
   return (
     <div style={{ 
@@ -191,7 +186,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
 
   const { setKeyNote, setMode, setBpm } = useMusic();
 
-  // 🔥 РОТАЦИЯ ПОДСКАЗОК
   useEffect(() => {
     const interval = setInterval(() => {
       setHintIndex((prev) => (prev + 1) % HINTS.length);
@@ -199,7 +193,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     return () => clearInterval(interval);
   }, []);
 
-  // 🔥 ЗАКРЫТИЕ ПО КЛИКУ МИМО
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
@@ -210,7 +203,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // 🔥 ESC ДЛЯ ЗАКРЫТИЯ
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setIsOpen(false);
@@ -219,7 +211,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     return () => document.removeEventListener('keydown', handleEsc);
   }, []);
 
-  // 🔥 ПРИВЕТСТВИЕ ПРИ ПЕРВОМ ОТКРЫТИИ
   useEffect(() => {
     if (isOpen && !hasWelcomed && messages.length === 0) {
       setHasWelcomed(true);
@@ -230,7 +221,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     }
   }, [isOpen, hasWelcomed, messages.length]);
 
-  // 🔥 СКРОЛЛ К ПОСЛЕДНЕМУ СООБЩЕНИЮ
   useEffect(() => {
     if (isOpen && messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -344,7 +334,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
   return (
     <div ref={wrapperRef} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
       
-      {/* ===== СТРОКА ПОИСКА ===== */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -417,7 +406,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
         )}
       </div>
 
-      {/* ===== ВЫПАДАЮЩИЙ ЧАТ ===== */}
       {isOpen && (
         <div style={{
           position: 'absolute',
@@ -434,7 +422,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           zIndex: 1000,
         }}>
           
-          {/* КНОПКА ОЧИСТКИ */}
           {messages.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
               <button
@@ -458,7 +445,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
             </div>
           )}
 
-          {/* СООБЩЕНИЯ */}
           {messages.map((msg) => (
             <div
               key={msg.id}
@@ -513,7 +499,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
             </div>
           )}
 
-          {/* 🔥 КЛИКАБЕЛЬНЫЕ ПОДСКАЗКИ */}
           {messages.length === 0 && (
             <QuickPrompts onSelect={handleQuickPrompt} />
           )}

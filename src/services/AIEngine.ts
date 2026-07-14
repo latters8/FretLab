@@ -174,7 +174,6 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   };
 };
 
-// 🔥 ИСПРАВЛЕНО: Добавлен 'mute' в разрешенные техники для UI компонентов
 export type Technique = 
   | 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend' | 'prebend'
   | 'unison_bend' | 'grace' | 'fall' | 'ghost' | 'choke' | 'mute';
@@ -261,10 +260,6 @@ const GUITAR_PHRASES: PhrasePattern[] = [
   }
 ];
 
-// ============================================================
-// 🎸 АЛГОРИТМ 1: КОРОТКАЯ ФРАЗА (ДЛЯ TABLATURE.TSX)
-// ============================================================
-// 🔥 ИСПРАВЛЕНО: Добавлен ..._extraArgs, чтобы компоненты могли слать сколько угодно дополнительных параметров (например, timeSignature) без ошибок
 export const generateSmartLick = (
   scaleNotes: string[], 
   keyNote: string, 
@@ -337,14 +332,13 @@ export interface SyncSoloData {
   notes: SyncNote[];
 }
 
-// 🔥 ИСПРАВЛЕНО: Неиспользуемые в теле функции параметры _mode и _forceAllChords помечены подчеркиванием
+// 🔥 ИСПРАВЛЕНО: Теперь генератор принимает массив аккордов (прогрессию), а не один аккорд-заглушку
 export const generateSynchronizedSolo = (
   scaleNotes: string[],
   keyNote: string,
   _mode: string,
   timeSignature: { beats: number; noteValue: number },
-  chordName: string,
-  chordNotes: string[],
+  progressionChords: { name: string; notes: string[] }[], // Массив из 4 аккордов
   _forceAllChords: boolean
 ): SyncSoloData => {
   const bars = 4;
@@ -352,10 +346,13 @@ export const generateSynchronizedSolo = (
   const totalBeats = bars * beatsPerBar;
   
   const chords: SyncChord[] = [];
+  
+  // Распределяем переданные аккорды по 4 тактам
   for (let i = 0; i < bars; i++) {
+    const chordObj = progressionChords[i % progressionChords.length]; // Если передали меньше 4, зациклим
     chords.push({
-      name: chordName,
-      notes: chordNotes,
+      name: chordObj.name,
+      notes: chordObj.notes,
       beatStart: i * beatsPerBar,
       durationBeats: beatsPerBar
     });
@@ -389,10 +386,17 @@ export const generateSynchronizedSolo = (
       let noteStr = safeScale[Math.floor(Math.random() * safeScale.length)];
       const isStrongBeat = currentBeat % 1 === 0;
       
+      // Определяем, в каком такте мы находимся, чтобы взять ноты ТЕКУЩЕГО аккорда
+      const currentBarIndex = Math.floor(currentBeat / beatsPerBar);
+      const activeChord = chords[currentBarIndex];
+      const activeChordNotes = activeChord.notes;
+
       if (currentBeat === 0) {
-        noteStr = keyNote; 
-      } else if (isStrongBeat && chordNotes.length > 0 && Math.random() > 0.3) {
-        noteStr = chordNotes[Math.floor(Math.random() * chordNotes.length)];
+        // Первая нота всего соло - тоника первого аккорда прогрессии
+        noteStr = activeChordNotes[0] || keyNote; 
+      } else if (isStrongBeat && activeChordNotes.length > 0 && Math.random() > 0.2) {
+        // На сильную долю (1, 2, 3, 4) почти всегда играем ноту текущего диатонического аккорда
+        noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
       }
 
       let fret = findFretForNote(noteStr, currentString, 0, 21);
@@ -421,10 +425,13 @@ export const generateSynchronizedSolo = (
     currentBeat += dur.val;
   }
 
+  // Концовка
   if (notes.length > 0) {
      const lastNote = notes[notes.length - 1];
      if (!lastNote.isRest) {
-        lastNote.fret = findFretForNote(keyNote, lastNote.string, startFret - 2, startFret + 5);
+        const lastChordNotes = chords[bars - 1].notes;
+        const resolveNote = lastChordNotes[0] || keyNote; // Разрешаемся в тонику последнего аккорда
+        lastNote.fret = findFretForNote(resolveNote, lastNote.string, startFret - 2, startFret + 5);
         lastNote.technique = 'vibrato';
         lastNote.duration = '2n';
         lastNote.beatDuration = 2;

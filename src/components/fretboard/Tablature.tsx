@@ -21,7 +21,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [tips, setTips] = useState<Tip[]>([]);
 
-  // 🔥 НАДЕЖНЫЕ РЕФЫ ДЛЯ ОСТАНОВКИ ЗВУКА
+  // 🔥 КОНТЕКСТ СОЗДАЕТСЯ ОДИН РАЗ (Нет утечек!)
   const audioCtxRef = useRef<AudioContext | null>(null);
   const timeoutsRef = useRef<number[]>([]);
   const oscillatorsRef = useRef<OscillatorNode[]>([]);
@@ -43,7 +43,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
     stopPlayback();
   }, [keyNote, mode, bpm, timeSignature, getScaleNotes]);
 
-  // 🔥 МГНОВЕННАЯ ОСТАНОВКА ВОСПРОИЗВЕДЕНИЯ
+  // 🔥 МГНОВЕННЫЙ ОСТАНОВ (Без убийства контекста)
   const stopPlayback = () => {
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
@@ -53,17 +53,12 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
     });
     oscillatorsRef.current = [];
 
-    if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
-      audioCtxRef.current.close();
-      audioCtxRef.current = null;
-    }
-
     setIsPlayingAudio(false);
     setLocalActiveStep(-1);
   };
 
   const handleGenerate = (e?: React.MouseEvent) => {
-    if (e) (e.currentTarget as HTMLElement).blur(); 
+    if (e) (e.currentTarget as HTMLButtonElement).blur(); 
     if (isPlayingAudio) stopPlayback();
 
     setIsGenerating(true);
@@ -81,14 +76,23 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   };
 
   const playLickAudio = async (e?: React.MouseEvent) => {
-    if (e) (e.currentTarget as HTMLElement).blur(); 
+    if (e) (e.currentTarget as HTMLButtonElement).blur(); 
     if (!currentLick || isPlayingAudio) return;
 
     stopPlayback();
 
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    audioCtxRef.current = new AudioContextClass();
-    const ctx = audioCtxRef.current!;
+    // 🔥 Инициализируем контекст ТОЛЬКО если его нет
+    if (!audioCtxRef.current) {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      audioCtxRef.current = new AudioContextClass();
+    }
+    
+    const ctx = audioCtxRef.current;
+    
+    // Пробуждаем браузерный аудио-движок
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
+    }
 
     setIsPlayingAudio(true);
     setLocalActiveStep(-1);
@@ -164,7 +168,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
               {!isPlayingAudio ? (
                 <button onClick={playLickAudio} disabled={isGenerating || !currentLick} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer' }}>▶ PLAY</button>
               ) : (
-                <button onClick={(e) => { (e.currentTarget as HTMLElement).blur(); stopPlayback(); }} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer' }}>⏹ STOP</button>
+                <button onClick={(e) => { (e.currentTarget as HTMLButtonElement).blur(); stopPlayback(); }} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer' }}>⏹ STOP</button>
               )}
             </div>
 

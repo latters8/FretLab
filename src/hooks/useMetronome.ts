@@ -1,68 +1,122 @@
 // src/hooks/useMetronome.ts
 
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import type { TimeSignature } from '../context/MusicContext';
 
 export const useMetronome = (bpm: number, timeSignature: TimeSignature) => {
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  const audioContext = useRef<AudioContext | null>(null);
-  const nextNoteTime = useRef(0);
-  const timerID = useRef<number>(0);
-  const stepCounter = useRef(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const nextNoteTimeRef = useRef<number>(0);
+  const timerIdRef = useRef<number>(0);
+  const stepRef = useRef<number>(0);
+  const isPlayingRef = useRef<boolean>(false);
 
-  const playClick = (time: number, isAccent: boolean) => {
-    const osc = audioContext.current!.createOscillator();
-    const envelope = audioContext.current!.createGain();
-    osc.frequency.value = isAccent ? 1200 : 800;
-    envelope.gain.value = 1;
-    envelope.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-    osc.connect(envelope);
-    envelope.connect(audioContext.current!.destination);
-    osc.start(time);
-    osc.stop(time + 0.1);
+  // Инициализация AudioContext только при необходимости
+  const getAudioContext = () => {
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    return audioContextRef.current;
   };
 
-  const scheduler = useCallback(() => {
-    if (!audioContext.current) return;
-    
-    const currentTime = audioContext.current.currentTime;
-    const interval = 60.0 / bpm;
-    const beatsPerBar = timeSignature.beats;
-    
-    while (nextNoteTime.current < currentTime + 0.1) {
-      // Акцент на первой доле каждого такта
-      const isAccent = stepCounter.current % beatsPerBar === 0;
-      playClick(nextNoteTime.current, isAccent);
-      nextNoteTime.current += interval;
+  const playClick = (time: number, isAccent: boolean) => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
       
-      stepCounter.current = (stepCounter.current + 1) % 32;
-      setCurrentStep(stepCounter.current);
+      osc.type = 'sine';
+      osc.frequency.value = isAccent ? 1200 : 800;
+      
+      gain.gain.setValueAtTime(0.5, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.start(time);
+      osc.stop(time + 0.08);
+    } catch (e) {
+      console.warn('Click sound error:', e);
     }
-    timerID.current = requestAnimationFrame(scheduler);
-  }, [bpm, timeSignature]);
+  };
+
+  const scheduler = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    const currentTime = ctx.currentTime;
+    const lookahead = 0.1;
+    const secondsPerBeat = 60.0 / bpm;
+    const beatsPerBar = timeSignature.beats;
+
+    while (nextNoteTimeRef.current < currentTime + lookahead) {
+      const isAccent = stepRef.current % beatsPerBar === 0;
+      playClick(nextNoteTimeRef.current, isAccent);
+      
+      nextNoteTimeRef.current += secondsPerBeat / 4; // 16-я нота для точности
+      stepRef.current = (stepRef.current + 1) % 32;
+    }
+
+    timerIdRef.current = requestAnimationFrame(scheduler);
+  };
+
+  const startMetronome = () => {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    isPlayingRef.current = true;
+    nextNoteTimeRef.current = ctx.currentTime + 0.1;
+    stepRef.current = 0;
+    scheduler();
+  };
+
+  const stopMetronome = () => {
+    isPlayingRef.current = false;
+    if (timerIdRef.current) {
+      cancelAnimationFrame(timerIdRef.current);
+      timerIdRef.current = 0;
+    }
+    stepRef.current = 0;
+  };
 
   useEffect(() => {
-    if (isPlaying) {
-      if (!audioContext.current) {
-        audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      stepCounter.current = 0;
-      setCurrentStep(0);
-      nextNoteTime.current = audioContext.current.currentTime;
-      scheduler();
-    } else {
-      if (timerID.current) cancelAnimationFrame(timerID.current);
-      setCurrentStep(-1);
-    }
-    
-    return () => {
-      if (timerID.current) cancelAnimationFrame(timerID.current);
-      if (audioContext.current && audioContext.current.state !== 'closed') {
-        audioContext.current.close();
+    // Подписываемся на изменение статуса воспроизведения из MusicContext
+    const handlePlayStateChange = (event: CustomEvent) => {
+      if (event.detail.isPlaying) {
+        startMetronome();
+      } else {
+        stopMetronome();
       }
     };
-  }, [isPlaying, bpm, scheduler]);
 
-  return { isPlaying, setIsPlaying, currentStep };
+    window.addEventListener('metronome-toggle', handlePlayStateChange as EventListener);
+
+    return () => {
+      window.removeEventListener('metronome-toggle', handlePlayStateChange as EventListener);
+      stopMetronome();
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [bpm, timeSignature]);
+
+  // Перезапуск при изменении BPM или размера
+  useEffect(() => {
+    if (isPlayingRef.current) {
+      stopMetronome();
+      startMetronome();
+    }
+  }, [bpm, timeSignature]);
+
+  return {
+    start: startMetronome,
+    stop: stopMetronome,
+    isPlaying: isPlayingRef.current
+  };
 };

@@ -1,3 +1,6 @@
+/* src/App.css */
+
+/* Существующие стили */
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -181,4 +184,180 @@
     right: 0;
     border-right-color: var(--border);
   }
+}
+
+/* 🔥 ДОБАВЛЯЕМ СТИЛИ ДЛЯ ПЛЕЕРА */
+
+/* Стили для плеера */
+.player-container {
+  background: var(--bg-root);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+}
+
+/* Анимация для плейхеда */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.playhead {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Стили для кнопок */
+.btn-play {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.btn-play:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(0, 255, 157, 0.3);
+}
+
+.btn-play:active {
+  transform: scale(0.95);
+}
+
+.btn-stop {
+  background: #ff4444;
+  color: #fff;
+}
+
+.btn-stop:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 68, 68, 0.3);
+}
+
+/* Стили для драм-паттернов */
+.drum-selector {
+  background: #111216;
+  color: #fff;
+  border: 1px solid var(--border-color);
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.drum-selector:hover {
+  border-color: var(--accent);
+}
+
+/* Стили для слайдера громкости */
+input[type="range"] {
+  accent-color: var(--accent);
+  height: 4px;
+  background: var(--bg-secondary);
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  border: none;
+}
+
+/* Стили для аккордов в SVG */
+.chord-label {
+  font-size: 22px;
+  font-weight: 900;
+  fill: var(--accent);
+  cursor: pointer;
+}
+
+.chord-label:hover {
+  fill: #fff;
+}
+
+/* Стили для редактора аккордов */
+.chord-editor {
+  position: absolute;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: 0 0 6px 6px;
+  z-index: 999;
+  overflow: hidden;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.8);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.chord-editor-item {
+  padding: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 900;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  text-align: center;
+  transition: 0.1s;
+}
+
+.chord-editor-item:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+/* Стили для тултипов */
+.tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  opacity: 0;
+  width: 200px;
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  text-align: center;
+  border-radius: 6px;
+  padding: 8px 12px;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: opacity 0.3s;
+  border: 1px solid var(--border-color);
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.tooltip-text::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--border-color);
 }

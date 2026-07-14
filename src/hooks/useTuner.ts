@@ -1,4 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+// src/hooks/useTuner.ts
+
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const NOTE_STRINGS = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 
@@ -13,10 +15,10 @@ export const useTuner = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const rafIdRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  const audioDataRef = useRef<Float32Array | null>(null);
 
   const startTuner = async () => {
     try {
-      // Идеально чистый захват без эхо- и шумоподавления браузера
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: { echoCancellation: false, autoGainControl: false, noiseSuppression: false } 
       });
@@ -26,7 +28,7 @@ export const useTuner = () => {
       audioCtxRef.current = audioContext;
       
       const analyser = audioContext.createAnalyser();
-      analyser.fftSize = 2048; 
+      analyser.fftSize = 2048;
       analyserRef.current = analyser;
 
       const source = audioContext.createMediaStreamSource(stream);
@@ -49,19 +51,26 @@ export const useTuner = () => {
     setNote('');
     setCents(0);
     setFrequency(0);
+    audioDataRef.current = null;
   };
 
-  // 🔥 Автономная математическая реализация алгоритма McLeod Pitch Method (MPM)
+  const getAudioData = useCallback((): Float32Array | null => {
+    if (!analyserRef.current || !isActive) return null;
+    
+    const buffer = new Float32Array(analyserRef.current.fftSize);
+    analyserRef.current.getFloatTimeDomainData(buffer);
+    audioDataRef.current = buffer;
+    return buffer;
+  }, [isActive]);
+
   const findPitchMPM = (buf: Float32Array, sampleRate: number): [number, number] => {
     const size = buf.length;
     let rms = 0;
     for (let i = 0; i < size; i++) rms += buf[i] * buf[i];
     rms = Math.sqrt(rms / size);
     
-    // Если сигнал слишком тихий — это шум комнаты
     if (rms < 0.015) return [-1, 0];
 
-    // Вычисляем функцию автокорреляции (NSDF)
     const nsdf = new Float32Array(size);
     for (let tau = 0; tau < size / 2; tau++) {
       let acf = 0;
@@ -73,7 +82,6 @@ export const useTuner = () => {
       nsdf[tau] = df === 0 ? 0 : (2 * acf) / df;
     }
 
-    // Ищем пики в функции NSDF
     let maxPositions: number[] = [];
     let period = -1;
     let clarity = 0;
@@ -89,7 +97,6 @@ export const useTuner = () => {
       }
     }
 
-    // Находим самый высокий значимый пик (фундаментальный период колебания)
     let highestPeakValue = -1;
     let highestPeakPos = -1;
     
@@ -101,7 +108,6 @@ export const useTuner = () => {
     }
 
     if (highestPeakPos !== -1) {
-      // Квадратичная интерполяция пика для суб-центовой точности частоты
       const alpha = nsdf[highestPeakPos - 1];
       const beta = nsdf[highestPeakPos];
       const gamma = nsdf[highestPeakPos + 1];
@@ -120,14 +126,13 @@ export const useTuner = () => {
     
     const now = performance.now();
     
-    // Ограничиваем рендер до ~20 FPS (каждые 50мс)
     if (now - lastUpdateRef.current > 50) {
       const buf = new Float32Array(analyserRef.current.fftSize);
       analyserRef.current.getFloatTimeDomainData(buf);
+      audioDataRef.current = buf;
       
       const [pitch, clarity] = findPitchMPM(buf, audioCtxRef.current.sampleRate);
       
-      // clarity > 0.82 отсекает фоновые гармоники, пропуская только чистый тон струны
       if (clarity > 0.82 && pitch > 60 && pitch < 1000) {
         setFrequency(Math.round(pitch * 10) / 10);
         
@@ -137,7 +142,7 @@ export const useTuner = () => {
         
         const expectedFreq = 440 * Math.pow(2, Math.round(noteNum) / 12);
         let centsOff = Math.floor(1200 * Math.log2(pitch / expectedFreq));
-        centsOff = Math.max(-50, Math.min(50, centsOff)); 
+        centsOff = Math.max(-50, Math.min(50, centsOff));
         
         setNote(noteName);
         setCents(centsOff);
@@ -152,5 +157,13 @@ export const useTuner = () => {
     return () => stopTuner();
   }, []);
 
-  return { isActive, startTuner, stopTuner, note, cents, frequency };
+  return { 
+    isActive, 
+    startTuner, 
+    stopTuner, 
+    note, 
+    cents, 
+    frequency,
+    getAudioData
+  };
 };

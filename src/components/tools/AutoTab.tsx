@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useMusic } from '../../context/MusicContext';
+import { findFretForNote } from '../../services/AIEngine';
 
 type Step = 'upload' | 'processing' | 'result';
 
@@ -17,18 +19,9 @@ const DURATION_WEIGHTS = [
   { dur: '8t',  weight: 5,  width: 45 }  
 ];
 
-// 🔥 ИСПРАВЛЕНО: Массив выстроен СТРОГО от самой толстой (6) до самой тонкой (1) струны
-// Это позволяет алгоритму "бегать" по струнам вверх и вниз.
-const SCALE_BOX = [
-  { s: 5, f: 12 }, { s: 5, f: 15 }, // 6 струна (Low E)
-  { s: 4, f: 12 }, { s: 4, f: 14 }, // 5 струна (A)
-  { s: 3, f: 12 }, { s: 3, f: 14 }, // 4 струна (D)
-  { s: 2, f: 12 }, { s: 2, f: 14 }, // 3 струна (G)
-  { s: 1, f: 12 }, { s: 1, f: 15 }, // 2 струна (B)
-  { s: 0, f: 12 }, { s: 0, f: 15 }  // 1 струна (High E)
-];
-
 const AutoTab: React.FC = () => {
+  const { getScaleNotes, keyNote, mode } = useMusic(); // Подключаем контекст!
+
   const [step, setStep] = useState<Step>('upload');
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState<string[]>([]);
@@ -36,56 +29,79 @@ const AutoTab: React.FC = () => {
   
   const [tabData, setTabData] = useState<{phrase: TabNote[], totalWidth: number} | null>(null);
 
-  // 🔥 ОБНОВЛЕННОЕ ЯДРО (Инерция и направленные пробежки)
   const generateHumanPhrase = () => {
+    // 1. ПОЛУЧАЕМ НОТЫ ТЕКУЩЕЙ ТОНАЛЬНОСТИ ИЗ КОНТЕКСТА
+    const scaleNotes = getScaleNotes();
+    const safeScale = scaleNotes && scaleNotes.length > 0 ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
+    
+    // 2. ДИНАМИЧЕСКИ СТРОИМ БОКС АППЛИКАТУРЫ (CAGED) ДЛЯ ЭТОЙ ГАММЫ
+    let DYNAMIC_BOX: { s: number, f: number }[] = [];
+    
+    // Сканируем гриф с 6 по 1 струну (в коде 5 -> 0)
+    for (let s = 5; s >= 0; s--) {
+      for (const note of safeScale) {
+        // Ищем лады в удобной средней позиции грифа (с 3 по 14 лад)
+        const fret = findFretForNote(note, s, 3, 14);
+        if (fret >= 3 && fret <= 14) {
+          DYNAMIC_BOX.push({ s, f: fret });
+        }
+      }
+    }
+    
+    // Убираем возможные дубликаты и сортируем от толстых струн к тонким
+    const uniqueBox = Array.from(new Set(DYNAMIC_BOX.map(n => `${n.s}-${n.f}`)))
+      .map(str => {
+        const [s, f] = str.split('-');
+        return { s: Number(s), f: Number(f) };
+      });
+      
+    uniqueBox.sort((a, b) => {
+       if (a.s !== b.s) return b.s - a.s; 
+       return a.f - b.f; 
+    });
+
+    // Страховка (если гамма пустая, ставим дефолт)
+    if (uniqueBox.length === 0) {
+      uniqueBox.push({ s: 3, f: 5 }, { s: 3, f: 7 }, { s: 2, f: 5 }, { s: 2, f: 7 });
+    }
+
+    // 3. ГЕНЕРИРУЕМ ФРАЗУ ПО ДИНАМИЧЕСКОМУ БОКСУ
     let currentX = 60;
     const phrase: TabNote[] = [];
     
-    let currentScaleIdx = Math.floor(SCALE_BOX.length / 2); // Начинаем с середины грифа
-    let direction = Math.random() > 0.5 ? 1 : -1; // 1 = идем к тонким струнам, -1 = к толстым
+    let currentScaleIdx = Math.floor(uniqueBox.length / 2); 
+    let direction = Math.random() > 0.5 ? 1 : -1; 
     let notesInBurst = 0;
-    let maxBurst = Math.floor(Math.random() * 5) + 3; // Пачка от 3 до 7 нот
+    let maxBurst = Math.floor(Math.random() * 5) + 3; 
 
     for (let i = 0; i < 35; i++) { 
       
-      // 1. ДЫХАНИЕ (Паузы)
       if (notesInBurst >= maxBurst) {
         const isLongRest = Math.random() > 0.5;
         phrase.push({ x: currentX, string: 0, fret: null, isRest: true, articulation: 'none' });
-        
         currentX += isLongRest ? 120 : 60;
         notesInBurst = 0;
         maxBurst = Math.floor(Math.random() * 5) + 3;
-        
-        // Часто после длинной паузы гитарист меняет направление движения
         if (Math.random() > 0.4) direction *= -1;
         continue;
       }
 
-      // 2. ИНЕРЦИЯ (Моментум)
-      // С шансом 20% гитарист меняет направление ПРЯМО во время пассажа
-      if (Math.random() > 0.8) {
-        direction *= -1; 
-      }
+      if (Math.random() > 0.8) direction *= -1; 
 
-      // 3. СКАЧКИ (Интервалы)
-      // С шансом 15% делаем широкий скачок (через струну), иначе играем соседнюю ноту
       if (Math.random() > 0.85) {
         currentScaleIdx += direction * (Math.floor(Math.random() * 2) + 2); 
       } else {
         currentScaleIdx += direction;
       }
 
-      // 4. ГРАНИЦЫ (Отскок от краев грифа)
       if (currentScaleIdx < 0) {
-        currentScaleIdx = Math.abs(currentScaleIdx); // Ушли слишком низко - отскакиваем вверх
+        currentScaleIdx = Math.abs(currentScaleIdx); 
         direction = 1;
-      } else if (currentScaleIdx >= SCALE_BOX.length) {
-        currentScaleIdx = SCALE_BOX.length - 2; // Ушли слишком высоко - отскакиваем вниз
+      } else if (currentScaleIdx >= uniqueBox.length) {
+        currentScaleIdx = uniqueBox.length - 2; 
         direction = -1;
       }
 
-      // 5. РИТМИКА
       const totalWeight = DURATION_WEIGHTS.reduce((a, b) => a + b.weight, 0);
       let rnd = Math.random() * totalWeight;
       let selectedDur = DURATION_WEIGHTS[1];
@@ -98,8 +114,8 @@ const AutoTab: React.FC = () => {
       
       phrase.push({
         x: currentX,
-        string: SCALE_BOX[currentScaleIdx].s,
-        fret: SCALE_BOX[currentScaleIdx].f,
+        string: uniqueBox[currentScaleIdx].s,
+        fret: uniqueBox[currentScaleIdx].f,
         isRest: false,
         articulation: isLongNote && Math.random() > 0.3 ? 'vibrato' : 'none'
       });
@@ -131,8 +147,8 @@ const AutoTab: React.FC = () => {
     setLogs(['Initiating FretLab Human-Phrasing AI...']);
     
     const steps = [
-      { p: 15, msg: 'Extracting tonal centers & scales...' },
-      { p: 40, msg: 'Mapping pentatonic CAGED boxes...' },
+      { p: 15, msg: `Extracting ${keyNote} tonal centers...` },
+      { p: 40, msg: `Mapping ${mode.replace(/_/g, ' ')} CAGED boxes...` },
       { p: 65, msg: 'Applying rhythmic momentum and inertia...' },
       { p: 85, msg: 'Injecting organic rests and vibrato articulations...' },
       { p: 100, msg: 'Done! Rendering generated tablature...' }
@@ -211,7 +227,8 @@ const AutoTab: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-primary)', padding: '16px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
               <div>
                 <h2 style={{ margin: '0 0 4px 0', fontSize: '18px' }}>{fileName.replace(/\.[^/.]+$/, "")} (Generated Solo)</h2>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Key: E Minor Pentatonic | Momentum Phrasing Applied</div>
+                {/* 🔥 ИСПРАВЛЕНО: Текст показывает реальную тональность! */}
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'capitalize' }}>Key: {keyNote} {mode.replace(/_/g, ' ')} | Dynamic Box Phrasing</div>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
                 <button style={{ background: 'var(--accent)', border: 'none', borderRadius: '50%', width: '40px', height: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#000', fontSize: '16px', boxShadow: '0 0 12px var(--accent)' }}>▶</button>
