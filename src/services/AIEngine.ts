@@ -174,9 +174,10 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
   };
 };
 
+// 🔥 ИСПРАВЛЕНО: Добавлен 'mute' в разрешенные техники для UI компонентов
 export type Technique = 
   | 'none' | 'hammer' | 'pull' | 'slide' | 'vibrato' | 'bend' | 'prebend'
-  | 'unison_bend' | 'grace' | 'fall' | 'ghost' | 'choke';
+  | 'unison_bend' | 'grace' | 'fall' | 'ghost' | 'choke' | 'mute';
 
 export interface LickNote {
   string: number;
@@ -263,11 +264,13 @@ const GUITAR_PHRASES: PhrasePattern[] = [
 // ============================================================
 // 🎸 АЛГОРИТМ 1: КОРОТКАЯ ФРАЗА (ДЛЯ TABLATURE.TSX)
 // ============================================================
+// 🔥 ИСПРАВЛЕНО: Добавлен ..._extraArgs, чтобы компоненты могли слать сколько угодно дополнительных параметров (например, timeSignature) без ошибок
 export const generateSmartLick = (
   scaleNotes: string[], 
   keyNote: string, 
   mode: string,
-  bpm: number = 120
+  bpm: number = 120,
+  ..._extraArgs: any[]
 ): Lick => {
   const safeScaleNotes = (scaleNotes && scaleNotes.length > 0) ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
   const pattern = GUITAR_PHRASES[Math.floor(Math.random() * GUITAR_PHRASES.length)];
@@ -277,7 +280,6 @@ export const generateSmartLick = (
   const notes: LickNote[] = [];
   
   for (let i = 0; i < pattern.intervals.length; i++) {
-    // 🔥 КРИТИЧЕСКИЙ ФИКС: Всегда отсчитываем паттерн от ТОНИКИ (0-я ступень)
     const degree = pattern.intervals[i];
     const noteIndex = degree % safeScaleNotes.length;
     const selectedNote = safeScaleNotes[noteIndex];
@@ -335,14 +337,15 @@ export interface SyncSoloData {
   notes: SyncNote[];
 }
 
+// 🔥 ИСПРАВЛЕНО: Неиспользуемые в теле функции параметры _mode и _forceAllChords помечены подчеркиванием
 export const generateSynchronizedSolo = (
   scaleNotes: string[],
   keyNote: string,
-  mode: string,
+  _mode: string,
   timeSignature: { beats: number; noteValue: number },
   chordName: string,
   chordNotes: string[],
-  forceAllChords: boolean
+  _forceAllChords: boolean
 ): SyncSoloData => {
   const bars = 4;
   const beatsPerBar = timeSignature.beats;
@@ -377,28 +380,23 @@ export const generateSynchronizedSolo = (
     const dur = durOpts[Math.floor(Math.random() * durOpts.length)];
     if (currentBeat + dur.val > totalBeats) break;
 
-    // Паузы только на слабых долях (15% шанс)
     if (currentBeat % 1 !== 0 && Math.random() < 0.15) {
       notes.push({
         string: 0, fret: null, isRest: true,
         beatStart: currentBeat, beatDuration: dur.val, duration: dur.type, technique: 'none'
       });
     } else {
-      // 🔥 СТРОГАЯ МЕЛОДИКА: 
       let noteStr = safeScale[Math.floor(Math.random() * safeScale.length)];
       const isStrongBeat = currentBeat % 1 === 0;
       
       if (currentBeat === 0) {
-        // Первый такт - ЖЕСТКАЯ ТОНИКА
         noteStr = keyNote; 
       } else if (isStrongBeat && chordNotes.length > 0 && Math.random() > 0.3) {
-        // На сильную долю (1, 2, 3, 4) почти всегда играем ноту текущего аккорда
         noteStr = chordNotes[Math.floor(Math.random() * chordNotes.length)];
       }
 
       let fret = findFretForNote(noteStr, currentString, 0, 21);
       
-      // Удерживаем позицию на грифе
       if (fret < startFret - 2 || fret > startFret + 5) {
         for (let s = 1; s <= 4; s++) {
           const altFret = findFretForNote(noteStr, s, 0, 19);
@@ -423,7 +421,6 @@ export const generateSynchronizedSolo = (
     currentBeat += dur.val;
   }
 
-  // 🔥 КОНЦОВКА: Соло всегда обязано разрешиться в тонику с вибрато
   if (notes.length > 0) {
      const lastNote = notes[notes.length - 1];
      if (!lastNote.isRest) {
