@@ -2,581 +2,348 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useMusic } from '../../context/MusicContext';
-import { generateSmartLick, type Lick } from '../../services/AIEngine';
-import { playChordByName } from '../../utils/audioEngine';
+import { generateSynchronizedSolo, type SyncSoloData } from '../../services/AIEngine';
+import * as Tone from 'tone';
 
-interface SoloGeneratorProps {
-  onClose?: () => void;
-}
+const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-const SoloGenerator: React.FC<SoloGeneratorProps> = ({ onClose }) => {
-  const { 
-    keyNote, 
-    mode, 
-    bpm, 
-    timeSignature, 
-    getScaleNotes,
-    setKeyNote,
-    setMode 
-  } = useMusic();
+// Вспомогательная функция для генерации частот аккорда
+const getChordFrequencies = (chordName: string, octave = 3): number[] => {
+  const match = chordName.match(/^([A-G][b#]?)(.*)$/);
+  if (!match) return [];
+  const root = match[1];
+  const quality = match[2].toLowerCase();
+  const rootIdx = ALL_NOTES.indexOf(root);
+  if (rootIdx === -1) return [];
 
-  const [lick, setLick] = useState<Lick | null>(null);
+  let intervals = [0, 4, 7]; // Мажор по умолчанию
+  if (quality.includes('m') && !quality.includes('maj')) intervals = [0, 3, 7]; // Минор
+  if (quality.includes('dim')) intervals = [0, 3, 6];
+  if (quality.includes('7')) intervals.push(quality.includes('maj') ? 11 : 10);
+
+  return intervals.map(interval => {
+    const noteIdx = (rootIdx + interval) % 12;
+    const noteOctave = octave + Math.floor((rootIdx + interval) / 12);
+    return Tone.Frequency(`${ALL_NOTES[noteIdx]}${noteOctave}`).toFrequency();
+  });
+};
+
+const SoloGenerator: React.FC = () => {
+  const { keyNote, mode, bpm, timeSignature, getScaleNotes, setKeyNote, setMode } = useMusic();
+  
+  const [soloData, setSoloData] = useState<SyncSoloData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-  //const [selectedChord, setSelectedChord] = useState<string>(keyNote + (mode === 'minor' ? 'm' : ''));
-  const [chordProgression, setChordProgression] = useState<string[]>([]);
-  const [selectedBar, setSelectedBar] = useState<number>(0);
-  const [playMode, setPlayMode] = useState<'chords' | 'solo' | 'both'>('both');
+  const [playbackProgress, setPlaybackProgress] = useState(0); // от 0 до 1
+  const [showUpload, setShowUpload] = useState(false);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const timerRef = useRef<number | null>(null);
+  // Синтезаторы Tone.js
+  const chordSynthRef = useRef<Tone.PolySynth | null>(null);
+  const soloSynthRef = useRef<Tone.PolySynth | null>(null);
+  const playheadAnimRef = useRef<number>(0);
 
-  // Доступные тональности и лады
-  const availableKeys = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
-  const availableModes = [
-    'major', 'minor', 'dorian', 'phrygian', 'lydian', 
-    'mixolydian', 'aeolian', 'locrian', 'blues', 'pentatonic'
-  ];
-
-  // Генерация прогрессии аккордов на 4 такта
-  const generateChordProgression = (root: string, modeType: string) => {
-    const allNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-    const rootIndex = allNotes.indexOf(root);
-    
-    // Интервалы для разных ладов
-    const modeIntervals: Record<string, number[]> = {
-      major: [0, 2, 4, 5, 7, 9, 11],
-      minor: [0, 2, 3, 5, 7, 8, 10],
-      dorian: [0, 2, 3, 5, 7, 9, 10],
-      phrygian: [0, 1, 3, 5, 7, 8, 10],
-      lydian: [0, 2, 4, 6, 7, 9, 11],
-      mixolydian: [0, 2, 4, 5, 7, 9, 10],
-      aeolian: [0, 2, 3, 5, 7, 8, 10],
-      locrian: [0, 1, 3, 5, 6, 8, 10],
-      blues: [0, 3, 5, 6, 7, 10],
-      pentatonic: [0, 2, 4, 7, 9]
-    };
-
-    const intervals = modeIntervals[modeType] || modeIntervals.major;
-    const scaleNotes = intervals.map(i => allNotes[(rootIndex + i) % 12]);
-
-    // Строим 4-тактовую прогрессию (I - IV - V - I)
-    //const progression: string[] = [];
-    const chordQualities: Record<string, string> = {
-      'major': '',
-      'minor': 'm',
-      'dorian': 'm',
-      'phrygian': 'm',
-      'lydian': 'maj7',
-      'mixolydian': '7',
-      'aeolian': 'm',
-      'locrian': 'm7b5',
-      'blues': '7',
-      'pentatonic': ''
-    };
-
-    const quality = chordQualities[modeType] || '';
-    
-    // Базовые ступени
-    const degrees = [0, 3, 4, 0]; // I - IV - V - I
-    const chordNames = degrees.map(d => {
-      const note = scaleNotes[d % scaleNotes.length];
-      return note + quality;
-    });
-
-    return chordNames;
-  };
-
-  // Генерация соло
-  const generateSolo = () => {
-    setIsGenerating(true);
-    const scale = getScaleNotes();
-    const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
-    
-    // Генерируем 4 такта соло
-    const barCount = 4;
-    const allNotes: any[] = [];
-    
-    // Создаем фразу для каждого такта
-    const chords = generateChordProgression(keyNote, mode);
-    setChordProgression(chords);
-    
-    for (let bar = 0; bar < barCount; bar++) {
-      // Для каждого такта генерируем отдельную фразу
-      const barLick = generateSmartLick(
-        safeScale, 
-        keyNote, 
-        mode, 
-        bpm, 
-        timeSignature,
-        bar // номер такта для вариативности
-      );
-      // Добавляем номер такта к каждой ноте
-      barLick.notes.forEach(note => {
-        allNotes.push({
-          ...note,
-          bar: bar,
-          chord: chords[bar % chords.length]
-        });
-      });
-    }
-    
-    setLick({
-      ...(lick || {}),
-      notes: allNotes,
-      name: `${keyNote} ${mode} Solo (4 bars)`
-    } as Lick);
-    
-    setIsGenerating(false);
-  };
-
-  // Воспроизведение соло
-  const playSolo = () => {
-    if (!lick || isPlaying) return;
-    setIsPlaying(true);
-    setCurrentStep(0);
-
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContextClass();
-      audioContextRef.current = ctx;
-      
-      const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
-      
-      let startTime = ctx.currentTime + 0.1;
-      const quarterDuration = 60 / (bpm || 120);
-      const notes = lick.notes;
-      
-      // Сначала играем аккорды
-      if (playMode === 'chords' || playMode === 'both') {
-        chordProgression.forEach((chord, bar) => {
-          setTimeout(() => {
-            playChordByName(chord);
-          }, bar * 2000);
-        });
-      }
-      
-      // Затем играем соло
-      if (playMode === 'solo' || playMode === 'both') {
-        notes.forEach((note, index) => {
-          if (note.isRest) {
-            const restDuration = quarterDuration * 0.5;
-            startTime += restDuration;
-            return;
-          }
-
-          const fretValue = note.fret ?? 0;
-          const freq = OPEN_FREQS[note.string] * Math.pow(2, fretValue / 12);
-          
-          const durationMap: Record<string, number> = {
-            'whole': 4,
-            'half': 2,
-            'quarter': 1,
-            'eighth': 0.5,
-            'sixteenth': 0.25,
-            'dotted_eighth': 0.75
-          };
-          const noteDuration = quarterDuration * (durationMap[note.duration] || 0.5);
-          const actualDuration = noteDuration * (note.durationFactor || 0.9);
-
-          setTimeout(() => {
-            setCurrentStep(index);
-          }, (startTime - ctx.currentTime) * 1000);
-
-          const osc = ctx.createOscillator();
-          const gainNode = ctx.createGain();
-          
-          osc.type = note.technique === 'bend' ? 'sawtooth' : 'triangle';
-          osc.frequency.setValueAtTime(freq, startTime);
-          
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(0.4, startTime + 0.02);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + actualDuration);
-          
-          osc.connect(gainNode);
-          gainNode.connect(ctx.destination);
-          osc.start(startTime);
-          osc.stop(startTime + actualDuration + 0.1);
-          
-          startTime += actualDuration;
-        });
-      }
-      
-      setTimeout(() => {
-        setIsPlaying(false);
-        setCurrentStep(-1);
-      }, (startTime - ctx.currentTime) * 1000 + 500);
-      
-    } catch (e) {
-      console.error("Audio Synthesis Failed:", e);
-      setIsPlaying(false);
-    }
-  };
-
-  // Остановка воспроизведения
-  const stopPlay = () => {
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    if (timerRef.current) {
-      cancelAnimationFrame(timerRef.current);
-    }
-    setIsPlaying(false);
-    setCurrentStep(-1);
-  };
-
-  // Рендер тактов и нот
-  const renderBars = () => {
-    if (!lick) return null;
-    
-    const notes = lick.notes;
-    const barCount = 4;
-    const stringSpacing = 20;
-    const startY = 60;
-    const barWidth = 180;
-    const noteSpacing = 25;
-    const startX = 40;
-    
-    return (
-      <div style={{ 
-        background: 'var(--bg-primary)', 
-        padding: '20px', 
-        borderRadius: '8px',
-        border: '1px solid var(--border-color)',
-        overflowX: 'auto',
-        marginBottom: '16px'
-      }}>
-        {/* Заголовок с аккордами */}
-        <div style={{ 
-          display: 'flex', 
-          marginBottom: '12px',
-          paddingLeft: '40px',
-          gap: '8px'
-        }}>
-          {chordProgression.map((chord, idx) => (
-            <div key={idx} style={{ 
-              width: barWidth,
-              textAlign: 'center',
-              fontSize: '14px',
-              fontWeight: 800,
-              color: idx === selectedBar ? 'var(--accent)' : 'var(--text-secondary)',
-              padding: '4px 0',
-              borderBottom: idx === selectedBar ? '2px solid var(--accent)' : 'none',
-              cursor: 'pointer'
-            }}
-            onClick={() => setSelectedBar(idx)}
-            >
-              {chord}
-            </div>
-          ))}
-        </div>
-        
-        {/* SVG с нотами */}
-        <svg viewBox={`0 0 ${barCount * barWidth + 80} 200`} style={{ width: '100%', minWidth: '500px', height: '180px', display: 'block' }}>
-          {/* Струны */}
-          {[0, 1, 2, 3, 4, 5].map((strIndex) => (
-            <line 
-              key={`str-${strIndex}`}
-              x1="30" y1={startY + strIndex * stringSpacing} 
-              x2={barCount * barWidth + 50} y2={startY + strIndex * stringSpacing} 
-              stroke="rgba(255,255,255,0.1)" strokeWidth="1.5" 
-            />
-          ))}
-          
-          {/* Названия струн */}
-          {['e', 'B', 'G', 'D', 'A', 'E'].map((note, i) => (
-            <text key={`tune-${i}`} x="15" y={startY + i * stringSpacing + 4} fill="var(--text-muted)" fontSize="10" fontWeight="800" fontFamily="monospace" textAnchor="middle">
-              {note}
-            </text>
-          ))}
-          
-          {/* Вертикальные линии тактов */}
-          {[0, 1, 2, 3, 4].map((bar) => (
-            <line 
-              key={`barline-${bar}`}
-              x1={startX + bar * barWidth} 
-              y1={startY - 10} 
-              x2={startX + bar * barWidth} 
-              y2={startY + 5 * stringSpacing + 10}
-              stroke={bar === 0 ? 'var(--accent)' : 'rgba(255,255,255,0.2)'}
-              strokeWidth={bar === 0 ? '2' : '1'}
-              strokeDasharray={bar === 0 ? 'none' : '4,4'}
-            />
-          ))}
-          
-          {/* Ноты */}
-          {notes.map((note, index) => {
-            const bar = note.bar || 0;
-            const barOffset = bar * barWidth;
-            const noteIndex = notes.filter(n => n.bar === bar).indexOf(note);
-            const x = startX + barOffset + 30 + noteIndex * noteSpacing;
-            const y = startY + note.string * stringSpacing;
-            const isActive = currentStep === index;
-            
-            return (
-              <g key={`note-${index}`} opacity={isActive ? 1 : 0.7}>
-                {/* Активная подсветка */}
-                {isActive && (
-                  <circle cx={x} cy={y} r="14" fill="var(--accent)" opacity="0.3" />
-                )}
-                
-                {/* Фон для ноты */}
-                <rect x={x - 8} y={y - 8} width="16" height="16" fill="#111216" rx="2" />
-                
-                {/* Цифра лада */}
-                <text 
-                  x={x} y={y + 4} 
-                  fill={isActive ? 'var(--accent)' : 'var(--text-primary)'} 
-                  fontSize={isActive ? "14" : "11"} 
-                  fontWeight={isActive ? 900 : 700} 
-                  fontFamily="monospace" 
-                  textAnchor="middle"
-                >
-                  {note.fret}
-                </text>
-                
-                {/* Индикатор техники */}
-                {note.technique && note.technique !== 'none' && (
-                  <text x={x} y={y - 14} fill="var(--accent)" fontSize="8" fontWeight="800" textAnchor="middle">
-                    {note.technique === 'hammer' ? 'H' : 
-                     note.technique === 'pull' ? 'P' : 
-                     note.technique === 'slide' ? 'sl' : 
-                     note.technique === 'bend' ? 'b' : 
-                     note.technique === 'vibrato' ? '~' : ''}
-                  </text>
-                )}
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-    );
-  };
-
-  // Эффект при изменении тональности/лада
   useEffect(() => {
-    generateSolo();
-  }, [keyNote, mode, bpm]);
+    // Инициализируем аудио движок
+    chordSynthRef.current = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' },
+      envelope: { attack: 0.1, decay: 0.2, sustain: 0.8, release: 2 }
+    }).toDestination();
+    chordSynthRef.current.volume.value = -12; // Аккорды потише
 
-  // Первичная генерация
-  useEffect(() => {
-    generateSolo();
+    soloSynthRef.current = new Tone.PolySynth(Tone.Synth, {
+      envelope: { attack: 0.01, decay: 0.1, sustain: 0.3, release: 1 }
+    }).toDestination();
+
+    return () => {
+      chordSynthRef.current?.dispose();
+      soloSynthRef.current?.dispose();
+      cancelAnimationFrame(playheadAnimRef.current);
+    };
   }, []);
 
+  const handleGenerate = () => {
+    if (isPlaying) return;
+    setIsGenerating(true);
+    setSoloData(null);
+    setPlaybackProgress(0);
+
+    setTimeout(() => {
+      const scale = getScaleNotes();
+      const safeScale = scale.length > 0 ? scale : ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+      const newSolo = generateSynchronizedSolo(safeScale, keyNote || 'C', mode || 'major', timeSignature);
+      setSoloData(newSolo);
+      setIsGenerating(false);
+    }, 600);
+  };
+
+  // Остановка при смене тональности
+  useEffect(() => {
+    if (soloData && !isPlaying) handleGenerate();
+  }, [keyNote, mode, timeSignature.beats]);
+
+  const togglePlay = async () => {
+    if (!soloData) return;
+    if (isPlaying) {
+      Tone.Transport.stop();
+      Tone.Transport.cancel();
+      setIsPlaying(false);
+      setPlaybackProgress(0);
+      cancelAnimationFrame(playheadAnimRef.current);
+      return;
+    }
+
+    await Tone.start();
+    setIsPlaying(true);
+    
+    const currentBpm = bpm || 120;
+    const quarterDuration = 60 / currentBpm;
+    const totalDurationSec = soloData.totalBeats * quarterDuration;
+    const startTime = Tone.now() + 0.1;
+
+    // Планируем аккорды
+    soloData.chords.forEach(chord => {
+      const time = startTime + chord.beatStart * quarterDuration;
+      const duration = chord.durationBeats * quarterDuration;
+      const freqs = getChordFrequencies(chord.name);
+      chordSynthRef.current?.triggerAttackRelease(freqs, duration * 0.9, time);
+    });
+
+    // Планируем соло (6 струн = E2, A2, D3, G3, B3, E4)
+    const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41]; 
+    
+    soloData.notes.forEach(note => {
+      if (!note.isRest && note.fret !== null) {
+        const time = startTime + note.beatStart * quarterDuration;
+        const duration = note.beatDuration * quarterDuration * note.durationFactor;
+        const freq = OPEN_FREQS[note.string] * Math.pow(2, note.fret / 12);
+        const velocity = note.accent ? 1 : 0.7;
+        soloSynthRef.current?.triggerAttackRelease(freq, duration, time, velocity);
+      }
+    });
+
+    // Анимация плейхеда (полосы воспроизведения)
+    const drawPlayhead = () => {
+      const now = Tone.now();
+      const progress = (now - startTime) / totalDurationSec;
+      
+      if (progress >= 1) {
+        setPlaybackProgress(1);
+        setIsPlaying(false);
+        setTimeout(() => setPlaybackProgress(0), 500); // Сбрасываем в начало
+      } else if (progress > 0) {
+        setPlaybackProgress(progress);
+        playheadAnimRef.current = requestAnimationFrame(drawPlayhead);
+      } else {
+        playheadAnimRef.current = requestAnimationFrame(drawPlayhead); // Ждем старта
+      }
+    };
+    
+    playheadAnimRef.current = requestAnimationFrame(drawPlayhead);
+  };
+
+  // ===== ГЕНЕРАЦИЯ UI СЕТКИ =====
+  const SVG_WIDTH = 1000;
+  const SVG_HEIGHT = 220;
+  const TRACK_MARGIN_X = 20;
+  const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / (soloData?.bars || 4);
+  const BEAT_WIDTH = BAR_WIDTH / timeSignature.beats;
+  const CHORD_Y = 20;
+  const TAB_Y = 80;
+  const STRING_SPACING = 20;
+
   return (
-    <div style={{ 
-      background: 'var(--bg-panel)', 
-      borderRadius: 'var(--radius)', 
-      border: '1px solid var(--border-color)',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
-    }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', padding: '24px', background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
       
-      {/* Header */}
-      <div style={{ 
-        padding: '16px 24px', 
-        background: 'var(--bg-primary)', 
-        borderBottom: '1px solid var(--border-color)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '20px' }}>🎸</span>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>
-              AI Solo Generator & Transcription
-            </div>
-            <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>
-              {keyNote} {mode} · {bpm} BPM · {timeSignature.beats}/{timeSignature.noteValue}
-            </div>
-          </div>
+      {/* HEADER CONTROLS */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h2 style={{ margin: '0 0 8px 0', fontSize: '20px', fontWeight: 900, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            🎸 AI Composer: 4-Bar Solo
+            {soloData && <span style={{ fontSize: '12px', background: 'var(--bg-secondary)', padding: '4px 10px', borderRadius: '12px', color: 'var(--accent)' }}>SYNCED</span>}
+          </h2>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-muted)' }}>
+            Генератор гармонии и мелодии в реальном времени. Привязан к метрике метронома ({timeSignature.beats}/{timeSignature.noteValue}).
+          </p>
         </div>
-        
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {/* Выбор тональности */}
-          <select 
-            value={keyNote}
-            onChange={(e) => setKeyNote(e.target.value)}
-            style={{
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 700,
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            {availableKeys.map(k => (
-              <option key={k} value={k}>{k}</option>
-            ))}
-          </select>
-          
-          {/* Выбор лада */}
-          <select
-            value={mode}
-            onChange={(e) => setMode(e.target.value as any)}
-            style={{
-              background: 'var(--bg-secondary)',
-              color: 'var(--text-primary)',
-              border: '1px solid var(--border-color)',
-              padding: '6px 12px',
-              borderRadius: '6px',
-              fontSize: '13px',
-              fontWeight: 700,
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            {availableModes.map(m => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          
-          {/* Кнопка Regenerate */}
-          <button
-            onClick={generateSolo}
-            disabled={isGenerating}
-            style={{
-              background: 'var(--accent)',
-              color: '#000',
-              border: 'none',
-              padding: '6px 16px',
-              borderRadius: '6px',
-              fontWeight: 800,
-              fontSize: '13px',
-              cursor: isGenerating ? 'default' : 'pointer',
-              transition: '0.2s',
-              opacity: isGenerating ? 0.5 : 1
-            }}
-          >
-            {isGenerating ? '⏳ Generating...' : '🎲 Generate'}
-          </button>
-        </div>
-      </div>
-      
-      {/* Основное содержимое */}
-      <div style={{ 
-        flex: 1, 
-        overflowY: 'auto', 
-        padding: '24px',
-        background: 'var(--bg-root)'
-      }}>
-        {/* Такты и аккорды */}
-        {renderBars()}
-        
-        {/* Советы */}
-        <div style={{
-          background: 'rgba(255,184,0,0.05)',
-          padding: '16px 20px',
-          borderRadius: '8px',
-          border: '1px solid rgba(255,184,0,0.15)',
-          marginTop: '8px'
-        }}>
-          <div style={{ fontSize: '12px', color: '#ffb800', marginBottom: '4px' }}>
-            💡 Советы по импровизации
-          </div>
-          <div style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-            • Играй по аккордам — каждая нота должна попадать в гармонию
-            • Используй хаммеры и слайды для связности
-            • Завершай фразы на тонике или терции
-            • Экспериментируй с ритмическими акцентами
-          </div>
-        </div>
-      </div>
-      
-      {/* Нижняя панель управления */}
-      <div style={{
-        padding: '12px 24px',
-        background: 'var(--bg-primary)',
-        borderTop: '1px solid var(--border-color)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '8px'
-      }}>
+
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          {/* Кнопки Play/Stop */}
-          <button
-            onClick={isPlaying ? stopPlay : playSolo}
-            disabled={!lick || isGenerating}
-            style={{
-              background: isPlaying ? 'var(--accent-danger, #ff4444)' : 'var(--accent)',
-              color: '#000',
-              border: 'none',
-              padding: '8px 20px',
-              borderRadius: '8px',
-              fontWeight: 900,
-              fontSize: '14px',
-              cursor: (!lick || isGenerating) ? 'default' : 'pointer',
-              transition: '0.2s',
-              opacity: (!lick || isGenerating) ? 0.5 : 1,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
+          <select 
+            value={keyNote} onChange={e => setKeyNote(e.target.value)}
+            style={{ background: '#111216', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 700 }}
           >
-            {isPlaying ? '⏹ Stop' : '▶ Play Solo'}
+            {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+          <select 
+            value={mode} onChange={e => setMode(e.target.value as any)}
+            style={{ background: '#111216', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 700, textTransform: 'capitalize' }}
+          >
+            <option value="major">Major (Ionian)</option>
+            <option value="minor">Minor (Aeolian)</option>
+            <option value="dorian">Dorian</option>
+            <option value="phrygian">Phrygian</option>
+            <option value="pentatonic">Pentatonic</option>
+            <option value="blues">Blues</option>
+          </select>
+
+          <button 
+            onClick={togglePlay}
+            disabled={!soloData || isGenerating}
+            style={{ background: isPlaying ? 'transparent' : 'var(--accent)', color: isPlaying ? 'var(--accent)' : '#000', border: `2px solid var(--accent)`, padding: '8px 24px', borderRadius: '8px', fontWeight: 900, cursor: 'pointer', transition: '0.2s' }}
+          >
+            {isPlaying ? '⏹ STOP' : '▶ PLAY'}
           </button>
           
-          {/* Режим воспроизведения */}
-          <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-secondary)', padding: '4px', borderRadius: '6px' }}>
-            {['both', 'chords', 'solo'].map((mode) => (
-              <button
-                key={mode}
-                onClick={() => setPlayMode(mode as any)}
-                style={{
-                  background: playMode === mode ? 'var(--accent)' : 'transparent',
-                  color: playMode === mode ? '#000' : 'var(--text-muted)',
-                  border: 'none',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  transition: '0.2s'
-                }}
-              >
-                {mode === 'both' ? '🎵 Все' : mode === 'chords' ? '🎸 Аккорды' : '🎶 Соло'}
-              </button>
-            ))}
-          </div>
-        </div>
-        
-        <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-          {lick ? `${lick.notes.length} нот · 4 такта` : 'Сгенерируйте соло'}
+          <button 
+            onClick={handleGenerate}
+            disabled={isPlaying || isGenerating}
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 24px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer' }}
+          >
+            {isGenerating ? '⏳...' : '🎲 GENERATE'}
+          </button>
         </div>
       </div>
-      
-      {/* Кнопка закрытия (опционально) */}
-      {onClose && (
-        <button 
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '16px',
-            right: '16px',
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--text-muted)',
-            fontSize: '20px',
-            cursor: 'pointer'
-          }}
-        >
-          ✕
-        </button>
+
+      {/* SEQUENCER VISUALIZER */}
+      <div style={{ width: '100%', background: '#0a0a0d', borderRadius: '12px', overflowX: 'auto', border: '1px solid var(--border-color)', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
+        
+        {!soloData && !isGenerating && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontWeight: 800 }}>
+            Нажмите GENERATE, чтобы создать соло
+          </div>
+        )}
+        {isGenerating && (
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', fontWeight: 900 }}>
+            СИНТЕЗ AI МЕЛОДИИ...
+          </div>
+        )}
+
+        {soloData && !isGenerating && (
+          <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block' }}>
+            
+            {/* Сетка тактов и долей */}
+            {Array.from({ length: soloData.bars }).map((_, barIdx) => {
+               const barX = TRACK_MARGIN_X + barIdx * BAR_WIDTH;
+               return (
+                 <g key={`grid-bar-${barIdx}`}>
+                   <line x1={barX} y1={0} x2={barX} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+                   <text x={barX + 6} y={14} fill="var(--text-muted)" fontSize="10" fontWeight="bold">Bar {barIdx + 1}</text>
+                   
+                   {/* Внутренние доли */}
+                   {Array.from({ length: timeSignature.beats }).map((_, beatIdx) => {
+                     if (beatIdx === 0) return null;
+                     const beatX = barX + beatIdx * BEAT_WIDTH;
+                     return <line key={`grid-beat-${barIdx}-${beatIdx}`} x1={beatX} y1={CHORD_Y} x2={beatX} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.05)" strokeWidth="1" strokeDasharray="4 4" />;
+                   })}
+                 </g>
+               );
+            })}
+            <line x1={SVG_WIDTH - TRACK_MARGIN_X} y1={0} x2={SVG_WIDTH - TRACK_MARGIN_X} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+
+            {/* ДОРОЖКА АККОРДОВ */}
+            {soloData.chords.map((chord, i) => {
+               const x = TRACK_MARGIN_X + chord.beatStart * BEAT_WIDTH;
+               const width = chord.durationBeats * BEAT_WIDTH;
+               return (
+                 <g key={`chord-${i}`}>
+                   <rect x={x + 2} y={CHORD_Y} width={width - 4} height="30" fill="rgba(255, 255, 255, 0.05)" rx="4" stroke="rgba(255, 255, 255, 0.1)" />
+                   <text x={x + width / 2} y={CHORD_Y + 20} fill="var(--text-primary)" fontSize="14" fontWeight="900" textAnchor="middle">{chord.name}</text>
+                 </g>
+               );
+            })}
+
+            {/* ДОРОЖКА ТАБУЛАТУРЫ (СОЛО) */}
+            {[0, 1, 2, 3, 4, 5].map((strIndex) => (
+              <line 
+                key={`tab-str-${strIndex}`}
+                x1={TRACK_MARGIN_X} y1={TAB_Y + strIndex * STRING_SPACING} 
+                x2={SVG_WIDTH - TRACK_MARGIN_X} y2={TAB_Y + strIndex * STRING_SPACING} 
+                stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" 
+              />
+            ))}
+            {['e', 'B', 'G', 'D', 'A', 'E'].map((note, i) => (
+              <text key={`tab-tune-${i}`} x={TRACK_MARGIN_X - 10} y={TAB_Y + i * STRING_SPACING + 4} fill="var(--text-muted)" fontSize="10" fontWeight="800" textAnchor="middle">{note}</text>
+            ))}
+
+            {/* НОТЫ СОЛО */}
+            {soloData.notes.map((note, i) => {
+              if (note.isRest || note.fret === null) return null;
+              
+              const x = TRACK_MARGIN_X + note.beatStart * BEAT_WIDTH;
+              const y = TAB_Y + note.string * STRING_SPACING;
+              const noteWidth = note.beatDuration * BEAT_WIDTH;
+
+              // Если нота звучит прямо сейчас (внутри playhead)
+              const noteStartProgress = note.beatStart / soloData.totalBeats;
+              const noteEndProgress = (note.beatStart + note.beatDuration) / soloData.totalBeats;
+              const isActive = isPlaying && playbackProgress >= noteStartProgress && playbackProgress < noteEndProgress;
+
+              return (
+                <g key={`note-${i}`}>
+                  {/* Линия длительности */}
+                  <line x1={x + 10} y1={y} x2={x + noteWidth - 10} y2={y} stroke={isActive ? "var(--accent)" : "rgba(255,255,255,0.2)"} strokeWidth="4" strokeLinecap="round" />
+                  
+                  {/* Блок ноты */}
+                  <rect x={x - 12} y={y - 12} width="24" height="24" fill={isActive ? "var(--accent)" : "#1a1b20"} rx="4" stroke={isActive ? "#fff" : "var(--border-color)"} />
+                  <text x={x} y={y + 4} fill={isActive ? "#000" : "var(--accent)"} fontSize="14" fontWeight="900" fontFamily="monospace" textAnchor="middle">
+                    {note.fret}
+                  </text>
+                  
+                  {/* Техника */}
+                  {note.technique !== 'none' && (
+                    <text x={x} y={y - 18} fill="var(--text-muted)" fontSize="10" fontWeight="bold" textAnchor="middle">
+                      {note.technique === 'vibrato' ? 'vib' : 'sl'}
+                    </text>
+                  )}
+                </g>
+              );
+            })}
+
+            {/* PLAYHEAD (Бегунок) */}
+            {isPlaying && (
+              <line 
+                x1={TRACK_MARGIN_X + playbackProgress * (SVG_WIDTH - TRACK_MARGIN_X * 2)} 
+                y1={0} 
+                x2={TRACK_MARGIN_X + playbackProgress * (SVG_WIDTH - TRACK_MARGIN_X * 2)} 
+                y2={SVG_HEIGHT} 
+                stroke="var(--accent)" 
+                strokeWidth="2"
+                style={{ filter: 'drop-shadow(0 0 6px var(--accent))' }}
+              />
+            )}
+          </svg>
+        )}
+      </div>
+
+      {/* СОВЕТЫ И АНАЛИЗ AI */}
+      {soloData && (
+        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '16px', borderRadius: '8px', borderLeft: '4px solid var(--accent)' }}>
+          <h4 style={{ margin: '0 0 12px 0', fontSize: '12px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>🤖 AI Analysis & Tips</h4>
+          <ul style={{ margin: 0, paddingLeft: '20px', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.6' }}>
+            {soloData.tips.map((tip, i) => (
+              <li key={i}>{tip}</li>
+            ))}
+          </ul>
+        </div>
       )}
+
+      {/* ЗАГРУЗКА ФАЙЛА (ТРАНСКРИПЦИЯ) - Спрятана вниз */}
+      <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '20px' }}>
+        <button 
+          onClick={() => setShowUpload(!showUpload)}
+          style={{ background: 'transparent', color: 'var(--text-muted)', border: 'none', fontSize: '12px', fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          {showUpload ? '▼ Скрыть транскрипцию аудио' : '▶ Распознать соло из аудио файла (Beta)'}
+        </button>
+        
+        {showUpload && (
+          <div style={{ marginTop: '16px', padding: '24px', border: '1px dashed var(--border-color)', borderRadius: '8px', textAlign: 'center' }}>
+            <div style={{ fontSize: '24px', marginBottom: '8px' }}>📁</div>
+            <div style={{ fontWeight: 800, color: 'var(--text-primary)' }}>Перетащите аудио файл сюда</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '8px' }}>AI проанализирует MP3/WAV и переведет его в табулатуру</div>
+          </div>
+        )}
+      </div>
+
     </div>
   );
 };

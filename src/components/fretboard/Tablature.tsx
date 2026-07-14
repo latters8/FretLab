@@ -1,8 +1,9 @@
 // src/components/fretboard/Tablature.tsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { generateSmartLick, type Lick } from '../../services/AIEngine';
+import * as Tone from 'tone';
 
 const Tablature: React.FC = () => {
   const { mode, keyNote, getScaleNotes, bpm, timeSignature } = useMusic();
@@ -11,6 +12,70 @@ const Tablature: React.FC = () => {
   const [currentLick, setCurrentLick] = useState<Lick | null>(null);
   const [localActiveStep, setLocalActiveStep] = useState<number>(-1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
+
+  // Ссылки на инструменты Tone.js
+  const samplerRef = useRef<Tone.Sampler | null>(null);
+  const fallbackSynthRef = useRef<Tone.PolySynth | null>(null);
+
+  // ===== ИНИЦИАЛИЗАЦИЯ ЗВУКА И MIDI =====
+  useEffect(() => {
+    // 1. Создаем сэмплер реальной гитары (ищет .mp3 файлы в public/samples/guitar/)
+    const guitarSampler = new Tone.Sampler({
+      urls: {
+        "E2": "E2.mp3",
+        "A2": "A2.mp3",
+        "D3": "D3.mp3",
+        "G3": "G3.mp3",
+        "B3": "B3.mp3",
+        "E4": "E4.mp3",
+      },
+      baseUrl: "/samples/guitar/",
+      onload: () => console.log("Сэмплы гитары успешно загружены!"),
+    }).toDestination();
+
+    // 2. Фолбэк-синтезатор (обычный синт с параметрами щипка, чтобы не было ошибок TS)
+    const pluckSynth = new Tone.PolySynth(Tone.Synth).toDestination();
+    // Делаем звук похожим на гитарный щипок
+    pluckSynth.set({
+      envelope: {
+        attack: 0.005,
+        decay: 0.1,
+        sustain: 0.3,
+        release: 1
+      }
+    });
+
+    samplerRef.current = guitarSampler;
+    fallbackSynthRef.current = pluckSynth;
+
+    // 3. Подключение Web MIDI API (переделано на forEach, чтобы TS не ругался на Iterator)
+    if (navigator.requestMIDIAccess) {
+      navigator.requestMIDIAccess().then((midiAccess) => {
+        console.log("MIDI API подключено!");
+        
+        midiAccess.inputs.forEach((input) => {
+          input.onmidimessage = (message: any) => {
+            const [command, note, velocity] = message.data;
+            const freq = Tone.Frequency(note, "midi").toFrequency();
+            const activeSynth = guitarSampler.loaded ? guitarSampler : pluckSynth;
+
+            if (command === 144 && velocity > 0) {
+               // Нота нажата (Note On)
+               activeSynth.triggerAttack(freq, Tone.now(), velocity / 127);
+            } else if (command === 128 || (command === 144 && velocity === 0)) {
+               // Нота отпущена (Note Off)
+               activeSynth.triggerRelease(freq, Tone.now());
+            }
+          };
+        });
+      }).catch(err => console.log("Нет доступа к MIDI-устройствам", err));
+    }
+
+    return () => {
+      guitarSampler.dispose();
+      pluckSynth.dispose();
+    };
+  }, []);
 
   useEffect(() => {
     const scale = getScaleNotes();
@@ -32,141 +97,60 @@ const Tablature: React.FC = () => {
     }, 400);
   };
 
-  const playLickAudio = () => {
+  const playLickAudio = async () => {
     if (!currentLick || isPlayingAudio) return;
+    
+    // Обязательно стартуем контекст Tone.js по клику пользователя
+    await Tone.start();
     setIsPlayingAudio(true);
     setLocalActiveStep(-1);
 
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContextClass();
+    const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41]; // 1-6 струны
+    
+    let startTime = Tone.now() + 0.1;
+    const currentBpm = (bpm || 120) * playbackSpeed;
+    const quarterDuration = 60 / currentBpm;
+
+    // Выбираем инструмент: если сэмплы скачаны — играем ими, если нет — используем синтезатор
+    const activeInst = samplerRef.current?.loaded ? samplerRef.current : fallbackSynthRef.current;
+
+    currentLick.notes.forEach((note, index) => {
+      const durationMap: Record<string, number> = {
+        'whole': 4, 'half': 2, 'quarter': 1, 'eighth': 0.5, 'sixteenth': 0.25, 'dotted_eighth': 0.75
+      };
       
-      const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
-      
-      let startTime = ctx.currentTime + 0.1;
-      const currentBpm = (bpm || 120) * playbackSpeed;
-      const quarterDuration = 60 / currentBpm;
+      const noteDuration = quarterDuration * (durationMap[note.duration || '8n'] || 1);
+      const actualDuration = noteDuration * (note.durationFactor || 0.9);
 
-      currentLick.notes.forEach((note, index) => {
-        if (note.isRest) {
-          const restDuration = note.duration === 'quarter' ? quarterDuration : quarterDuration / 2;
-          startTime += restDuration;
-          return;
-        }
-
-        const fretValue = note.fret ?? 0;
-        const freq = OPEN_FREQS[note.string] * Math.pow(2, fretValue / 12);
-        
-        const durationMap: Record<string, number> = {
-          'whole': 4,
-          'half': 2,
-          'quarter': 1,
-          'eighth': 0.5,
-          'sixteenth': 0.25,
-          'dotted_eighth': 0.75
-        };
-        let noteDuration = quarterDuration * (durationMap[note.duration || '8n'] || 1);
-        const humanFactor = note.durationFactor || (0.9 + Math.random() * 0.2);
-        const actualDuration = noteDuration * humanFactor;
-
-        const accentFactor = note.accent ? 1.2 : (note.velocity || 0.7);
-
-        setTimeout(() => {
-          setLocalActiveStep(index);
-        }, (startTime - ctx.currentTime) * 1000);
-
-        const osc = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-
-        // 🔥 ВЫБОР ТИПА ВОЛНЫ
-        if (note.technique === 'hammer' || note.technique === 'pull') {
-          osc.type = 'sine';
-        } else if (note.technique === 'ghost') {
-          osc.type = 'sine';
-        } else if (note.technique === 'choke') {
-          osc.type = 'sawtooth';
-        } else {
-          osc.type = 'triangle';
-        }
-        
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        // ===== ВИБРАТО =====
-        if (note.technique === 'vibrato') {
-          const lfo = ctx.createOscillator();
-          const lfoGain = ctx.createGain();
-          lfo.type = 'sine';
-          lfo.frequency.value = 5 + Math.random() * 2;
-          lfoGain.gain.value = freq * (0.01 + Math.random() * 0.02);
-          lfo.connect(lfoGain);
-          lfoGain.connect(osc.frequency);
-          lfo.start(startTime);
-          lfo.stop(startTime + actualDuration);
-        }
-
-        // ===== БЕНД =====
-        if (note.technique === 'bend' || note.technique === 'prebend') {
-          const bendAmount = note.bendAmount || 1;
-          const bendStart = note.technique === 'prebend' ? startTime : startTime + actualDuration * 0.3;
-          osc.frequency.setValueAtTime(freq, bendStart);
-          osc.frequency.exponentialRampToValueAtTime(
-            freq * Math.pow(2, bendAmount / 12),
-            bendStart + actualDuration * 0.2
-          );
-        }
-
-        // ===== ФОРШЛАГ =====
-        if (note.graceNote && !note.isRest) {
-          const graceFreq = OPEN_FREQS[note.graceNote.string] * Math.pow(2, note.graceNote.fret / 12);
-          const graceOsc = ctx.createOscillator();
-          const graceGain = ctx.createGain();
-          graceOsc.type = 'sine';
-          graceOsc.frequency.value = graceFreq;
-          graceGain.gain.setValueAtTime(0.1, startTime - 0.05);
-          graceGain.gain.exponentialRampToValueAtTime(0.001, startTime);
-          graceOsc.connect(graceGain);
-          graceGain.connect(ctx.destination);
-          graceOsc.start(startTime - 0.05);
-          graceOsc.stop(startTime);
-        }
-
-        // 🔥 ГРОМКОСТЬ
-        let attackTime = 0.008 + Math.random() * 0.01;
-        let sustainLevel = 0.8 * accentFactor;
-
-        if (note.technique === 'hammer') {
-          attackTime = 0.005;
-          sustainLevel = 0.6 * accentFactor;
-        } else if (note.technique === 'pull') {
-          attackTime = 0.005;
-          sustainLevel = 0.55 * accentFactor;
-        }
-
-        gainNode.gain.setValueAtTime(0, startTime);
-        gainNode.gain.linearRampToValueAtTime(sustainLevel, startTime + attackTime);
-        gainNode.gain.exponentialRampToValueAtTime(sustainLevel * 0.6, startTime + actualDuration * 0.1);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + actualDuration);
-
-        osc.connect(gainNode);
-        gainNode.connect(ctx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + actualDuration + 0.1);
-
-        startTime += actualDuration;
-      });
-
+      // Синхронизируем UI шаг с аудио
       setTimeout(() => {
-        setLocalActiveStep(-1);
-        setIsPlayingAudio(false);
-      }, (startTime - ctx.currentTime) * 1000 + 500);
+        setLocalActiveStep(index);
+      }, (startTime - Tone.now()) * 1000);
 
-    } catch (e) {
-      console.error("Audio Synthesis Failed:", e);
+      if (!note.isRest && activeInst) {
+        const fretValue = note.fret ?? 0;
+        let freq = OPEN_FREQS[note.string] * Math.pow(2, fretValue / 12);
+        
+        // Обработка бендов
+        if (note.technique === 'bend' || note.technique === 'prebend') {
+           const bendAmount = note.bendAmount || 1;
+           freq = freq * Math.pow(2, bendAmount / 12); 
+        }
+
+        const velocity = note.accent ? 1 : (note.velocity || 0.7);
+        activeInst.triggerAttackRelease(freq, actualDuration, startTime, velocity);
+      }
+
+      startTime += actualDuration;
+    });
+
+    setTimeout(() => {
+      setLocalActiveStep(-1);
       setIsPlayingAudio(false);
-    }
+    }, (startTime - Tone.now()) * 1000 + 500);
   };
 
-  // ===== РЕНДЕР =====
+  // ===== РЕНДЕР (UI) =====
   const stringSpacing = 20;
   const startY = 40;
   const noteSpacing = 70;
