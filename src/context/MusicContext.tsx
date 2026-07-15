@@ -72,9 +72,9 @@ const INTERVALS: Record<Mode, number[]> = {
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
 export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // 🔥 ИСПРАВЛЕНО: Начинаем с МАЖОРА!
+  // 🔥 ИСПРАВЛЕНО: Начинаем с Em (E минор)
   const [keyNote, setKeyNote] = useState<string>('E');
-  const [mode, setMode] = useState<Mode>('major');  // major, не aeolian!
+  const [mode, setMode] = useState<Mode>('minor');  // 🔥 E minor 
   const [bpm, setBpm] = useState<number>(120);
   const [timeSignature, setTimeSignature] = useState<TimeSignature>({ beats: 4, noteValue: 4 });
   
