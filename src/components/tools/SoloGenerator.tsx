@@ -20,7 +20,6 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
 const SoloGenerator: React.FC = () => {
   const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm } = useMusic();
 
-  // Основные состояния
   const [soloData, setSoloData] = useState<SyncSoloData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,29 +32,44 @@ const SoloGenerator: React.FC = () => {
   const [progression, setProgression] = useState<{ name: string; notes: string[] }[]>([]);
   const [editingBarIndex, setEditingBarIndex] = useState<number | null>(null);
 
-  // Состояния для барабанов
   const [isDrumOn, setIsDrumOn] = useState(true);
   const [drumPatternName, setDrumPatternName] = useState<string>('ROCK');
   const [drumPattern, setDrumPattern] = useState<DrumPattern>(DrumPatterns.ROCK);
   const [drumVelocity, setDrumVelocity] = useState<number>(0.8);
   const [drumPatternNames, setDrumPatternNames] = useState<string[]>(Object.keys(DrumPatterns));
 
-  // 🎲 Состояния для рандома
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomHistory, setRandomHistory] = useState<DrumPattern[]>([]);
 
-  // Refs
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   // ============================================
-  // 📝 ПАРСЕР АККОРДОВ (полная поддержка)
+  // 🔥 АВТОСКРОЛЛ
   // ============================================
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
+
+  useEffect(() => {
+    if (!isPlaying || !containerRef.current) return;
+    const container = containerRef.current;
+    const scrollWidth = container.scrollWidth - container.clientWidth;
+    const targetScroll = playbackProgress * scrollWidth;
+    setScrollPosition(targetScroll);
+    container.scrollTo({ left: targetScroll, behavior: 'smooth' });
+  }, [playbackProgress, isPlaying]);
+
   const getChordNotesLocal = (chordName: string, key: string): string[] => {
-    const rootMatch = chordName.match(/^[A-G][b#]?/);
+    let normalizedName = chordName;
+    if (chordName.includes('mm')) {
+      normalizedName = chordName.replace(/mm/g, 'm');
+    }
+    
+    const rootMatch = normalizedName.match(/^[A-G][b#]?/);
     const root = rootMatch ? rootMatch[0] : key;
-    const quality = chordName.substring(root.length);
+    const quality = normalizedName.substring(root.length);
     
     const map: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
     const normalizedRoot = map[root] || root;
@@ -66,7 +80,7 @@ const SoloGenerator: React.FC = () => {
       return [key, ALL_NOTES[(idx + 4) % 12], ALL_NOTES[(idx + 7) % 12]];
     }
 
-    let intervals: number[] = [0, 4, 7]; // Мажор по умолчанию
+    let intervals: number[] = [0, 4, 7];
     
     if (quality === '' || quality === 'M' || quality === 'maj' || quality === 'maj7' || quality === 'M7') {
       intervals = [0, 4, 7, 11];
@@ -108,16 +122,77 @@ const SoloGenerator: React.FC = () => {
   };
 
   // ============================================
-  // 🔄 ЦИКЛИЧНОЕ ПЕРЕКЛЮЧЕНИЕ ТИПОВ АККОРДОВ
+  // ГЕНЕРАЦИЯ ПРОГРЕССИИ
   // ============================================
-  const cycleChordType = (name: string): string => {
-    const rootMatch = name.match(/^[A-G][b#]?/);
-    const root = rootMatch ? rootMatch[0] : keyNote;
-    const currentQuality = name.replace(root, '');
-    const types = ['', 'm7', '7', 'maj7', '9', 'm9', 'maj9', '7#9', 'm7b5', 'dim7', 'aug'];
-    const nextIdx = (types.indexOf(currentQuality) + 1) % types.length;
-    return root + types[nextIdx];
+  const generateProgression = () => {
+    const chords = getDiatonicChords();
+    setDiatonicChords(chords);
+    
+    if (chords.length > 0) {
+      const root = keyNote || 'C';
+      
+      let chordSuffix = '';
+      let useChordType: 'triad' | 'seventh' | 'ninth' | 'altered' = 'triad';
+      
+      if (mode === 'maj7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = 'maj7';
+      } else if (mode === 'min7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = 'm7';
+      } else if (mode === 'dom7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = '7';
+      } else if (mode === 'dom9_arp') {
+        useChordType = 'ninth';
+        chordSuffix = '9';
+      } else if (mode === 'altered') {
+        useChordType = 'altered';
+        chordSuffix = '7#9';
+      }
+      
+      const getChordName = (chord: any, index: number): string => {
+        const rootNote = chord?.triad?.replace(/[^A-G#b]/g, '') || root;
+        
+        if (useChordType === 'altered') {
+          if (index === 2) {
+            return rootNote + '7#9';
+          }
+          return rootNote + '7';
+        }
+        
+        if (useChordType === 'triad') {
+          return chord?.triad || root;
+        }
+        
+        if (useChordType === 'seventh' || useChordType === 'ninth') {
+          return rootNote + chordSuffix;
+        }
+        
+        return chord?.triad || root;
+      };
+      
+      const chordIndexes = [0, 3, 4, 0];
+      
+      const newProg = chordIndexes.map((idx, pos) => {
+        const chord = chords[idx % chords.length];
+        const name = getChordName(chord, pos);
+        
+        return {
+          name: name,
+          notes: getChordNotesLocal(name, root)
+        };
+      });
+      
+      setProgression(newProg);
+      stopPlayback();
+      setTimeout(() => { executeGeneration(newProg); }, 50);
+    }
   };
+
+  useEffect(() => {
+    generateProgression();
+  }, [keyNote, mode]);
 
   // ============================================
   // 🎲 ГЕНЕРАЦИЯ СЛУЧАЙНОГО ПАТТЕРНА
@@ -159,7 +234,7 @@ const SoloGenerator: React.FC = () => {
   };
 
   // ============================================
-  // 🔄 МУТАЦИЯ ТЕКУЩЕГО ПАТТЕРНА
+  // 🔄 МУТАЦИЯ
   // ============================================
   const mutateCurrentPattern = () => {
     if (!drumPattern) return;
@@ -234,70 +309,6 @@ const SoloGenerator: React.FC = () => {
     setDrumPattern(pattern);
   };
 
-  // ============================================
-  // 🔥 АВТО-ПОСТРОЕНИЕ ПРОГРЕССИИ
-  // ============================================
-  useEffect(() => {
-    const chords = getDiatonicChords();
-    setDiatonicChords(chords);
-    
-    if (chords.length > 0) {
-      const root = keyNote || 'C';
-      let newProg: { name: string; notes: string[] }[] = [];
-
-      const isArpeggioOrAltered = mode.includes('_arp') || 
-                                   mode === 'altered' || 
-                                   mode === 'pentatonic' || 
-                                   mode === 'blues';
-
-      if (isArpeggioOrAltered) {
-        if (mode === 'blues') {
-          const ivChord = chords[3]?.triad || `${root}7`;
-          const vChord = chords[4]?.triad || `${root}7`;
-          const ivRoot = ivChord.replace(/[^A-G#b]/g, '');
-          const vRoot = vChord.replace(/[^A-G#b]/g, '');
-          
-          newProg = [
-            { name: `${root}7`, notes: getChordNotesLocal(`${root}7`, root) },
-            { name: `${ivRoot}7`, notes: getChordNotesLocal(`${ivRoot}7`, root) },
-            { name: `${root}7`, notes: getChordNotesLocal(`${root}7`, root) },
-            { name: `${vRoot}7`, notes: getChordNotesLocal(`${vRoot}7`, root) }
-          ];
-        } else {
-          let targetChord = root;
-          if (mode === 'min7_arp' || mode === 'pentatonic') targetChord = `${root}m7`;
-          else if (mode === 'maj7_arp') targetChord = `${root}maj7`;
-          else if (mode === 'dom7_arp') targetChord = `${root}7`;
-          else if (mode === 'dom9_arp') targetChord = `${root}9`;
-          else if (mode === 'altered') targetChord = `${root}7#9`;
-
-          newProg = [
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) }
-          ];
-        }
-      } else {
-        newProg = [
-          { name: chords[0]?.triad || root, notes: getChordNotesLocal(chords[0]?.triad || root, root) },
-          { name: chords[3]?.triad || root, notes: getChordNotesLocal(chords[3]?.triad || root, root) },
-          { name: chords[4]?.triad || root, notes: getChordNotesLocal(chords[4]?.triad || root, root) },
-          { name: chords[0]?.triad || root, notes: getChordNotesLocal(chords[0]?.triad || root, root) }
-        ];
-      }
-
-      if (newProg.length > 0) {
-        setProgression(newProg);
-        stopPlayback();
-        setTimeout(() => { executeGeneration(newProg); }, 50);
-      }
-    }
-  }, [keyNote, mode]);
-
-  // ============================================
-  // ⌨️ СЛУШАТЕЛЬ ПРОБЕЛА
-  // ============================================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -321,9 +332,16 @@ const SoloGenerator: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [soloData, isChordsOn, isSoloOn, bpm, isLoopOn, isDrumOn, drumPattern]);
 
-  // ============================================
-  // ⏹️ ОСТАНОВКА ВОСПРОИЗВЕДЕНИЯ
-  // ============================================
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setEditingBarIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const stopPlayback = () => {
     if (sequencePartRef.current) {
       sequencePartRef.current.stop();
@@ -341,9 +359,6 @@ const SoloGenerator: React.FC = () => {
     setPlaybackProgress(0);
   };
 
-  // ============================================
-  // 🎸 ГЕНЕРАЦИЯ СОЛО
-  // ============================================
   const executeGeneration = (targetProgression: { name: string; notes: string[] }[]) => {
     setIsGenerating(true);
     setSoloData(null);
@@ -353,8 +368,21 @@ const SoloGenerator: React.FC = () => {
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'G', 'A'];
 
+    const chordsForGeneration = targetProgression.map(chord => {
+      if (!chord.notes || chord.notes.length === 0) {
+        const notes = getChordNotesLocal(chord.name, keyNote || 'C');
+        return { ...chord, notes };
+      }
+      return chord;
+    });
+
     const newSolo = generateSynchronizedSolo(
-      safeScale, keyNote || 'C', mode || 'major', timeSignature || { beats: 4, noteValue: 4 }, targetProgression, false
+      safeScale, 
+      keyNote || 'C', 
+      mode || 'major', 
+      timeSignature || { beats: 4, noteValue: 4 }, 
+      chordsForGeneration,
+      false
     );
 
     setSoloData(newSolo);
@@ -371,10 +399,12 @@ const SoloGenerator: React.FC = () => {
     executeGeneration(progression);
   };
 
-  // ============================================
-  // ▶️ ВОСПРОИЗВЕДЕНИЕ (С Web Audio API для соло)
-  // ============================================
   const playScore = async (data: SyncSoloData) => {
+    if (!data.notes || data.notes.length === 0) {
+      console.warn('⚠️ Нет нот для воспроизведения!');
+      return;
+    }
+    
     await audioManager.init();
     await Tone.start();
     
@@ -385,7 +415,6 @@ const SoloGenerator: React.FC = () => {
     
     const events: any[] = [];
 
-    // 🎸 Аккорды (через Tone.js chordSynth)
     if (isChordsOn) {
       data.chords.forEach(chord => {
         const time = chord.beatStart * quarterDuration;
@@ -400,9 +429,7 @@ const SoloGenerator: React.FC = () => {
       });
     }
 
-    // 🔥 СОЛО - ИСПОЛЬЗУЕМ WEB AUDIO API (как в Tablature)
     if (isSoloOn) {
-      // Частоты открытых струн (как в Tablature)
       const stringToFreq = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
       
       data.notes.forEach(note => {
@@ -412,7 +439,6 @@ const SoloGenerator: React.FC = () => {
           const duration = note.beatDuration * quarterDuration;
           const velocity = note.accent ? 0.9 : 0.6;
           
-          // 🔥 Новый тип события для Web Audio API
           events.push({ 
             time, 
             type: 'solo_web_audio',
@@ -424,7 +450,6 @@ const SoloGenerator: React.FC = () => {
       });
     }
 
-    // 🥁 Барабаны
     if (isDrumOn && drumPattern) {
       const pattern = drumPattern;
       const patternLength = pattern.kick.length;
@@ -454,32 +479,21 @@ const SoloGenerator: React.FC = () => {
         if (pattern.tom && pattern.tom[patternIndex]) {
           events.push({ time, type: 'drum', drum: 'tom', velocity: drumVelocity * 0.75 * humanize() });
         }
-        
-        // 🎵 Метроном
-        if (i % patternLength === 0) {
-          events.push({ time, type: 'metronome', accent: true });
-        } else if (i % (patternLength / 4) === 0 && patternLength / 4 > 0) {
-          events.push({ time, type: 'metronome', accent: false });
-        }
       }
     }
 
-    // 🔥 Создаем Tone.Part с поддержкой Web Audio API
     sequencePartRef.current = new Tone.Part((time, value) => {
       if (value.type === 'chord') {
         audioManager.chordSynth.triggerAttackRelease(value.notes, value.duration, time);
       } else if (value.type === 'solo_web_audio') {
-        // 🔥 ИСПОЛЬЗУЕМ WEB AUDIO API (как в Tablature)
         audioManager.playWebAudioGuitarNote(
           value.freq,
           value.duration,
-          time + 0.05,  // небольшая задержка для синхронизации
+          time + 0.05,
           value.velocity
         );
       } else if (value.type === 'drum') {
         audioManager.playDrumHit(value.drum, time, value.velocity);
-      } else if (value.type === 'metronome') {
-        audioManager.playMetronome(time, value.accent);
       }
     }, events).start(0);
 
@@ -489,7 +503,6 @@ const SoloGenerator: React.FC = () => {
     Tone.Transport.start();
     startTimeRef.current = Tone.now();
 
-    // Обновление прогресса
     const drawPlayhead = () => {
       if (Tone.Transport.state !== 'started') return;
       
@@ -523,21 +536,56 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  // ============================================
-  // 🎨 ВИЗУАЛИЗАЦИЯ
-  // ============================================
-  const SVG_WIDTH = 1200;
-  const SVG_HEIGHT = 460;
+  const SVG_WIDTH = 1400; // 🔥 ФИКСИРОВАННАЯ ШИРИНА
+  const SVG_HEIGHT = 520; // 🔥 УВЕЛИЧЕННАЯ ВЫСОТА
   const TRACK_MARGIN_X = 20;
   const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;
   const TAB_Y = 140;
 
+  const getNoteSpacing = () => {
+    if (!soloData) return 95; // 🔥 ФИКСИРОВАННЫЙ ШАГ
+    const totalNotes = soloData.notes.filter(n => !n.isRest).length;
+    const totalBeats = soloData.totalBeats || 16;
+    const idealNotes = totalBeats * 2;
+    const baseSpacing = 95;
+    const minSpacing = 45;
+    const maxSpacing = 130;
+    if (totalNotes === 0) return baseSpacing;
+    const ratio = totalNotes / idealNotes;
+    let spacing = baseSpacing / ratio;
+    return Math.max(minSpacing, Math.min(maxSpacing, spacing));
+  };
+
+  const noteSpacing = getNoteSpacing();
+
+  const getSuggestedChords = (currentChord: string): string[] => {
+    const rootMatch = currentChord.match(/^[A-G][b#]?/);
+    const root = rootMatch ? rootMatch[0] : keyNote;
+    const suggestions: string[] = [];
+    
+    const types = ['', 'm', '7', 'maj7', '9', 'm7', 'm7b5', 'dim', 'aug', 'sus4'];
+    types.forEach(type => {
+      const name = root + type;
+      if (name !== currentChord) {
+        suggestions.push(name);
+      }
+    });
+    
+    diatonicChords.forEach(chord => {
+      const name = chord?.triad || '';
+      if (name && name !== currentChord && !suggestions.includes(name)) {
+        suggestions.push(name);
+      }
+    });
+    
+    return suggestions.slice(0, 8);
+  };
+
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', padding: '12px 0' }}>
       
-      {/* Верхний блок с контролами */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
         <div>
           <h2 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio Progress Composer</h2>
@@ -585,7 +633,6 @@ const SoloGenerator: React.FC = () => {
         </div>
       </div>
 
-      {/* Контролы: TEMPO, Chords, Solo */}
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', padding: '10px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
@@ -648,63 +695,15 @@ const SoloGenerator: React.FC = () => {
           })}
         </select>
 
-        <button
-          onClick={generateRandomPattern}
-          disabled={isRandomizing}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--accent)',
-            background: isRandomizing ? 'var(--bg-secondary)' : 'var(--accent)',
-            color: isRandomizing ? 'var(--text-muted)' : '#000',
-            cursor: isRandomizing ? 'default' : 'pointer',
-            fontWeight: 800,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Generate random pattern"
-        >
+        <button onClick={generateRandomPattern} disabled={isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--accent)', background: isRandomizing ? 'var(--bg-secondary)' : 'var(--accent)', color: isRandomizing ? 'var(--text-muted)' : '#000', cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 800, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
           {isRandomizing ? '⏳ ...' : '🎲 Random'}
         </button>
 
-        <button
-          onClick={mutateCurrentPattern}
-          disabled={!drumPattern || isRandomizing}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--border-color)',
-            background: 'transparent',
-            color: drumPattern && !isRandomizing ? 'var(--text-primary)' : 'var(--text-muted)',
-            cursor: drumPattern && !isRandomizing ? 'pointer' : 'default',
-            fontWeight: 600,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Mutate current pattern"
-        >
+        <button onClick={mutateCurrentPattern} disabled={!drumPattern || isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: drumPattern && !isRandomizing ? 'var(--text-primary)' : 'var(--text-muted)', cursor: drumPattern && !isRandomizing ? 'pointer' : 'default', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
           🔄 Mutate
         </button>
 
-        <button
-          onClick={() => generateMultiplePatterns(5)}
-          disabled={isRandomizing}
-          style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--border-color)',
-            background: 'transparent',
-            color: isRandomizing ? 'var(--text-muted)' : 'var(--text-primary)',
-            cursor: isRandomizing ? 'default' : 'pointer',
-            fontWeight: 600,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Generate 5 random patterns and pick one"
-        >
+        <button onClick={() => generateMultiplePatterns(5)} disabled={isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: isRandomizing ? 'var(--text-muted)' : 'var(--text-primary)', cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
           🎲 5x
         </button>
 
@@ -712,34 +711,7 @@ const SoloGenerator: React.FC = () => {
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>↺</span>
             {randomHistory.slice(-5).map((_, index) => (
-              <button
-                key={index}
-                onClick={() => restoreFromHistory(randomHistory.length - 1 - index)}
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--border-color)',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: '0.2s'
-                }}
-                title={`Restore pattern #${randomHistory.length - index}`}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--accent)';
-                  e.currentTarget.style.color = 'var(--accent)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                }}
-              >
+              <button key={index} onClick={() => restoreFromHistory(randomHistory.length - 1 - index)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }} title={`Restore pattern #${randomHistory.length - index}`} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
                 {index + 1}
               </button>
             ))}
@@ -748,15 +720,7 @@ const SoloGenerator: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>VOL</span>
-          <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.05" 
-            value={drumVelocity}
-            onChange={e => setDrumVelocity(Number(e.target.value))}
-            style={{ width: '80px', accentColor: 'var(--accent)' }}
-          />
+          <input type="range" min="0" max="1" step="0.05" value={drumVelocity} onChange={e => setDrumVelocity(Number(e.target.value))} style={{ width: '80px', accentColor: 'var(--accent)' }} />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', minWidth: '35px' }}>{Math.round(drumVelocity * 100)}%</span>
         </div>
 
@@ -765,8 +729,25 @@ const SoloGenerator: React.FC = () => {
         </div>
       </div>
 
-      {/* Основной плеер SVG */}
-      <div style={{ width: '100%', background: '#090a0e', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
+      {/* 🔥 Основной плеер SVG с ФИКСИРОВАННОЙ шириной */}
+      <div 
+        ref={containerRef}
+        style={{ 
+          width: '100%', 
+          background: '#090a0e', 
+          borderRadius: '12px', 
+          border: '1px solid var(--border-color)', 
+          overflowX: 'auto', 
+          overflowY: 'hidden',
+          position: 'relative', 
+          minHeight: `${SVG_HEIGHT}px`,
+          scrollBehavior: 'smooth'
+        }}
+      >
+        <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 8px', background: 'rgba(0,0,0,0.5)', borderRadius: '0 0 0 4px', fontSize: '9px', color: 'var(--text-muted)', zIndex: 10, pointerEvents: 'none', opacity: 0.5 }}>
+          {Math.round((scrollPosition / (containerRef.current?.scrollWidth || 1)) * 100)}%
+        </div>
+
         {soloData ? (
           <>
             <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block', minWidth: '100%' }}>
@@ -786,12 +767,7 @@ const SoloGenerator: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        const newName = cycleChordType(chord.name);
-                        const nextProg = [...progression];
-                        nextProg[idx] = { name: newName, notes: getChordNotesLocal(newName, keyNote || 'C') };
-                        setProgression(nextProg);
-                        setEditingBarIndex(null);
-                        setTimeout(() => executeGeneration(nextProg), 40);
+                        setEditingBarIndex(editingBarIndex === idx ? null : idx);
                       }}
                     />
                     <text 
@@ -816,13 +792,15 @@ const SoloGenerator: React.FC = () => {
               
               <line x1={SVG_WIDTH - TRACK_MARGIN_X} y1={CHORD_Y} x2={SVG_WIDTH - TRACK_MARGIN_X} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
 
-              <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={300}>
+              {/* 🔥 ТАБУЛАТУРА С ФИКСИРОВАННЫМИ РАЗМЕРАМИ */}
+              <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={350}>
                 <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
                   <TablatureDisplay 
                     notes={soloData.notes} 
                     activeStep={isPlaying && isSoloOn ? Math.floor(playbackProgress * soloData.notes.length) : -1} 
-                    height={280} 
-                    noteSpacing={85} 
+                    height={340}
+                    noteSpacing={noteSpacing}
+                    showFretNumbers={true}
                   />
                 </div>
               </foreignObject>
@@ -833,32 +811,155 @@ const SoloGenerator: React.FC = () => {
             </svg>
 
             {editingBarIndex !== null && (
-              <div style={{ position: 'absolute', top: `${CHORD_Y + 42}px`, left: `${TRACK_MARGIN_X + editingBarIndex * BAR_WIDTH}px`, width: `${BAR_WIDTH}px`, background: 'var(--bg-panel)', border: '1px solid var(--accent)', borderRadius: '0 0 6px 6px', zIndex: 999, overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.8)', maxHeight: '300px', overflowY: 'auto' }}>
+              <div 
+                ref={menuRef}
+                style={{ 
+                  position: 'absolute', 
+                  top: `${CHORD_Y + 42}px`, 
+                  left: `${TRACK_MARGIN_X + editingBarIndex * BAR_WIDTH}px`, 
+                  width: `${BAR_WIDTH}px`, 
+                  background: 'var(--bg-panel)', 
+                  border: '1px solid var(--accent)', 
+                  borderRadius: '0 0 8px 8px', 
+                  zIndex: 999, 
+                  overflow: 'hidden', 
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.9)',
+                  maxHeight: '260px', 
+                  overflowY: 'auto'
+                }}
+              >
+                <div style={{ 
+                  padding: '8px 12px', 
+                  background: 'var(--bg-secondary)', 
+                  borderBottom: '1px solid var(--border-color)',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  🎸 Choose chord
+                </div>
+                
                 {diatonicChords.map((opt, oIdx) => {
-                  const name = opt.seventhChord || opt.triad || keyNote;
+                  const name = opt.triad || keyNote;
+                  const isActive = progression[editingBarIndex]?.name === name;
                   return (
                     <div 
-                      key={oIdx} 
+                      key={`diatonic-${oIdx}`} 
                       onClick={() => {
                         const nextProg = [...progression];
-                        nextProg[editingBarIndex] = { name, notes: getChordNotesLocal(name, keyNote || 'C') };
+                        nextProg[editingBarIndex] = { 
+                          name: name, 
+                          notes: getChordNotesLocal(name, keyNote || 'C') 
+                        };
                         setProgression(nextProg);
                         setEditingBarIndex(null);
                         setTimeout(() => executeGeneration(nextProg), 40);
                       }}
-                      style={{ padding: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 900, borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-primary)', textAlign: 'center', transition: '0.1s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#000'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                      style={{ 
+                        padding: '8px 14px', 
+                        cursor: 'pointer', 
+                        fontSize: '13px', 
+                        fontWeight: isActive ? 900 : 600,
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        color: isActive ? 'var(--accent)' : 'var(--text-primary)',
+                        background: isActive ? 'rgba(0,255,157,0.08)' : 'transparent',
+                        transition: '0.1s',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => { 
+                        e.currentTarget.style.background = 'rgba(0,255,157,0.12)';
+                      }}
+                      onMouseLeave={e => { 
+                        e.currentTarget.style.background = isActive ? 'rgba(0,255,157,0.08)' : 'transparent';
+                      }}
                     >
-                      {opt.baseRoman} ({name})
+                      <span>{opt.baseRoman}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{name}</span>
                     </div>
                   );
                 })}
+                
+                <div style={{ 
+                  padding: '4px 12px', 
+                  background: 'var(--bg-secondary)', 
+                  borderTop: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--border-color)',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  ✨ Suggested
+                </div>
+                
+                {getSuggestedChords(progression[editingBarIndex]?.name || '').map((suggestion, sIdx) => {
+                  const isActive = progression[editingBarIndex]?.name === suggestion;
+                  return (
+                    <div 
+                      key={`suggested-${sIdx}`} 
+                      onClick={() => {
+                        const nextProg = [...progression];
+                        nextProg[editingBarIndex] = { 
+                          name: suggestion, 
+                          notes: getChordNotesLocal(suggestion, keyNote || 'C') 
+                        };
+                        setProgression(nextProg);
+                        setEditingBarIndex(null);
+                        setTimeout(() => executeGeneration(nextProg), 40);
+                      }}
+                      style={{ 
+                        padding: '8px 14px', 
+                        cursor: 'pointer', 
+                        fontSize: '13px', 
+                        fontWeight: isActive ? 900 : 600,
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                        background: isActive ? 'rgba(0,255,157,0.08)' : 'transparent',
+                        transition: '0.1s',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => { 
+                        e.currentTarget.style.background = 'rgba(0,255,157,0.12)';
+                      }}
+                      onMouseLeave={e => { 
+                        e.currentTarget.style.background = isActive ? 'rgba(0,255,157,0.08)' : 'transparent';
+                      }}
+                    >
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>→</span>
+                      <span>{suggestion}</span>
+                    </div>
+                  );
+                })}
+                
+                <div 
+                  onClick={() => setEditingBarIndex(null)}
+                  style={{ 
+                    padding: '6px', 
+                    textAlign: 'center', 
+                    cursor: 'pointer', 
+                    fontSize: '11px', 
+                    color: 'var(--text-muted)',
+                    borderTop: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+                >
+                  ✕ Close
+                </div>
               </div>
             )}
           </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '320px', color: 'var(--text-muted)', fontWeight: 800, fontSize: '13px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px', color: 'var(--text-muted)', fontWeight: 800, fontSize: '13px' }}>
             {isGenerating ? '⏳ ВЫЧИСЛЕНИЕ ПРОГРЕССИИ И ГЕНЕРАЦИЯ ФРАЗ...' : '🎸 СЕТКА ПУСТА. НАЖМИТЕ GENERATE ДЛЯ СОЗДАНИЯ 4-ТАКТНОГО СОЛО'}
           </div>
         )}
