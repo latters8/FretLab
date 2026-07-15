@@ -42,6 +42,10 @@ const SoloGenerator: React.FC = () => {
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomHistory, setRandomHistory] = useState<DrumPattern[]>([]);
 
+  // 🎯 НОВЫЕ СОСТОЯНИЯ ДЛЯ SOLO ТРЕКА
+  const [currentPlayBar, setCurrentPlayBar] = useState<number>(-1);
+  const tabContainerRef = useRef<HTMLDivElement | null>(null);
+
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
@@ -105,6 +109,19 @@ const SoloGenerator: React.FC = () => {
     }
 
     return intervals.map(i => ALL_NOTES[(rootIdx + i) % 12]);
+  };
+
+  // ============================================
+  // 📊 НОВАЯ ФУНКЦИЯ - ПОЛУЧЕНИЕ НОТ ДЛЯ ТАКТА
+  // ============================================
+  const getNotesForBar = (barIndex: number) => {
+    if (!soloData || !soloData.notes) return [];
+    const beatsPerBar = timeSignature?.beats || 4;
+    const barStart = barIndex * beatsPerBar;
+    const barEnd = (barIndex + 1) * beatsPerBar;
+    return soloData.notes.filter((n: any) => 
+      n.beatStart >= barStart && n.beatStart < barEnd
+    );
   };
 
   // ============================================
@@ -343,6 +360,7 @@ const SoloGenerator: React.FC = () => {
     cancelAnimationFrame(playheadAnimRef.current);
     setIsPlaying(false);
     setPlaybackProgress(0);
+    setCurrentPlayBar(-1); // 🔥 ДОБАВЛЕНО
   };
 
   const executeGeneration = (targetProgression: { name: string; notes: string[] }[]) => {
@@ -350,6 +368,7 @@ const SoloGenerator: React.FC = () => {
     setSoloData(null);
     setPlaybackProgress(0);
     setTips([]);
+    setCurrentPlayBar(-1); // 🔥 ДОБАВЛЕНО
 
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'G', 'A'];
@@ -400,6 +419,7 @@ const SoloGenerator: React.FC = () => {
     const totalDurationSec = data.totalBeats * quarterDuration;
     
     const events: any[] = [];
+    const beatsPerBar = timeSignature?.beats || 4;
 
     if (isChordsOn) {
       data.chords.forEach(chord => {
@@ -410,7 +430,8 @@ const SoloGenerator: React.FC = () => {
           time, 
           type: 'chord', 
           notes, 
-          duration: chord.durationBeats * quarterDuration * 0.95 
+          duration: chord.durationBeats * quarterDuration * 0.95,
+          barIndex: Math.floor(chord.beatStart / beatsPerBar)
         });
       });
     }
@@ -430,7 +451,8 @@ const SoloGenerator: React.FC = () => {
             type: 'solo_web_audio',
             freq,
             duration,
-            velocity 
+            velocity,
+            barIndex: Math.floor(note.beatStart / beatsPerBar) // 🔥 ДОБАВЛЕНО
           });
         }
       });
@@ -481,6 +503,11 @@ const SoloGenerator: React.FC = () => {
       } else if (value.type === 'drum') {
         audioManager.playDrumHit(value.drum, time, value.velocity);
       }
+      
+      // 🔥 ДОБАВЛЕНО: обновление текущего такта
+      if (value.barIndex !== undefined && value.barIndex !== currentPlayBar) {
+        setCurrentPlayBar(value.barIndex);
+      }
     }, events).start(0);
 
     sequencePartRef.current.loop = isLoopOn;
@@ -522,13 +549,15 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
+  // 🔥 ИЗМЕНЕНО: SVG_HEIGHT увеличено, добавлены SOLO_Y
   const SVG_WIDTH = 1200;
-  const SVG_HEIGHT = 460;
+  const SVG_HEIGHT = 520; // было 460
   const TRACK_MARGIN_X = 20;
   const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;
-  const TAB_Y = 140;
+  const SOLO_Y = 90;  // НОВОЕ
+  const TAB_Y = 160;  // было 140
 
   const getNoteSpacing = () => {
     if (!soloData) return 85;
@@ -681,7 +710,6 @@ const SoloGenerator: React.FC = () => {
           })}
         </select>
 
-        {/* 🎲 Кнопки случайных паттернов */}
         <button
           onClick={generateRandomPattern}
           disabled={isRandomizing}
@@ -742,7 +770,6 @@ const SoloGenerator: React.FC = () => {
           🎲 5x
         </button>
 
-        {/* История паттернов */}
         {randomHistory.length > 0 && (
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>↺</span>
@@ -806,6 +833,7 @@ const SoloGenerator: React.FC = () => {
           <>
             <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block', minWidth: '100%' }}>
               
+              {/* ===== ТРЕК АККОРДОВ ===== */}
               {progression.map((chord, idx) => {
                 const x = TRACK_MARGIN_X + idx * BAR_WIDTH;
                 return (
@@ -846,8 +874,197 @@ const SoloGenerator: React.FC = () => {
               
               <line x1={SVG_WIDTH - TRACK_MARGIN_X} y1={CHORD_Y} x2={SVG_WIDTH - TRACK_MARGIN_X} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
 
+              {/* ===== 🔥 НОВЫЙ ТРЕК SOLO С ШТИЛЯМИ ===== */}
+              <rect x={TRACK_MARGIN_X} y={SOLO_Y - 10} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height="65" fill="rgba(255,255,255,0.01)" rx="4" />
+              <text x={TRACK_MARGIN_X + 8} y={SOLO_Y + 22} fill="var(--text-muted)" fontSize="10" fontWeight="700" opacity="0.5">SOLO</text>
+
+              {[0, 1, 2, 3].map(barIdx => {
+                const x = TRACK_MARGIN_X + barIdx * BAR_WIDTH;
+                const barNotes = getNotesForBar(barIdx);
+                const isActive = currentPlayBar === barIdx;
+                
+                return (
+                  <g key={`solo-bar-${barIdx}`}>
+                    <rect 
+                      x={x + 4} y={SOLO_Y} 
+                      width={BAR_WIDTH - 8} height="55" 
+                      fill={isActive ? 'rgba(0,255,157,0.06)' : 'rgba(255,255,255,0.02)'}
+                      rx="4"
+                      stroke={isActive ? 'rgba(0,255,157,0.2)' : 'rgba(255,255,255,0.04)'}
+                      strokeWidth={1}
+                    />
+                    
+                    {[0, 1, 2, 3, 4, 5].map(strIdx => {
+                      const strY = SOLO_Y + 8 + strIdx * 8;
+                      return (
+                        <line
+                          key={`str-${barIdx}-${strIdx}`}
+                          x1={x + 8}
+                          y1={strY}
+                          x2={x + BAR_WIDTH - 8}
+                          y2={strY}
+                          stroke="rgba(255,255,255,0.06)"
+                          strokeWidth={0.5}
+                        />
+                      );
+                    })}
+                    
+                    {['e', 'B', 'G', 'D', 'A', 'E'].map((note, strIdx) => {
+                      const strY = SOLO_Y + 8 + strIdx * 8;
+                      return (
+                        <text
+                          key={`tune-${barIdx}-${strIdx}`}
+                          x={x + 10}
+                          y={strY + 3}
+                          fill="rgba(255,255,255,0.15)"
+                          fontSize="6"
+                          fontWeight="600"
+                          fontFamily="monospace"
+                        >
+                          {note}
+                        </text>
+                      );
+                    })}
+                    
+                    {barNotes.filter((n: any) => !n.isRest && n.fret !== null).slice(0, 12).map((note: any, noteIdx: number) => {
+                      const noteX = x + 18 + noteIdx * (BAR_WIDTH / 12);
+                      const noteY = SOLO_Y + 8 + (note.string * 8) + 4;
+                      const isNoteActive = isPlaying && isSoloOn && 
+                        playbackProgress >= note.beatStart / (timeSignature?.beats || 4) / 4 && 
+                        playbackProgress < (note.beatStart + note.beatDuration) / (timeSignature?.beats || 4) / 4;
+                      
+                      const duration = note.beatDuration || 1;
+                      let flagCount = 0;
+                      if (duration === 0.5) flagCount = 1;
+                      else if (duration === 0.25) flagCount = 2;
+                      else if (duration === 0.125) flagCount = 3;
+                      
+                      const stemDirection = note.string <= 2 ? 'up' : 'down';
+                      const stemLength = 30;
+                      const stemX = noteX + (stemDirection === 'up' ? 7 : -7);
+                      const stemEndY = noteY - stemLength;
+                      
+                      let stemColor = 'rgba(255,255,255,0.5)';
+                      if (isNoteActive) stemColor = 'var(--accent)';
+                      else if (duration <= 0.25) stemColor = '#ff6b6b';
+                      else if (duration <= 0.5) stemColor = '#ffd93d';
+                      else if (duration <= 1) stemColor = '#6bcb77';
+                      else if (duration <= 2) stemColor = '#4d96ff';
+                      else stemColor = '#9b59b6';
+                      
+                      return (
+                        <g key={`note-${barIdx}-${noteIdx}`}>
+                          {duration < 2 && (
+                            <line
+                              x1={stemX}
+                              y1={noteY - 2}
+                              x2={stemX}
+                              y2={stemEndY}
+                              stroke={stemColor}
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                            />
+                          )}
+                          
+                          {flagCount === 1 && (
+                            <path
+                              d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 12} ${stemEndY - 5} ${stemX + 10} ${stemEndY + 6}`}
+                              fill="none"
+                              stroke={stemColor}
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                            />
+                          )}
+                          {flagCount === 2 && (
+                            <>
+                              <path
+                                d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 12} ${stemEndY - 5} ${stemX + 10} ${stemEndY + 6}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d={`M ${stemX + 3} ${stemEndY + 10} Q ${stemX + 13} ${stemEndY + 5} ${stemX + 11} ${stemEndY + 16}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                            </>
+                          )}
+                          
+                          <text
+                            x={noteX}
+                            y={noteY + 4}
+                            fill={isNoteActive ? 'var(--accent)' : stemColor}
+                            fontSize={isNoteActive ? 14 : 12}
+                            fontWeight={900}
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                            style={{
+                              textShadow: isNoteActive 
+                                ? '0 0 20px var(--accent)' 
+                                : '0 0 8px rgba(0,0,0,0.9)',
+                              pointerEvents: 'none',
+                              userSelect: 'none'
+                            }}
+                          >
+                            {note.fret}
+                          </text>
+                          
+                          {isNoteActive && (
+                            <circle
+                              cx={noteX}
+                              cy={noteY + 2}
+                              r={18}
+                              fill="var(--accent)"
+                              opacity={0.08}
+                              style={{ filter: 'drop-shadow(0 0 20px var(--accent))' }}
+                            />
+                          )}
+                        </g>
+                      );
+                    })}
+                    
+                    {barNotes.filter((n: any) => !n.isRest && n.fret !== null).length === 0 && (
+                      <text x={x + BAR_WIDTH / 2} y={SOLO_Y + 32} fill="var(--text-muted)" fontSize="10" opacity="0.3" textAnchor="middle">—</text>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* ===== ТАБУЛАТУРА С АВТОСКРОЛЛОМ ===== */}
               <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={300}>
-                <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+                <div 
+                  ref={tabContainerRef}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    scrollBehavior: 'smooth',
+                    msOverflowStyle: 'none',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'var(--accent) var(--bg-secondary)'
+                  }}
+                >
+                  <style>{`
+                    div::-webkit-scrollbar {
+                      height: 6px;
+                    }
+                    div::-webkit-scrollbar-track {
+                      background: var(--bg-secondary);
+                      border-radius: 3px;
+                    }
+                    div::-webkit-scrollbar-thumb {
+                      background: var(--accent);
+                      border-radius: 3px;
+                    }
+                    div::-webkit-scrollbar-thumb:hover {
+                      background: var(--accent-hover);
+                    }
+                  `}</style>
                   <TablatureDisplay 
                     notes={soloData.notes} 
                     activeStep={isPlaying && isSoloOn ? Math.floor(playbackProgress * soloData.notes.length) : -1} 
