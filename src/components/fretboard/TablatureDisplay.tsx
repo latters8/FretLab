@@ -158,7 +158,7 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
           const durationInfo = getDurationInfo(note.duration || 'quarter');
           const durationColor = getDurationColor(note.duration || 'quarter', isActive);
           const flagCount = durationInfo.flagCount;
-          const isFilled = durationInfo.value <= 1;
+          //const isFilled = durationInfo.value <= 1;
           const isWhole = durationInfo.value >= 4;
           
           if (note.isRest) {

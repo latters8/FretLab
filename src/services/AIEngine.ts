@@ -782,15 +782,17 @@ export const generateSynchronizedSolo = (
   // 🔥 ДЛЯ ОСТАЛЬНЫХ РЕЖИМОВ (major, minor, pentatonic, blues, dorian, и т.д.)
   // ============================================================
   
+  // Соло сейчас иногда получает много «длинных» длительностей (4n/2n).
+  // Пересобираем пул стилей так, чтобы чаще получались короткие 8n/16n.
   const rhythmStyles = [
-    { durations: ['8n', '8n'], density: 0.5 },
-    { durations: ['16n', '16n'], density: 0.7 },
-    { durations: ['8n.', '8n'], density: 0.5 },
-    { durations: ['8n.', '8n'], density: 0.5 },
-    { durations: ['8n', '8n.', '8n', '8n.', '16n', '8n'], density: 0.6 },
-    { durations: ['8t', '8t', '8t'], density: 0.6 },
-    { durations: ['4n.', '8n'], density: 0.3 },
-    { durations: ['8n', '16n', '8n', '16n'], density: 0.7 }
+    { durations: ['16n', '16n', '8n', '16n'], density: 0.8 },
+    { durations: ['16n', '16n.', '16n', '8n'], density: 0.85 },
+    { durations: ['8n', '8n', '16n', '8n'], density: 0.7 },
+    { durations: ['8n.', '8n', '16n', '8n.'], density: 0.75 },
+    { durations: ['8n', '16n', '8n.', '16n', '8n'], density: 0.8 },
+    { durations: ['8t', '8t', '16n'], density: 0.75 },
+    { durations: ['8n', '16n', '16n.', '8n'], density: 0.85 },
+    { durations: ['16n', '8n.', '16n', '8n'], density: 0.8 }
   ];
   
   const selectedStyle = rhythmStyles[Math.floor(Math.random() * rhythmStyles.length)];
@@ -838,7 +840,8 @@ export const generateSynchronizedSolo = (
     durVal = durationMap[durChoice] || 0.5;
     durType = durChoice;
     
-    if (consecutiveNotes > 6 && Math.random() > 0.6) {
+    // Режем вероятность «удлинения» в 4n, чтобы соло звучало более мелодично (меньше длинных нот).
+    if (consecutiveNotes > 6 && Math.random() > 0.85) {
       durVal = 1.0;
       durType = '4n';
       consecutiveNotes = 0;

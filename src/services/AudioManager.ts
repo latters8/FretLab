@@ -263,8 +263,12 @@ class AudioManager {
   // ============================================
   public playDrumHit(type: 'kick' | 'snare' | 'hihat' | 'crash' | 'ride' | 'tom', time?: Tone.Unit.Time, velocity?: number) {
     const vel = velocity || 0.8;
-    const defaultTime = time || Tone.now();
-    
+
+    // Tone может падать, если startTime <= предыдущего startTime.
+    // Делаем защиту: гарантируем строгое увеличение времени.
+    const t = (time ?? Tone.now()) as number;
+    const defaultTime = Math.max(t, Tone.now() + 0.0001);
+
     const noteMap: Record<string, string> = {
       kick: 'C1',
       snare: 'D1',
@@ -273,7 +277,7 @@ class AudioManager {
       ride: 'E1',
       tom: 'G1'
     };
-    
+
     if (this.drumSampler.loaded) {
       const note = noteMap[type];
       if (note) {
@@ -281,7 +285,7 @@ class AudioManager {
         return;
       }
     }
-    
+
     switch (type) {
       case 'kick': this.drumKick.triggerAttackRelease(60, 0.2, defaultTime, vel); break;
       case 'snare': this.drumSnare.triggerAttackRelease(0.15, defaultTime, vel); break;

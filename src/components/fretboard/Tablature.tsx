@@ -179,8 +179,8 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
         )}
       </div>
 
-      <div style={{ padding: compact ? '12px' : '24px', overflowX: 'auto', background: '#111216' }}>
-        <TablatureDisplay notes={currentLick ? currentLick.notes : []} activeStep={localActiveStep} isGenerating={isGenerating} compact={compact} noteSpacing={compact ? 50 : 70} height={compact ? 120 : 180} />
+<div style={{ padding: compact ? '12px' : '24px', overflowX: 'auto', background: '#111216', flex: 1, display: 'flex', alignItems: 'flex-start' }}>
+<TablatureDisplay notes={currentLick ? currentLick.notes : []} activeStep={localActiveStep} isGenerating={isGenerating} compact={compact} noteSpacing={compact ? 50 : 70} height={compact ? 160 : 260} />
       </div>
 
       {tips.length > 0 && !compact && (

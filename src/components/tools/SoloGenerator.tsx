@@ -18,7 +18,7 @@ import {
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const SoloGenerator: React.FC = () => {
-  const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm } = useMusic();
+  const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm, setTimeSignature } = useMusic();
 
   const [soloData, setSoloData] = useState<SyncSoloData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -45,6 +45,7 @@ const SoloGenerator: React.FC = () => {
   // 🎯 НОВЫЕ СОСТОЯНИЯ ДЛЯ SOLO ТРЕКА
   const [currentPlayBar, setCurrentPlayBar] = useState<number>(-1);
   const tabContainerRef = useRef<HTMLDivElement | null>(null);
+
 
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
@@ -439,23 +440,48 @@ const SoloGenerator: React.FC = () => {
     if (isSoloOn) {
       const stringToFreq = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
       
+      // Дебаг статистика: проверим, что именно попадает в события и какие длительности.
+      const stats = {
+        total: data.notes.length,
+        rest: 0,
+        nullFret: 0,
+        pushed: 0,
+        durations: {} as Record<string, number>,
+      };
+
       data.notes.forEach(note => {
-        if (!note.isRest && note.fret !== null) {
-          const time = note.beatStart * quarterDuration;
-          const freq = stringToFreq[note.string] * Math.pow(2, note.fret / 12);
-          const duration = note.beatDuration * quarterDuration;
-          const velocity = note.accent ? 0.9 : 0.6;
-          
-          events.push({ 
-            time, 
-            type: 'solo_web_audio',
-            freq,
-            duration,
-            velocity,
-            barIndex: Math.floor(note.beatStart / beatsPerBar) // 🔥 ДОБАВЛЕНО
-          });
+        if (note.isRest) {
+          stats.rest++;
+          return;
         }
+        if (note.fret === null) {
+          stats.nullFret++;
+          return;
+        }
+
+        const time = note.beatStart * quarterDuration;
+        const freq = stringToFreq[note.string] * Math.pow(2, note.fret / 12);
+        const duration = note.beatDuration * quarterDuration;
+        const velocity = note.accent ? 0.9 : 0.6;
+
+        events.push({ 
+          time, 
+          type: 'solo_web_audio',
+          freq,
+          duration,
+          velocity,
+          barIndex: Math.floor(note.beatStart / beatsPerBar) // 🔥 ДОБАВЛЕНО
+        });
+
+        stats.pushed++;
+        const durKey = `${note.duration ?? 'unknown'}:${duration.toFixed(3)}`;
+        stats.durations[durKey] = (stats.durations[durKey] || 0) + 1;
       });
+
+      // В консоль: сколько нот и какие длительности чаще всего попадают в Audio.
+      console.log('[SoloGenerator] stats', stats);
+      // Покажем top-10 длительностей
+      console.log('[SoloGenerator] durationsTop', Object.entries(stats.durations).sort((a,b)=>b[1]-a[1]).slice(0,10));
     }
 
     if (isDrumOn && drumPattern) {
@@ -517,6 +543,23 @@ const SoloGenerator: React.FC = () => {
     startTimeRef.current = Tone.now();
 
     const drawPlayhead = () => {
+      // DAW-like автоскролл по вертикали за подсвеченной нотой
+      try {
+        if (tabContainerRef.current && isPlaying && isSoloOn && soloData) {
+          const activeIndex = Math.floor(playbackProgress * soloData.notes.length);
+          const activeNote = soloData.notes[activeIndex];
+          if (activeNote && !activeNote.isRest) {
+            // В TablatureDisplay координата Y: startY + string * stringSpacing
+            // В SoloGenerator мы передаем height=280 и noteSpacing=dynamic; по факту stringSpacing=compact? 26/45 не прокидывается,
+            // поэтому используем эмпирическую привязку к высоте контента через note.string.
+            const stringY = activeNote.string; // 0..5
+            const target = stringY * 26; // базовый шаг на строку внутри TablatureDisplay
+            tabContainerRef.current.scrollTop = Math.max(0, target - 80);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
       if (Tone.Transport.state !== 'started') return;
       
       const elapsed = Tone.now() - startTimeRef.current;
@@ -536,7 +579,7 @@ const SoloGenerator: React.FC = () => {
     playheadAnimRef.current = requestAnimationFrame(drawPlayhead);
   };
 
-  const togglePlayBtn = async (e: React.MouseEvent) => {
+const togglePlayBtn = async (e: React.MouseEvent) => {
     (e.currentTarget as HTMLButtonElement).blur();
     if (!soloData) return;
     
@@ -652,6 +695,46 @@ const SoloGenerator: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
           <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
+        </div>
+
+        {/* Дублируем выбор размера (takt/timeSignature) прямо в секции TEMPO */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>Takt</span>
+          <select
+            value={timeSignature.beats}
+            onChange={(e) => setTimeSignature({ ...timeSignature, beats: Number(e.target.value) })}
+            style={{
+              background: '#111216',
+              color: '#fff',
+              border: '1px solid var(--border-color)',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {[2, 3, 4, 6].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 900 }}>/</span>
+          <select
+            value={timeSignature.noteValue}
+            onChange={(e) => setTimeSignature({ ...timeSignature, noteValue: Number(e.target.value) })}
+            style={{
+              background: '#111216',
+              color: '#fff',
+              border: '1px solid var(--border-color)',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {[2, 4, 8].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
         </div>
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
           <input type="checkbox" checked={isChordsOn} onChange={e => setIsChordsOn(e.target.checked)} /> Chords Backing
@@ -1042,7 +1125,7 @@ const SoloGenerator: React.FC = () => {
                     width: '100%', 
                     height: '100%', 
                     overflowX: 'auto',
-                    overflowY: 'hidden',
+                    overflowY: 'auto',
                     scrollBehavior: 'smooth',
                     msOverflowStyle: 'none',
                     scrollbarWidth: 'thin',
@@ -1070,6 +1153,7 @@ const SoloGenerator: React.FC = () => {
                     activeStep={isPlaying && isSoloOn ? Math.floor(playbackProgress * soloData.notes.length) : -1} 
                     height={280} 
                     noteSpacing={noteSpacing}
+                    compact={false}
                   />
                 </div>
               </foreignObject>
@@ -1248,4 +1332,4 @@ const SoloGenerator: React.FC = () => {
   );
 };
 
-export default SoloGenerator;
+export default SoloGenerator;   
