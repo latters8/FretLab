@@ -648,18 +648,58 @@ const SoloGenerator: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', padding: '10px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
-          <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isChordsOn} onChange={e => setIsChordsOn(e.target.checked)} /> Chords Backing
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isSoloOn} onChange={e => setIsSoloOn(e.target.checked)} /> Lead Solo
-        </label>
-      </div>
+<div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', padding: '10px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%' }}>
+  
+  {/* TEMPO */}
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
+    <input 
+      type="number" 
+      value={bpm} 
+      onChange={e => setBpm(Number(e.target.value))} 
+      style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} 
+    />
+  </div>
+
+  {/* 🔥 ВЫБОР РАЗМЕРА (СВЯЗАН С МЕТРОНОМОМ) */}
+  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+    <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TIME</span>
+    <select 
+      value={`${timeSignature.beats}/${timeSignature.noteValue}`}
+      onChange={e => {
+        const [beats, noteValue] = e.target.value.split('/').map(Number);
+        setTimeSignature({ beats, noteValue });
+      }}
+      style={{ 
+        background: 'var(--bg-secondary)', 
+        color: '#fff', 
+        border: '1px solid var(--border-color)', 
+        borderRadius: '4px', 
+        padding: '4px 8px',
+        fontSize: '13px',
+        fontWeight: 700,
+        cursor: 'pointer',
+        outline: 'none'
+      }}
+    >
+      <option value="4/4">4/4</option>
+      <option value="3/4">3/4</option>
+      <option value="2/4">2/4</option>
+      <option value="6/8">6/8</option>
+      <option value="5/4">5/4</option>
+      <option value="7/4">7/4</option>
+      <option value="12/8">12/8</option>
+    </select>
+  </div>
+
+  {/* Чекбоксы */}
+  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+    <input type="checkbox" checked={isChordsOn} onChange={e => setIsChordsOn(e.target.checked)} /> Chords Backing
+  </label>
+  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
+    <input type="checkbox" checked={isSoloOn} onChange={e => setIsSoloOn(e.target.checked)} /> Lead Solo
+  </label>
+</div>
 
       {/* 🔥 Секция барабанов с кнопками Random */}
       <div style={{ 

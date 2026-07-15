@@ -16,6 +16,13 @@ interface ChatMessage {
   options?: TrackOption[];
   platformOptions?: { platform: VideoPlatform; label: string; icon: string }[];
   searchQuery?: string;
+  tipData?: {  // 🔥 НОВОЕ: данные для отображения совета в красивом формате
+    title?: string;
+    category?: string;
+    berkleeTip?: string;
+    actionable?: string;
+    relatedArtists?: string[];
+  };
 }
 
 const HINTS = [
@@ -44,6 +51,199 @@ const WELCOME_MESSAGE = {
         "• Генерировать табы: *«Придумай фразу в Dorian»*\n\n" +
         "Напиши свой запрос или выбери одно из действий ниже 👇"
 };
+
+// ============================================================
+// 🔥 НОВЫЙ КОМПОНЕНТ — ОТОБРАЖЕНИЕ СОВЕТА В СТИЛЕ BERKLEE
+// ============================================================
+
+const TipDisplay: React.FC<{ 
+  text: string;
+  tipData?: {
+    title?: string;
+    category?: string;
+    berkleeTip?: string;
+    actionable?: string;
+    relatedArtists?: string[];
+  };
+}> = ({ text, tipData }) => {
+  // Определяем, есть ли в тексте маркеры Berklee или TouchGrass
+  const hasBerklee = text.includes('Berklee') || text.includes('🎓');
+  const hasTouchGrass = text.includes('TouchGrass') || text.includes('🌿');
+
+  // Извлекаем заголовок (первая строка до \n или : )
+  const lines = text.split('\n').filter(line => line.trim().length > 0);
+  const titleLine = lines.find(line => 
+    line.includes(':') || 
+    line.match(/^[A-ZА-Я][a-zа-я]+/) ||
+    line.match(/^[🎸🤘🎵🌀🎹🎯🔥🥁⚡🌊🎩📝🧠🌿]/)
+  );
+  
+  let title = tipData?.title || '';
+  let description = text;
+  
+  // Если есть заголовок в тексте (формат "Заголовок: описание")
+  if (titleLine && titleLine.includes(':')) {
+    const parts = titleLine.split(':');
+    title = parts[0].trim();
+    description = text.replace(titleLine, parts.slice(1).join(':').trim()).trim();
+  } else if (tipData?.title) {
+    title = tipData.title;
+    description = text;
+  }
+
+  // Получаем категорию
+  const category = tipData?.category || 'Совет';
+  const categoryEmojis: Record<string, string> = {
+    'technique': '🎸',
+    'harmony': '🎹',
+    'rhythm': '🥁',
+    'dynamics': '🌊',
+    'style': '🎩',
+    'practice': '📝',
+    'touchgrass': '🌿',
+    'general': '💡'
+  };
+  const categoryEmoji = categoryEmojis[category] || '💡';
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(0,255,157,0.04), rgba(0,255,157,0.01))',
+      border: '1px solid rgba(0,255,157,0.08)',
+      borderRadius: '16px',
+      padding: '14px 18px',
+      maxWidth: '95%',
+      width: '100%',
+      fontSize: '13px',
+      lineHeight: '1.6',
+      color: 'var(--text-primary)',
+      marginTop: '4px',
+    }}>
+      {/* Заголовок с категорией */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '6px',
+      }}>
+        <span style={{ fontSize: '18px' }}>{categoryEmoji}</span>
+        <span style={{
+          fontSize: '11px',
+          fontWeight: 700,
+          color: 'var(--accent)',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          opacity: 0.7,
+          background: 'rgba(0,255,157,0.08)',
+          padding: '2px 10px',
+          borderRadius: '12px',
+        }}>
+          {category}
+        </span>
+        {tipData?.relatedArtists && tipData.relatedArtists.length > 0 && (
+          <span style={{
+            fontSize: '10px',
+            color: 'var(--text-muted)',
+            opacity: 0.5,
+            marginLeft: 'auto',
+          }}>
+            🎤 {tipData.relatedArtists.slice(0, 2).join(' · ')}
+          </span>
+        )}
+      </div>
+
+      {/* Заголовок совета */}
+      {title && (
+        <div style={{
+          fontSize: '16px',
+          fontWeight: 800,
+          color: 'var(--text-primary)',
+          marginBottom: '6px',
+          letterSpacing: '-0.3px',
+        }}>
+          {title}
+        </div>
+      )}
+
+      {/* Описание */}
+      <div style={{
+        color: 'var(--text-secondary)',
+        fontSize: '13px',
+        lineHeight: '1.6',
+        marginBottom: '8px',
+        whiteSpace: 'pre-wrap',
+      }}>
+        {description}
+      </div>
+
+      {/* Практическое действие (actionable) */}
+      {tipData?.actionable && (
+        <div style={{
+          background: 'rgba(0,255,157,0.06)',
+          borderLeft: '3px solid var(--accent)',
+          padding: '6px 12px',
+          borderRadius: '4px',
+          marginBottom: '8px',
+          fontSize: '12px',
+          color: 'var(--text-primary)',
+        }}>
+          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>🎯 Практика:</span> {tipData.actionable}
+        </div>
+      )}
+
+      {/* Цитата Berklee */}
+      {tipData?.berkleeTip && (
+        <div style={{
+          marginTop: '6px',
+          paddingTop: '8px',
+          borderTop: '1px solid rgba(0,255,157,0.08)',
+          fontSize: '12px',
+          fontStyle: 'italic',
+          color: 'var(--text-muted)',
+          opacity: 0.8,
+        }}>
+          <span style={{ color: 'var(--accent)', fontWeight: 700 }}>🎓</span> “{tipData.berkleeTip}”
+        </div>
+      )}
+
+      {/* Брендирование TouchGrass */}
+      {hasTouchGrass && (
+        <div style={{
+          marginTop: '6px',
+          fontSize: '10px',
+          color: '#6bcb77',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          opacity: 0.5,
+          display: 'flex',
+          alignItems: 'center',
+          gap: '4px',
+        }}>
+          <span>🌿</span> TouchGrass Philosophy
+        </div>
+      )}
+
+      {/* Брендирование Berklee */}
+      {hasBerklee && !tipData?.berkleeTip && (
+        <div style={{
+          marginTop: '4px',
+          fontSize: '10px',
+          color: 'var(--accent)',
+          fontWeight: 700,
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+          opacity: 0.5,
+        }}>
+          🎓 Berklee Tip
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ============================================================
+// 🔥 КОМПОНЕНТЫ ВЫБОРА
+// ============================================================
 
 const PlatformSelector: React.FC<{ 
   platforms: { platform: VideoPlatform; label: string; icon: string }[];
@@ -172,6 +372,10 @@ const QuickPrompts: React.FC<{ onSelect: (query: string) => void }> = ({ onSelec
   );
 };
 
+// ============================================================
+// 🔥 ОСНОВНОЙ КОМПОНЕНТ AISearchBar
+// ============================================================
+
 const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -264,12 +468,29 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
 
     try {
       const res = await processAIQuery(userText);
+      
+      // 🔥 Проверяем, является ли ответ советом (содержит маркеры Berklee или TouchGrass)
+      const isTip = res.text.includes('Berklee') || 
+                    res.text.includes('TouchGrass') || 
+                    res.text.includes('🎓') || 
+                    res.text.includes('🌿') ||
+                    res.text.includes('Практика:') ||
+                    res.text.includes('Совет');
+      
       addMessage({
         role: 'ai',
         text: res.text,
         options: res.options,
         platformOptions: res.platformOptions,
         searchQuery: res.searchQuery,
+        // 🔥 Если это совет — добавляем метаданные для красивого отображения
+        tipData: isTip ? {
+          title: extractTipTitle(res.text),
+          category: detectTipCategory(res.text),
+          berkleeTip: extractBerkleeQuote(res.text),
+          actionable: extractActionable(res.text),
+          relatedArtists: extractArtists(res.text),
+        } : undefined,
       });
       if (res.action) handleAction(res.action);
     } catch (error) {
@@ -278,6 +499,75 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
       setIsLoading(false);
     }
   };
+
+  // ============================================================
+  // 🔥 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ИЗВЛЕЧЕНИЯ ДАННЫХ ИЗ ТЕКСТА
+  // ============================================================
+
+  const extractTipTitle = (text: string): string => {
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    const titleLine = lines.find(line => 
+      line.includes(':') && !line.includes('Berklee') && !line.includes('TouchGrass')
+    );
+    if (titleLine && titleLine.includes(':')) {
+      return titleLine.split(':')[0].trim();
+    }
+    // Ищем первую строку без эмодзи в начале
+    const cleanLine = lines.find(line => 
+      !line.match(/^[🤖🎸🤘🎵🌀🎹🎯🔥🥁⚡🌊🎩📝🧠🌿💡]/) && 
+      line.length > 5 && 
+      line.length < 60
+    );
+    return cleanLine ? cleanLine.trim() : 'Совет от TouchGrass';
+  };
+
+  const detectTipCategory = (text: string): string => {
+    const lower = text.toLowerCase();
+    if (lower.includes('техник') || lower.includes('бенд') || lower.includes('легат') || lower.includes('вибрат')) return 'technique';
+    if (lower.includes('гармон') || lower.includes('аккорд') || lower.includes('арпеджи') || lower.includes('тональн')) return 'harmony';
+    if (lower.includes('ритм') || lower.includes('синкоп') || lower.includes('темп') || lower.includes('метр')) return 'rhythm';
+    if (lower.includes('динамик') || lower.includes('громк') || lower.includes('тих')) return 'dynamics';
+    if (lower.includes('стиль') || lower.includes('джаз') || lower.includes('блюз') || lower.includes('рок')) return 'style';
+    if (lower.includes('практик') || lower.includes('упражн') || lower.includes('ежедн') || lower.includes('запис')) return 'practice';
+    if (lower.includes('touchgrass') || lower.includes('трав') || lower.includes('парк') || lower.includes('свеж')) return 'touchgrass';
+    return 'general';
+  };
+
+  const extractBerkleeQuote = (text: string): string | undefined => {
+    const match = text.match(/["„]([^"„"]+)["”]/);
+    if (match) return match[1];
+    // Ищем строку с Berklee
+    const lines = text.split('\n');
+    const berkleeLine = lines.find(line => line.includes('Berklee'));
+    if (berkleeLine) {
+      const clean = berkleeLine.replace(/[🎓BerkleeTip]/g, '').trim();
+      if (clean.length > 0 && clean.length < 100) return clean;
+    }
+    return undefined;
+  };
+
+  const extractActionable = (text: string): string | undefined => {
+    const lines = text.split('\n');
+    for (const line of lines) {
+      if (line.includes('Практика:') || line.includes('🎯') || line.includes('Сделай:')) {
+        const clean = line.replace(/[🎯Практика:]/g, '').trim();
+        if (clean.length > 0 && clean.length < 80) return clean;
+      }
+    }
+    return undefined;
+  };
+
+  const extractArtists = (text: string): string[] | undefined => {
+    const match = text.match(/[🎤|:]?\s*([A-Z][a-z]+ [A-Z][a-z]+|[A-Z][a-z]+\s[A-Z][a-z]+|[A-Z]\. [A-Z][a-z]+)/g);
+    if (match) {
+      return match.slice(0, 3).map(a => a.replace(/[🎤|:]/g, '').trim()).filter(Boolean);
+    }
+    return undefined;
+  };
+
+  // ============================================================
+  // 🔥 ОБРАБОТЧИКИ СОБЫТИЙ
+  // ============================================================
 
   const handleOptionSelect = (opt: TrackOption) => {
     if (!opt.action) return;
@@ -330,6 +620,10 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
     setMessages([]);
     setHasWelcomed(false);
   };
+
+  // ============================================================
+  // 🔥 РЕНДЕР
+  // ============================================================
 
   return (
     <div ref={wrapperRef} style={{ width: '100%', maxWidth: '600px', position: 'relative' }}>
@@ -415,7 +709,7 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           background: 'var(--bg-panel)',
           border: '1px solid var(--border-color)',
           borderRadius: '16px',
-          maxHeight: '400px',
+          maxHeight: '450px',
           overflowY: 'auto',
           padding: '16px',
           boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
@@ -453,33 +747,67 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
                 flexDirection: 'column',
                 alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
                 marginBottom: '12px',
+                width: '100%',
               }}
             >
-              <div
-                style={{
-                  background: msg.role === 'user' ? 'var(--accent)' : 'rgba(255,255,255,0.04)',
-                  color: msg.role === 'user' ? '#000' : 'var(--text-primary)',
-                  padding: '10px 14px',
-                  borderRadius: msg.role === 'user' ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-                  maxWidth: '90%',
-                  fontSize: '13px',
-                  lineHeight: '1.5',
-                  fontWeight: msg.role === 'user' ? 700 : 400,
-                  border: msg.role === 'ai' ? '1px solid rgba(255,255,255,0.04)' : 'none',
-                }}
-              >
-                {msg.text}
-              </div>
-
-              {msg.options && (
-                <OptionsRenderer options={msg.options} onSelect={handleOptionSelect} />
+              {/* Сообщение пользователя */}
+              {msg.role === 'user' && (
+                <div
+                  style={{
+                    background: 'var(--accent)',
+                    color: '#000',
+                    padding: '10px 14px',
+                    borderRadius: '16px 16px 4px 16px',
+                    maxWidth: '85%',
+                    fontSize: '13px',
+                    lineHeight: '1.5',
+                    fontWeight: 700,
+                  }}
+                >
+                  {msg.text}
+                </div>
               )}
 
-              {msg.platformOptions && msg.searchQuery && (
-                <PlatformSelector
-                  platforms={msg.platformOptions}
-                  onSelect={(p) => handlePlatformSelect(p, msg.searchQuery!)}
-                />
+              {/* Сообщение AI */}
+              {msg.role === 'ai' && (
+                <>
+                  {/* 🔥 Если это совет — используем TipDisplay */}
+                  {msg.tipData ? (
+                    <TipDisplay 
+                      text={msg.text} 
+                      tipData={msg.tipData}
+                    />
+                  ) : (
+                    // Обычное сообщение
+                    <div
+                      style={{
+                        background: 'rgba(255,255,255,0.04)',
+                        border: '1px solid rgba(255,255,255,0.04)',
+                        color: 'var(--text-primary)',
+                        padding: '10px 14px',
+                        borderRadius: '16px 16px 16px 4px',
+                        maxWidth: '95%',
+                        fontSize: '13px',
+                        lineHeight: '1.5',
+                        fontWeight: 400,
+                        whiteSpace: 'pre-wrap',
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                  )}
+
+                  {/* Опции и платформы */}
+                  {msg.options && (
+                    <OptionsRenderer options={msg.options} onSelect={handleOptionSelect} />
+                  )}
+                  {msg.platformOptions && msg.searchQuery && (
+                    <PlatformSelector
+                      platforms={msg.platformOptions}
+                      onSelect={(p) => handlePlatformSelect(p, msg.searchQuery!)}
+                    />
+                  )}
+                </>
               )}
             </div>
           ))}
