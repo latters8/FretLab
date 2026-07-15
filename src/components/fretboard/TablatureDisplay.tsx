@@ -29,31 +29,72 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
   const startX = compact ? 60 : 80;
   const noteSize = compact ? 24 : 32; 
 
-  // Функция для определения длительности и флажков
+  // ============================================
+  // 🔥 РАСШИРЕННАЯ ФУНКЦИЯ ДЛИТЕЛЬНОСТЕЙ
+  // ============================================
   const getDurationInfo = (duration: string) => {
+    // Нормализация: убираем 'n' если есть
+    const normalized = duration.replace('n', '');
+    
     const durationMap: Record<string, { value: number; flagCount: number; label: string }> = {
+      // Полные названия
       'whole': { value: 4, flagCount: 0, label: 'whole' },
       'half': { value: 2, flagCount: 0, label: 'half' },
       'quarter': { value: 1, flagCount: 0, label: 'quarter' },
       'eighth': { value: 0.5, flagCount: 1, label: 'eighth' },
       'sixteenth': { value: 0.25, flagCount: 2, label: 'sixteenth' },
       'thirtysecond': { value: 0.125, flagCount: 3, label: 'thirtysecond' },
+      
+      // Числовые форматы (Tone.js)
+      '1': { value: 4, flagCount: 0, label: 'whole' },
+      '2': { value: 2, flagCount: 0, label: 'half' },
+      '4': { value: 1, flagCount: 0, label: 'quarter' },
+      '8': { value: 0.5, flagCount: 1, label: 'eighth' },
+      '16': { value: 0.25, flagCount: 2, label: 'sixteenth' },
+      '32': { value: 0.125, flagCount: 3, label: 'thirtysecond' },
+      
+      // Форматы с 'n' на конце
+      '1n': { value: 4, flagCount: 0, label: 'whole' },
+      '2n': { value: 2, flagCount: 0, label: 'half' },
+      '4n': { value: 1, flagCount: 0, label: 'quarter' },
+      '8n': { value: 0.5, flagCount: 1, label: 'eighth' },
+      '16n': { value: 0.25, flagCount: 2, label: 'sixteenth' },
+      '32n': { value: 0.125, flagCount: 3, label: 'thirtysecond' },
     };
-    return durationMap[duration] || { value: 1, flagCount: 0, label: 'quarter' };
+    
+    // Сначала ищем по нормализованному имени, потом по исходному
+    const result = durationMap[normalized] || durationMap[duration] || { value: 1, flagCount: 0, label: 'quarter' };
+    
+    // Для отладки (раскомментировать если нужно)
+    // console.log(`Duration: ${duration} → flagCount: ${result.flagCount}`);
+    
+    return result;
   };
 
-  // Цвет в зависимости от длительности
+  // ============================================
+  // 🔥 РАСШИРЕННАЯ ФУНКЦИЯ ЦВЕТА
+  // ============================================
   const getDurationColor = (duration: string, isActive: boolean) => {
     if (isActive) return 'var(--accent)';
+    
+    const normalized = duration.replace('n', '');
+    
     const colors: Record<string, string> = {
       'whole': '#9b59b6',
+      '1': '#9b59b6',
       'half': '#4d96ff',
+      '2': '#4d96ff',
       'quarter': '#6bcb77',
+      '4': '#6bcb77',
       'eighth': '#ffd93d',
+      '8': '#ffd93d',
       'sixteenth': '#ff6b6b',
+      '16': '#ff6b6b',
       'thirtysecond': '#ff4757',
+      '32': '#ff4757',
     };
-    return colors[duration] || '#6bcb77';
+    
+    return colors[normalized] || colors[duration] || '#6bcb77';
   };
 
   if (!notes || notes.length === 0) {
@@ -82,6 +123,7 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
       )}
 
       <svg width={totalWidth} height={height} style={{ minWidth: '100%', display: 'block' }}>
+        {/* Линии струн */}
         {showStrings && [0, 1, 2, 3, 4, 5].map((i) => (
           <g key={`string-${i}`}>
             <line 
@@ -103,6 +145,7 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
           </g>
         ))}
 
+        {/* Ноты */}
         {notes.map((note, index) => {
           const x = startX + index * noteSpacing;
           const y = startY + note.string * stringSpacing;
@@ -147,7 +190,7 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
                 />
               )}
 
-              {/* ===== ФЛАЖКИ ===== */}
+              {/* ===== ФЛАЖКИ (ХВОСТИКИ) ===== */}
               {flagCount === 1 && (
                 <path
                   d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
@@ -225,8 +268,8 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
                 <circle cx={x} cy={y} r={isAccent ? 6 : 4} fill={isActive ? "var(--accent)" : "var(--text-primary)"} />
               )}
 
-              {/* Головка ноты (маленький кружок под цифрой) */}
-              {!isWhole && (
+              {/* Головка ноты (маленький кружок под цифрой) — УБРАН ПО ВАШЕЙ ПРОСЬБЕ */}
+              {/* {!isWhole && (
                 <circle
                   cx={x}
                   cy={y + 8}
@@ -236,10 +279,10 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
                   strokeWidth={1.5}
                   opacity={0.6}
                 />
-              )}
+              )} */}
 
-              {/* Точка (увеличение длительности) */}
-              {note.duration === 'dotted-half' || note.duration === 'dotted-quarter' && (
+              {/* Точка (увеличение длительности) — УБРАНА ПО ВАШЕЙ ПРОСЬБЕ */}
+              {/* {note.duration === 'dotted-half' || note.duration === 'dotted-quarter' && (
                 <circle
                   cx={x + noteSize/2 + 4}
                   cy={y + 8}
@@ -247,7 +290,7 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
                   fill={isActive ? 'var(--accent)' : durationColor}
                   opacity={0.6}
                 />
-              )}
+              )} */}
 
               {/* Техники */}
               {note.technique === 'vibrato' && (
