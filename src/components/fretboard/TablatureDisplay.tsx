@@ -18,17 +18,43 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
   notes,
   activeStep = -1,
   isGenerating = false,
-  height = 200, // 🔥 Увеличили общую высоту
-  noteSpacing = 85, // 🔥 Увеличили шаг между нотами (было 70)
+  height = 200,
+  noteSpacing = 85,
   showStrings = true,
   showFretNumbers = true,
   compact = false
 }) => {
-  // 🔥 КРИТИЧЕСКОЕ ИСПРАВЛЕНИЕ РАЗМЕРОВ (УВЕЛИЧЕНО НА ~30%)
   const stringSpacing = compact ? 20 : 26; 
   const startY = compact ? 30 : 45;
   const startX = compact ? 60 : 80;
   const noteSize = compact ? 24 : 32; 
+
+  // Функция для определения длительности и флажков
+  const getDurationInfo = (duration: string) => {
+    const durationMap: Record<string, { value: number; flagCount: number; label: string }> = {
+      'whole': { value: 4, flagCount: 0, label: 'whole' },
+      'half': { value: 2, flagCount: 0, label: 'half' },
+      'quarter': { value: 1, flagCount: 0, label: 'quarter' },
+      'eighth': { value: 0.5, flagCount: 1, label: 'eighth' },
+      'sixteenth': { value: 0.25, flagCount: 2, label: 'sixteenth' },
+      'thirtysecond': { value: 0.125, flagCount: 3, label: 'thirtysecond' },
+    };
+    return durationMap[duration] || { value: 1, flagCount: 0, label: 'quarter' };
+  };
+
+  // Цвет в зависимости от длительности
+  const getDurationColor = (duration: string, isActive: boolean) => {
+    if (isActive) return 'var(--accent)';
+    const colors: Record<string, string> = {
+      'whole': '#9b59b6',
+      'half': '#4d96ff',
+      'quarter': '#6bcb77',
+      'eighth': '#ffd93d',
+      'sixteenth': '#ff6b6b',
+      'thirtysecond': '#ff4757',
+    };
+    return colors[duration] || '#6bcb77';
+  };
 
   if (!notes || notes.length === 0) {
     return (
@@ -85,6 +111,13 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
           const isMuted = note.technique === 'mute' || note.technique === 'ghost';
           const isLegato = note.technique === 'hammer' || note.technique === 'pull';
           
+          // Получаем информацию о длительности
+          const durationInfo = getDurationInfo(note.duration || 'quarter');
+          const durationColor = getDurationColor(note.duration || 'quarter', isActive);
+          const flagCount = durationInfo.flagCount;
+          const isFilled = durationInfo.value <= 1;
+          const isWhole = durationInfo.value >= 4;
+          
           if (note.isRest) {
             return (
               <g key={index} style={{ transition: 'all 0.2s', opacity: isActive ? 1 : 0.6 }}>
@@ -95,34 +128,92 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
           }
 
           const stemBottomY = startY + 6 * stringSpacing + (compact ? 10 : 15);
+          const stemDirection = note.string <= 2 ? 'up' : 'down';
+          const stemX = x + (stemDirection === 'up' ? 6 : -6);
+          const stemStartY = y + 12;
+          const stemEndY = stemBottomY;
 
           return (
             <g key={index} style={{ transition: 'all 0.1s', opacity: isMuted ? 0.6 : 1 }}>
-              <line 
-                x1={x} y1={y + 12} 
-                x2={x} y2={stemBottomY} 
-                stroke={isActive ? "var(--accent)" : "var(--text-muted)"} 
-                strokeWidth="2" 
-              />
+              
+              {/* ===== ШТИЛЬ ===== */}
+              {!isWhole && (
+                <line 
+                  x1={stemX} y1={stemStartY} 
+                  x2={stemX} y2={stemEndY} 
+                  stroke={isActive ? "var(--accent)" : durationColor} 
+                  strokeWidth="2.5" 
+                  strokeLinecap="round"
+                />
+              )}
 
-              {note.duration === 'eighth' || note.duration === 'sixteenth' ? (
-                <line x1={x} y1={stemBottomY} x2={x + 15} y2={stemBottomY - 5} stroke={isActive ? "var(--accent)" : "var(--text-muted)"} strokeWidth="2.5" />
-              ) : null}
-              {note.duration === 'sixteenth' ? (
-                <line x1={x} y1={stemBottomY - 6} x2={x + 15} y2={stemBottomY - 11} stroke={isActive ? "var(--accent)" : "var(--text-muted)"} strokeWidth="2.5" />
-              ) : null}
+              {/* ===== ФЛАЖКИ ===== */}
+              {flagCount === 1 && (
+                <path
+                  d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                  fill="none"
+                  stroke={isActive ? "var(--accent)" : durationColor}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                />
+              )}
+              {flagCount === 2 && (
+                <>
+                  <path
+                    d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                    fill="none"
+                    stroke={isActive ? "var(--accent)" : durationColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={`M ${stemX + 3} ${stemEndY + 12} Q ${stemX + 15} ${stemEndY + 6} ${stemX + 13} ${stemEndY + 20}`}
+                    fill="none"
+                    stroke={isActive ? "var(--accent)" : durationColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </>
+              )}
+              {flagCount === 3 && (
+                <>
+                  <path
+                    d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                    fill="none"
+                    stroke={isActive ? "var(--accent)" : durationColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={`M ${stemX + 3} ${stemEndY + 12} Q ${stemX + 15} ${stemEndY + 6} ${stemX + 13} ${stemEndY + 20}`}
+                    fill="none"
+                    stroke={isActive ? "var(--accent)" : durationColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                  <path
+                    d={`M ${stemX + 4} ${stemEndY + 24} Q ${stemX + 16} ${stemEndY + 18} ${stemX + 14} ${stemEndY + 32}`}
+                    fill="none"
+                    stroke={isActive ? "var(--accent)" : durationColor}
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </>
+              )}
 
-              {/* Фон цифры, чтобы перекрыть линию струны */}
+              {/* Фон цифры */}
               <rect x={x - noteSize/2} y={y - noteSize/2} width={noteSize} height={noteSize} fill="#111216" rx="4" />
 
+              {/* Подсветка активной ноты */}
               {isActive && (
                 <circle cx={x} cy={y} r={noteSize/2 + 6} fill="var(--accent)" opacity="0.8" style={{ filter: 'drop-shadow(0 0 16px var(--accent))' }} />
               )}
 
+              {/* Цифра лада */}
               {showFretNumbers ? (
                 <text 
                   x={x} y={y + (compact ? 5 : 6)} 
-                  fill={isActive ? '#000' : (isLegato ? 'var(--accent)' : (note.technique !== 'none' && note.technique !== 'mute' ? 'var(--accent)' : 'var(--text-primary)'))} 
+                  fill={isActive ? '#000' : (isLegato ? 'var(--accent)' : (note.technique !== 'none' && note.technique !== 'mute' ? durationColor : 'var(--text-primary)'))} 
                   fontSize={isActive ? "20" : "18"} 
                   fontWeight={900} 
                   fontFamily="monospace" 
@@ -134,7 +225,31 @@ const TablatureDisplay: React.FC<TablatureDisplayProps> = ({
                 <circle cx={x} cy={y} r={isAccent ? 6 : 4} fill={isActive ? "var(--accent)" : "var(--text-primary)"} />
               )}
 
-              {/* Отрисовка техник (вибрато, слайды и т.д.) */}
+              {/* Головка ноты (маленький кружок под цифрой) */}
+              {!isWhole && (
+                <circle
+                  cx={x}
+                  cy={y + 8}
+                  r={isFilled ? 4 : 5}
+                  fill={isFilled ? (isActive ? 'var(--accent)' : durationColor) : 'transparent'}
+                  stroke={isActive ? 'var(--accent)' : durationColor}
+                  strokeWidth={1.5}
+                  opacity={0.6}
+                />
+              )}
+
+              {/* Точка (увеличение длительности) */}
+              {note.duration === 'dotted-half' || note.duration === 'dotted-quarter' && (
+                <circle
+                  cx={x + noteSize/2 + 4}
+                  cy={y + 8}
+                  r={2.5}
+                  fill={isActive ? 'var(--accent)' : durationColor}
+                  opacity={0.6}
+                />
+              )}
+
+              {/* Техники */}
               {note.technique === 'vibrato' && (
                 <path d={`M ${x-8} ${y-18} Q ${x-4} ${y-22} ${x} ${y-18} T ${x+8} ${y-18}`} fill="transparent" stroke="var(--accent)" strokeWidth="2"/>
               )}

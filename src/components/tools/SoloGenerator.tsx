@@ -38,8 +38,13 @@ const SoloGenerator: React.FC = () => {
   const [drumVelocity, setDrumVelocity] = useState<number>(0.8);
   const [drumPatternNames, setDrumPatternNames] = useState<string[]>(Object.keys(DrumPatterns));
 
+  // 🎲 Состояния для рандома
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomHistory, setRandomHistory] = useState<DrumPattern[]>([]);
+
+  // 🎯 Состояния для SOLO трека и скролла
+  const [currentPlayBar, setCurrentPlayBar] = useState<number>(-1);
+  const tabContainerRef = useRef<HTMLDivElement | null>(null);
 
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
@@ -47,19 +52,17 @@ const SoloGenerator: React.FC = () => {
   const menuRef = useRef<HTMLDivElement | null>(null);
 
   // ============================================
-  // 🔥 АВТОСКРОЛЛ
+  // 📊 ПОЛУЧЕНИЕ НОТ ДЛЯ КОНКРЕТНОГО ТАКТА
   // ============================================
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
-
-  useEffect(() => {
-    if (!isPlaying || !containerRef.current) return;
-    const container = containerRef.current;
-    const scrollWidth = container.scrollWidth - container.clientWidth;
-    const targetScroll = playbackProgress * scrollWidth;
-    setScrollPosition(targetScroll);
-    container.scrollTo({ left: targetScroll, behavior: 'smooth' });
-  }, [playbackProgress, isPlaying]);
+  const getNotesForBar = (barIndex: number) => {
+    if (!soloData || !soloData.notes) return [];
+    const beatsPerBar = timeSignature?.beats || 4;
+    const barStart = barIndex * beatsPerBar;
+    const barEnd = (barIndex + 1) * beatsPerBar;
+    return soloData.notes.filter((n: any) => 
+      n.beatStart >= barStart && n.beatStart < barEnd
+    );
+  };
 
   const getChordNotesLocal = (chordName: string, key: string): string[] => {
     let normalizedName = chordName;
@@ -234,7 +237,7 @@ const SoloGenerator: React.FC = () => {
   };
 
   // ============================================
-  // 🔄 МУТАЦИЯ
+  // 🔄 МУТАЦИЯ ТЕКУЩЕГО ПАТТЕРНА
   // ============================================
   const mutateCurrentPattern = () => {
     if (!drumPattern) return;
@@ -357,6 +360,7 @@ const SoloGenerator: React.FC = () => {
     cancelAnimationFrame(playheadAnimRef.current);
     setIsPlaying(false);
     setPlaybackProgress(0);
+    setCurrentPlayBar(-1);
   };
 
   const executeGeneration = (targetProgression: { name: string; notes: string[] }[]) => {
@@ -364,6 +368,7 @@ const SoloGenerator: React.FC = () => {
     setSoloData(null);
     setPlaybackProgress(0);
     setTips([]);
+    setCurrentPlayBar(-1);
 
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'G', 'A'];
@@ -414,6 +419,7 @@ const SoloGenerator: React.FC = () => {
     const totalDurationSec = data.totalBeats * quarterDuration;
     
     const events: any[] = [];
+    const beatsPerBar = timeSignature?.beats || 4;
 
     if (isChordsOn) {
       data.chords.forEach(chord => {
@@ -424,7 +430,8 @@ const SoloGenerator: React.FC = () => {
           time, 
           type: 'chord', 
           notes, 
-          duration: chord.durationBeats * quarterDuration * 0.95 
+          duration: chord.durationBeats * quarterDuration * 0.95,
+          barIndex: Math.floor(chord.beatStart / beatsPerBar)
         });
       });
     }
@@ -444,7 +451,8 @@ const SoloGenerator: React.FC = () => {
             type: 'solo_web_audio',
             freq,
             duration,
-            velocity 
+            velocity,
+            barIndex: Math.floor(note.beatStart / beatsPerBar)
           });
         }
       });
@@ -495,6 +503,10 @@ const SoloGenerator: React.FC = () => {
       } else if (value.type === 'drum') {
         audioManager.playDrumHit(value.drum, time, value.velocity);
       }
+      
+      if (value.barIndex !== undefined && value.barIndex !== currentPlayBar) {
+        setCurrentPlayBar(value.barIndex);
+      }
     }, events).start(0);
 
     sequencePartRef.current.loop = isLoopOn;
@@ -536,22 +548,23 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  const SVG_WIDTH = 1400; // 🔥 ФИКСИРОВАННАЯ ШИРИНА
-  const SVG_HEIGHT = 520; // 🔥 УВЕЛИЧЕННАЯ ВЫСОТА
+  const SVG_WIDTH = 1200;
+  const SVG_HEIGHT = 520;
   const TRACK_MARGIN_X = 20;
   const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;
-  const TAB_Y = 140;
+  const SOLO_Y = 90;
+  const TAB_Y = 160;
 
   const getNoteSpacing = () => {
-    if (!soloData) return 95; // 🔥 ФИКСИРОВАННЫЙ ШАГ
+    if (!soloData) return 85;
     const totalNotes = soloData.notes.filter(n => !n.isRest).length;
-    const totalBeats = soloData.totalBeats || 16;
+    const totalBeats = soloData.totalBeats;
     const idealNotes = totalBeats * 2;
-    const baseSpacing = 95;
-    const minSpacing = 45;
-    const maxSpacing = 130;
+    const baseSpacing = 85;
+    const minSpacing = 30;
+    const maxSpacing = 120;
     if (totalNotes === 0) return baseSpacing;
     const ratio = totalNotes / idealNotes;
     let spacing = baseSpacing / ratio;
@@ -646,7 +659,7 @@ const SoloGenerator: React.FC = () => {
         </label>
       </div>
 
-      {/* Секция барабанов */}
+      {/* 🔥 Секция барабанов с кнопками Random */}
       <div style={{ 
         display: 'flex', 
         gap: '12px', 
@@ -695,15 +708,63 @@ const SoloGenerator: React.FC = () => {
           })}
         </select>
 
-        <button onClick={generateRandomPattern} disabled={isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--accent)', background: isRandomizing ? 'var(--bg-secondary)' : 'var(--accent)', color: isRandomizing ? 'var(--text-muted)' : '#000', cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 800, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
+        <button
+          onClick={generateRandomPattern}
+          disabled={isRandomizing}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '1px solid var(--accent)',
+            background: isRandomizing ? 'var(--bg-secondary)' : 'var(--accent)',
+            color: isRandomizing ? 'var(--text-muted)' : '#000',
+            cursor: isRandomizing ? 'default' : 'pointer',
+            fontWeight: 800,
+            fontSize: '12px',
+            transition: '0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          title="Generate random pattern"
+        >
           {isRandomizing ? '⏳ ...' : '🎲 Random'}
         </button>
 
-        <button onClick={mutateCurrentPattern} disabled={!drumPattern || isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: drumPattern && !isRandomizing ? 'var(--text-primary)' : 'var(--text-muted)', cursor: drumPattern && !isRandomizing ? 'pointer' : 'default', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
+        <button
+          onClick={mutateCurrentPattern}
+          disabled={!drumPattern || isRandomizing}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '1px solid var(--border-color)',
+            background: 'transparent',
+            color: drumPattern && !isRandomizing ? 'var(--text-primary)' : 'var(--text-muted)',
+            cursor: drumPattern && !isRandomizing ? 'pointer' : 'default',
+            fontWeight: 600,
+            fontSize: '12px',
+            transition: '0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          title="Mutate current pattern"
+        >
           🔄 Mutate
         </button>
 
-        <button onClick={() => generateMultiplePatterns(5)} disabled={isRandomizing} style={{ padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent', color: isRandomizing ? 'var(--text-muted)' : 'var(--text-primary)', cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap' }}>
+        <button
+          onClick={() => generateMultiplePatterns(5)}
+          disabled={isRandomizing}
+          style={{
+            padding: '4px 12px',
+            borderRadius: '4px',
+            border: '1px solid var(--border-color)',
+            background: 'transparent',
+            color: isRandomizing ? 'var(--text-muted)' : 'var(--text-primary)',
+            cursor: isRandomizing ? 'default' : 'pointer',
+            fontWeight: 600,
+            fontSize: '12px',
+            transition: '0.2s',
+            whiteSpace: 'nowrap'
+          }}
+          title="Generate 5 random patterns and pick one"
+        >
           🎲 5x
         </button>
 
@@ -711,7 +772,34 @@ const SoloGenerator: React.FC = () => {
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>↺</span>
             {randomHistory.slice(-5).map((_, index) => (
-              <button key={index} onClick={() => restoreFromHistory(randomHistory.length - 1 - index)} style={{ width: '20px', height: '20px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s' }} title={`Restore pattern #${randomHistory.length - index}`} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}>
+              <button
+                key={index}
+                onClick={() => restoreFromHistory(randomHistory.length - 1 - index)}
+                style={{
+                  width: '20px',
+                  height: '20px',
+                  borderRadius: '50%',
+                  border: '1px solid var(--border-color)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)',
+                  cursor: 'pointer',
+                  fontSize: '10px',
+                  padding: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: '0.2s'
+                }}
+                title={`Restore pattern #${randomHistory.length - index}`}
+                onMouseEnter={e => {
+                  e.currentTarget.style.borderColor = 'var(--accent)';
+                  e.currentTarget.style.color = 'var(--accent)';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.borderColor = 'var(--border-color)';
+                  e.currentTarget.style.color = 'var(--text-muted)';
+                }}
+              >
                 {index + 1}
               </button>
             ))}
@@ -720,7 +808,15 @@ const SoloGenerator: React.FC = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>VOL</span>
-          <input type="range" min="0" max="1" step="0.05" value={drumVelocity} onChange={e => setDrumVelocity(Number(e.target.value))} style={{ width: '80px', accentColor: 'var(--accent)' }} />
+          <input 
+            type="range" 
+            min="0" 
+            max="1" 
+            step="0.05" 
+            value={drumVelocity}
+            onChange={e => setDrumVelocity(Number(e.target.value))}
+            style={{ width: '80px', accentColor: 'var(--accent)' }}
+          />
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', minWidth: '35px' }}>{Math.round(drumVelocity * 100)}%</span>
         </div>
 
@@ -729,29 +825,13 @@ const SoloGenerator: React.FC = () => {
         </div>
       </div>
 
-      {/* 🔥 Основной плеер SVG с ФИКСИРОВАННОЙ шириной */}
-      <div 
-        ref={containerRef}
-        style={{ 
-          width: '100%', 
-          background: '#090a0e', 
-          borderRadius: '12px', 
-          border: '1px solid var(--border-color)', 
-          overflowX: 'auto', 
-          overflowY: 'hidden',
-          position: 'relative', 
-          minHeight: `${SVG_HEIGHT}px`,
-          scrollBehavior: 'smooth'
-        }}
-      >
-        <div style={{ position: 'absolute', top: 0, right: 0, padding: '4px 8px', background: 'rgba(0,0,0,0.5)', borderRadius: '0 0 0 4px', fontSize: '9px', color: 'var(--text-muted)', zIndex: 10, pointerEvents: 'none', opacity: 0.5 }}>
-          {Math.round((scrollPosition / (containerRef.current?.scrollWidth || 1)) * 100)}%
-        </div>
-
+      {/* Основной плеер SVG */}
+      <div style={{ width: '100%', background: '#090a0e', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
         {soloData ? (
           <>
             <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block', minWidth: '100%' }}>
               
+              {/* ===== ТРЕК АККОРДОВ ===== */}
               {progression.map((chord, idx) => {
                 const x = TRACK_MARGIN_X + idx * BAR_WIDTH;
                 return (
@@ -792,15 +872,268 @@ const SoloGenerator: React.FC = () => {
               
               <line x1={SVG_WIDTH - TRACK_MARGIN_X} y1={CHORD_Y} x2={SVG_WIDTH - TRACK_MARGIN_X} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
 
-              {/* 🔥 ТАБУЛАТУРА С ФИКСИРОВАННЫМИ РАЗМЕРАМИ */}
-              <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={350}>
-                <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
+              {/* ===== ТРЕК SOLO С ШТИЛЯМИ ДЛИТЕЛЬНОСТЕЙ ===== */}
+              <rect x={TRACK_MARGIN_X} y={SOLO_Y - 10} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height="65" fill="rgba(255,255,255,0.01)" rx="4" />
+              <text x={TRACK_MARGIN_X + 8} y={SOLO_Y + 22} fill="var(--text-muted)" fontSize="10" fontWeight="700" opacity="0.5">SOLO</text>
+
+              {[0, 1, 2, 3].map(barIdx => {
+                const x = TRACK_MARGIN_X + barIdx * BAR_WIDTH;
+                const barNotes = getNotesForBar(barIdx);
+                const isActive = currentPlayBar === barIdx;
+                
+                return (
+                  <g key={`solo-bar-${barIdx}`}>
+                    <rect 
+                      x={x + 4} y={SOLO_Y} 
+                      width={BAR_WIDTH - 8} height="55" 
+                      fill={isActive ? 'rgba(0,255,157,0.06)' : 'rgba(255,255,255,0.02)'}
+                      rx="4"
+                      stroke={isActive ? 'rgba(0,255,157,0.2)' : 'rgba(255,255,255,0.04)'}
+                      strokeWidth={1}
+                    />
+                    
+                    {[0, 1, 2, 3, 4, 5].map(strIdx => {
+                      const strY = SOLO_Y + 8 + strIdx * 8;
+                      return (
+                        <line
+                          key={`str-${barIdx}-${strIdx}`}
+                          x1={x + 8}
+                          y1={strY}
+                          x2={x + BAR_WIDTH - 8}
+                          y2={strY}
+                          stroke="rgba(255,255,255,0.06)"
+                          strokeWidth={0.5}
+                        />
+                      );
+                    })}
+                    
+                    {['e', 'B', 'G', 'D', 'A', 'E'].map((note, strIdx) => {
+                      const strY = SOLO_Y + 8 + strIdx * 8;
+                      return (
+                        <text
+                          key={`tune-${barIdx}-${strIdx}`}
+                          x={x + 10}
+                          y={strY + 3}
+                          fill="rgba(255,255,255,0.15)"
+                          fontSize="6"
+                          fontWeight="600"
+                          fontFamily="monospace"
+                        >
+                          {note}
+                        </text>
+                      );
+                    })}
+                    
+                    {/* ===== НОТЫ С ШТИЛЯМИ ===== */}
+                    {barNotes.filter((n: any) => !n.isRest && n.fret !== null).slice(0, 12).map((note: any, noteIdx: number) => {
+                      const noteX = x + 18 + noteIdx * (BAR_WIDTH / 12);
+                      const noteY = SOLO_Y + 8 + (note.string * 8) + 4;
+                      const isNoteActive = isPlaying && isSoloOn && 
+                        playbackProgress >= note.beatStart / (timeSignature?.beats || 4) / 4 && 
+                        playbackProgress < (note.beatStart + note.beatDuration) / (timeSignature?.beats || 4) / 4;
+                      
+                      const duration = note.beatDuration || 1;
+                      const isFilled = duration <= 1;
+                      const isHalf = duration === 2;
+                      const isWhole = duration >= 4;
+                      
+                      let flagCount = 0;
+                      if (duration === 0.5) flagCount = 1;
+                      else if (duration === 0.25) flagCount = 2;
+                      else if (duration === 0.125) flagCount = 3;
+                      
+                      const stemDirection = note.string <= 2 ? 'up' : 'down';
+                      const stemLength = 35;
+                      const stemX = noteX + (stemDirection === 'up' ? 8 : -8);
+                      const stemStartY = noteY - 2;
+                      const stemEndY = noteY - stemLength;
+                      
+                      let stemColor = 'rgba(255,255,255,0.6)';
+                      if (isNoteActive) stemColor = 'var(--accent)';
+                      else if (duration <= 0.25) stemColor = '#ff6b6b';
+                      else if (duration <= 0.5) stemColor = '#ffd93d';
+                      else if (duration <= 1) stemColor = '#6bcb77';
+                      else if (duration <= 2) stemColor = '#4d96ff';
+                      else stemColor = '#9b59b6';
+                      
+                      return (
+                        <g key={`note-${barIdx}-${noteIdx}`}>
+                          {!isWhole && (
+                            <line
+                              x1={stemX}
+                              y1={stemStartY}
+                              x2={stemX}
+                              y2={stemEndY}
+                              stroke={stemColor}
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                            />
+                          )}
+                          
+                          {flagCount === 1 && (
+                            <path
+                              d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                              fill="none"
+                              stroke={stemColor}
+                              strokeWidth={2}
+                              strokeLinecap="round"
+                            />
+                          )}
+                          {flagCount === 2 && (
+                            <>
+                              <path
+                                d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d={`M ${stemX + 3} ${stemEndY + 12} Q ${stemX + 15} ${stemEndY + 6} ${stemX + 13} ${stemEndY + 20}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                            </>
+                          )}
+                          {flagCount === 3 && (
+                            <>
+                              <path
+                                d={`M ${stemX + 2} ${stemEndY} Q ${stemX + 14} ${stemEndY - 6} ${stemX + 12} ${stemEndY + 8}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d={`M ${stemX + 3} ${stemEndY + 12} Q ${stemX + 15} ${stemEndY + 6} ${stemX + 13} ${stemEndY + 20}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                              <path
+                                d={`M ${stemX + 4} ${stemEndY + 24} Q ${stemX + 16} ${stemEndY + 18} ${stemX + 14} ${stemEndY + 32}`}
+                                fill="none"
+                                stroke={stemColor}
+                                strokeWidth={2}
+                                strokeLinecap="round"
+                              />
+                            </>
+                          )}
+                          
+                          <text
+                            x={noteX}
+                            y={noteY + 4}
+                            fill={isNoteActive ? 'var(--accent)' : stemColor}
+                            fontSize={isNoteActive ? 16 : 13}
+                            fontWeight={900}
+                            fontFamily="monospace"
+                            textAnchor="middle"
+                            style={{
+                              textShadow: isNoteActive 
+                                ? '0 0 20px var(--accent)' 
+                                : '0 0 8px rgba(0,0,0,0.9)',
+                              pointerEvents: 'none',
+                              userSelect: 'none'
+                            }}
+                          >
+                            {note.fret}
+                          </text>
+                          
+                          {!isWhole && (
+                            <circle
+                              cx={noteX}
+                              cy={noteY + 2}
+                              r={isFilled ? 5 : 6}
+                              fill={isFilled ? stemColor : 'transparent'}
+                              stroke={stemColor}
+                              strokeWidth={1.5}
+                              opacity={isNoteActive ? 1 : 0.7}
+                            />
+                          )}
+                          
+                          {isWhole && (
+                            <ellipse
+                              cx={noteX}
+                              cy={noteY + 2}
+                              rx={8}
+                              ry={5.5}
+                              fill="transparent"
+                              stroke={stemColor}
+                              strokeWidth={1.5}
+                              opacity={isNoteActive ? 1 : 0.7}
+                            />
+                          )}
+                          
+                          {note.dot && (
+                            <circle
+                              cx={noteX + 12}
+                              cy={noteY + 2}
+                              r={3}
+                              fill={stemColor}
+                              opacity={isNoteActive ? 1 : 0.7}
+                            />
+                          )}
+                          
+                          {isNoteActive && (
+                            <circle
+                              cx={noteX}
+                              cy={noteY + 2}
+                              r={22}
+                              fill="var(--accent)"
+                              opacity={0.08}
+                              style={{ filter: 'drop-shadow(0 0 20px var(--accent))' }}
+                            />
+                          )}
+                        </g>
+                      );
+                    })}
+                    
+                    {barNotes.filter((n: any) => !n.isRest && n.fret !== null).length === 0 && (
+                      <text x={x + BAR_WIDTH / 2} y={SOLO_Y + 32} fill="var(--text-muted)" fontSize="10" opacity="0.3" textAnchor="middle">—</text>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* ===== ТАБУЛАТУРА С АВТОСКРОЛЛОМ ===== */}
+              <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={300}>
+                <div 
+                  ref={tabContainerRef}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    overflowX: 'auto',
+                    overflowY: 'hidden',
+                    scrollBehavior: 'smooth',
+                    msOverflowStyle: 'none',
+                    scrollbarWidth: 'thin',
+                    scrollbarColor: 'var(--accent) var(--bg-secondary)'
+                  }}
+                >
+                  <style>{`
+                    div::-webkit-scrollbar {
+                      height: 6px;
+                    }
+                    div::-webkit-scrollbar-track {
+                      background: var(--bg-secondary);
+                      border-radius: 3px;
+                    }
+                    div::-webkit-scrollbar-thumb {
+                      background: var(--accent);
+                      border-radius: 3px;
+                    }
+                    div::-webkit-scrollbar-thumb:hover {
+                      background: var(--accent-hover);
+                    }
+                  `}</style>
                   <TablatureDisplay 
                     notes={soloData.notes} 
                     activeStep={isPlaying && isSoloOn ? Math.floor(playbackProgress * soloData.notes.length) : -1} 
-                    height={340}
+                    height={280} 
                     noteSpacing={noteSpacing}
-                    showFretNumbers={true}
                   />
                 </div>
               </foreignObject>
@@ -959,7 +1292,7 @@ const SoloGenerator: React.FC = () => {
             )}
           </>
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '400px', color: 'var(--text-muted)', fontWeight: 800, fontSize: '13px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '320px', color: 'var(--text-muted)', fontWeight: 800, fontSize: '13px' }}>
             {isGenerating ? '⏳ ВЫЧИСЛЕНИЕ ПРОГРЕССИИ И ГЕНЕРАЦИЯ ФРАЗ...' : '🎸 СЕТКА ПУСТА. НАЖМИТЕ GENERATE ДЛЯ СОЗДАНИЯ 4-ТАКТНОГО СОЛО'}
           </div>
         )}
