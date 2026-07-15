@@ -19,20 +19,20 @@ const CircleOfFifths: React.FC = () => {
   if (activeIndex === -1) {
     activeIndex = KEYS_MINOR.findIndex(k => isEnharmonic(k.replace('m', ''), keyNote));
   }
-  if (activeIndex === -1) activeIndex = 0;
+  // 🔥 ЕСЛИ НЕ НАШЛИ — СТАВИМ Em (индекс 1 в KEYS_MINOR)
+  if (activeIndex === -1) activeIndex = 1; // Em
 
   const rotation = -activeIndex * 30;
 
-  // 🔥 УВЕЛИЧЕННЫЕ РАЗМЕРЫ
-  const SIZE = 300;                    // размер колеса
+  const SIZE = 300;
   const CENTER = SIZE / 2;
-  const OUTER_RADIUS = SIZE * 0.38;    // ~114px (чуть меньше, чтобы не вылезало)
-  const INNER_RADIUS = SIZE * 0.24;    // ~72px
-  const DOT_SIZE_OUTER = 44;           // увеличен с 38
-  const DOT_SIZE_INNER = 38;           // увеличен с 32
-  const FONT_SIZE_OUTER = 15;          // увеличен с 13
-  const FONT_SIZE_INNER = 13;          // увеличен с 11
-  const FONT_SIZE_CENTER = 32;         // увеличен с 28
+  const OUTER_RADIUS = SIZE * 0.38;
+  const INNER_RADIUS = SIZE * 0.24;
+  const DOT_SIZE_OUTER = 44;
+  const DOT_SIZE_INNER = 38;
+  const FONT_SIZE_OUTER = 15;
+  const FONT_SIZE_INNER = 13;
+  const FONT_SIZE_CENTER = 32;
 
   return (
     <div style={{ 
@@ -114,7 +114,7 @@ const CircleOfFifths: React.FC = () => {
           );
         })}
         
-        {/* ВНУТРЕННЕЕ КОЛЬЦО (МИНОР) — ТЕКСТ БЕЛЫЙ */}
+        {/* ВНУТРЕННЕЕ КОЛЬЦО (МИНОР) */}
         {KEYS_MINOR.map((key, i) => {
           const angle = i * 30;
           const rad = (angle - 90) * (Math.PI / 180);
@@ -140,7 +140,7 @@ const CircleOfFifths: React.FC = () => {
                 height: `${DOT_SIZE_INNER}px`, 
                 borderRadius: '50%',
                 background: isActive ? 'var(--accent)' : 'transparent',
-                color: isActive ? '#000' : '#ffffff', // 🔥 БЕЛЫЙ ТЕКСТ
+                color: isActive ? '#000' : '#ffffff',
                 border: isActive ? 'none' : '1px solid transparent',
                 display: 'flex', 
                 alignItems: 'center', 
@@ -152,7 +152,7 @@ const CircleOfFifths: React.FC = () => {
                 boxShadow: isActive ? '0 0 20px var(--accent)' : 'none', 
                 zIndex: isActive ? 9 : 1,
                 userSelect: 'none',
-                textShadow: isActive ? 'none' : '0 0 8px rgba(0,0,0,0.8)' // тень для читаемости на прозрачном фоне
+                textShadow: isActive ? 'none' : '0 0 8px rgba(0,0,0,0.8)'
               }}
               onMouseEnter={e => { 
                 if (!isActive) { 

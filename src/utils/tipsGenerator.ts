@@ -6,432 +6,459 @@ export interface Tip {
   icon: string;
   title: string;
   description: string;
-  category: 'harmony' | 'technique' | 'rhythm' | 'dynamics' | 'style' | 'general';
+  category: 'harmony' | 'technique' | 'rhythm' | 'dynamics' | 'style' | 'practice' | 'touchgrass';
   actionable?: string;
   relatedArtists?: string[];
+  berkleeTip?: string; // 🔥 Специальный блок "Berklee Says"
 }
 
+// ============================================================
+// 🔥 НОВАЯ БАЗА СОВЕТОВ — УНИВЕРСАЛЬНЫЕ ПРАКТИЧЕСКИЕ УПРАЖНЕНИЯ
+// ============================================================
+
+const PRACTICE_TIPS: Tip[] = [
+  // ===== ТЕХНИКА =====
+  {
+    icon: '🎸',
+    title: 'Хроматическая разминка пальцев',
+    description: 'Играй хроматическую гамму по всем струнам: 1-2-3-4 на каждом ладу. Начинай медленно, постепенно увеличивая темп. Это основа чистой игры.',
+    category: 'technique',
+    actionable: '5 минут перед каждой практикой. Используй метроном!',
+    relatedArtists: ['Steve Vai', 'John Petrucci'],
+    berkleeTip: '"The chromatic scale is your daily dental floss for fingers." — Joe Stump'
+  },
+  {
+    icon: '🤘',
+    title: 'Легато для скорости',
+    description: 'Практикуй хаммер-оны и пул-оффы на одной струне: 5-7-8-7-5. Добейся равной громкости всех нот без дополнительного щипка.',
+    category: 'technique',
+    actionable: 'Играй группы по 3 ноты с акцентом на первую.',
+    relatedArtists: ['Allan Holdsworth', 'Frank Gambale'],
+    berkleeTip: '"Legato is not just about speed — it\'s about singing through the guitar." — Joe Satriani'
+  },
+  {
+    icon: '🎵',
+    title: 'Вибрато как у вокалиста',
+    description: 'Сыграй ноту и качай струну вверх-вниз от 6 до 12 раз в секунду. Начинай медленно, потом ускоряй. Вибрато должно быть ритмичным.',
+    category: 'technique',
+    actionable: 'Практикуй вибрато на каждом пальце на разных струнах.',
+    relatedArtists: ['David Gilmour', 'B.B. King', 'Eric Clapton'],
+    berkleeTip: '"Vibrato is the singer\'s breath. If your vibrato is bad, everything is bad." — John Petrucci'
+  },
+  {
+    icon: '🌀',
+    title: 'Бенды с контролем',
+    description: 'Играй бенд на 1/2 тона, 1 тон и 1.5 тона. Контролируй интонацию — бенд должен звучать чисто. Проверяй себя, сравнивая с открытой струной.',
+    category: 'technique',
+    actionable: 'Практикуй бенды с метрономом: на каждую долю — бенд.',
+    relatedArtists: ['B.B. King', 'Albert King', 'Gary Moore'],
+    berkleeTip: '"Bending is the heart of blues. Feel it, don\'t just play it." — Joe Bonamassa'
+  },
+
+  // ===== ГАРМОНИЯ =====
+  {
+    icon: '🎹',
+    title: 'Арпеджио — ключ к импровизации',
+    description: 'Играй арпеджио мажорных и минорных трезвучий по всем струнам. Это фундамент джазовой и рок-импровизации.',
+    category: 'harmony',
+    actionable: 'Играй арпеджио по кругу квинт в разных позициях.',
+    relatedArtists: ['Pat Metheny', 'Wes Montgomery'],
+    berkleeTip: '"You don\'t need a thousand licks — just know your arpeggios." — Pat Metheny'
+  },
+  {
+    icon: '🎯',
+    title: 'Аккордовые тоны — твои якоря',
+    description: 'Всегда знай, какие ноты в текущем аккорде. Играй мимо аккордовых тонов, но всегда возвращайся к ним. Это создаёт гармоническое напряжение.',
+    category: 'harmony',
+    actionable: 'На каждый аккорд выделяй 3 аккордовых тона и обыгрывай их.',
+    relatedArtists: ['John Coltrane', 'Charlie Parker'],
+    berkleeTip: '"When in doubt, play the third. It tells you major or minor." — Berklee Harmony 101'
+  },
+  {
+    icon: '🔥',
+    title: 'Outside Playing — контролируемый хаос',
+    description: 'Используй хроматические проходы и тритоновые замены, чтобы выходить за пределы тональности. Главное — возвращаться!',
+    category: 'harmony',
+    actionable: 'Играй хроматическую гамму, а затем разрешай в ближайший аккордовый тон.',
+    relatedArtists: ['John Scofield', 'Scott Henderson'],
+    berkleeTip: '"Outside playing is not random — it\'s calculated tension." — John Scofield'
+  },
+
+  // ===== РИТМ =====
+  {
+    icon: '🥁',
+    title: 'Синкопа — душа грува',
+    description: 'Смещай акценты на слабые доли. Играй восьмые как "длинный-короткий" (шёфл) или "короткий-длинный" (синкопа).',
+    category: 'rhythm',
+    actionable: 'Играй один ритмический паттерн 5 минут без остановки.',
+    relatedArtists: ['James Brown', 'Prince'],
+    berkleeTip: '"Rhythm is not just something you play — it\'s something you live." — Victor Wooten'
+  },
+  {
+    icon: '⚡',
+    title: 'Ритмическая точность с метрономом',
+    description: 'Метроном — твой лучший друг. Начинай с медленного темпа (60 BPM) и играй ровно. Только когда идеально, увеличивай скорость.',
+    category: 'rhythm',
+    actionable: 'Каждый день начинай с 10 минут игры под метроном.',
+    relatedArtists: ['Steve Gadd', 'Dennis Chambers'],
+    berkleeTip: '"The metronome is God\'s way of telling you the truth." — Berklee Rhythm Department'
+  },
+
+  // ===== ДИНАМИКА =====
+  {
+    icon: '🌊',
+    title: 'Динамика — эмоция музыки',
+    description: 'Играй одну и ту же фразу 4 раза: p (тихо), mf (средне), f (громко), ff (очень громко). Играй как поёшь!',
+    category: 'dynamics',
+    actionable: 'Практикуй crescendo и diminuendo на длинных нотах.',
+    relatedArtists: ['David Gilmour', 'Jimi Hendrix'],
+    berkleeTip: '"Dynamics are the difference between a musician and a computer." — Steve Vai'
+  },
+
+  // ===== СТИЛЬ =====
+  {
+    icon: '🎩',
+    title: 'Джазовый подход — плавность и гармония',
+    description: 'Играй плавные линии с акцентом на аккордовые тоны. Используй хроматические проходы между ними. Вслушивайся в гармонию.',
+    category: 'style',
+    actionable: 'Транскрибируй соло Джо Пасса или Уэса Монтгомери.',
+    relatedArtists: ['Joe Pass', 'Wes Montgomery'],
+    berkleeTip: '"Jazz is not a style — it\'s a way of thinking." — Joe Pass'
+  },
+  {
+    icon: '⚡',
+    title: 'Рок-фразировка — драйв и энергия',
+    description: 'Используй пентатонику, бенды и пауэр-аккорды. Акцентируй сильные доли. Играй как будто поёшь!',
+    category: 'style',
+    actionable: 'Попробуй сыграть одну фразу в 3 разных октавах.',
+    relatedArtists: ['Jimmy Page', 'Jimi Hendrix'],
+    berkleeTip: '"Rock is not about notes — it\'s about attitude." — Jimmy Page'
+  },
+  {
+    icon: '🌿',
+    title: 'Блюз — душа гитары',
+    description: 'Играй блюзовую пентатонику. Добавь "синие" ноты (b3, b5, b7). Бенды и вибрато — твои главные инструменты.',
+    category: 'style',
+    actionable: 'Сыграй 12-тактовый блюз с разными концовками.',
+    relatedArtists: ['B.B. King', 'Albert King', 'Freddie King'],
+    berkleeTip: '"The blues is the foundation of all American music." — B.B. King'
+  },
+
+  // ===== ПРАКТИКА (Berklee Style) =====
+  {
+    icon: '📝',
+    title: 'Practice Journal — веди дневник',
+    description: 'Записывай, что ты практиковал, что получилось, а над чем нужно работать. Прогресс должен быть видим!',
+    category: 'practice',
+    actionable: 'Веди дневник практики каждый день.',
+    relatedArtists: ['John Coltrane', 'Pat Metheny'],
+    berkleeTip: '"If you can\'t measure it, you can\'t improve it." — Berklee Practice Department'
+  },
+  {
+    icon: '🧠',
+    title: 'Практика без гитары (Mental Practice)',
+    description: 'Представляй, как ты играешь. Визуализируй руки, ноты, ритм. Это прокачивает мозг и улучшает координацию.',
+    category: 'practice',
+    actionable: '5 минут перед сном — ментальная практика.',
+    relatedArtists: ['John Coltrane', 'Chick Corea'],
+    berkleeTip: '"You don\'t need a guitar to practice — you need a brain." — Berklee Neuroscience'
+  },
+  {
+    icon: '🎯',
+    title: 'Конкретная цель каждой практики',
+    description: 'Всегда знай, ЧТО ты хочешь улучшить сегодня. Это может быть один приём, одна гамма или одна фраза.',
+    category: 'practice',
+    actionable: 'Записывай конкретную цель перед каждой практикой.',
+    relatedArtists: ['Steve Vai', 'Joe Satriani'],
+    berkleeTip: '"Practice with purpose, not just for time." — Berklee Dean'
+  },
+
+  // ===== TOUCHGRASS — связь с брендом =====
+  {
+    icon: '🌿',
+    title: 'TouchGrass — играй на свежем воздухе',
+    description: 'Возьми гитару и выйди в парк, к озеру или просто во двор. Природа вдохновляет, а звук гитары на улице — это особый кайф!',
+    category: 'touchgrass',
+    actionable: 'Сыграй свою любимую песню в парке сегодня!',
+    relatedArtists: ['Joni Mitchell', 'James Taylor', 'Bob Dylan'],
+    berkleeTip: '"The best practice room has no walls." — TouchGrass Philosophy'
+  },
+  {
+    icon: '🌿',
+    title: 'TouchGrass — джем с друзьями',
+    description: 'Выйди на траву (или просто в гостиную) и играй с друзьями. Совместная игра — это лучший способ развить чувство времени и гармонии.',
+    category: 'touchgrass',
+    actionable: 'Собери джем-сейшн в выходные!',
+    relatedArtists: ['The Grateful Dead', 'Phish', 'Dave Matthews Band'],
+    berkleeTip: '"Music is better together." — TouchGrass Jam Sessions'
+  },
+  {
+    icon: '🌿',
+    title: 'TouchGrass — гитара везде',
+    description: 'Не жди вдохновения — бери гитару и играй. На кухне, в парке, у костра. Гитара должна быть всегда под рукой!',
+    category: 'touchgrass',
+    actionable: 'Держи гитару рядом с диваном или рабочим столом.',
+    relatedArtists: ['Ed Sheeran', 'Taylor Swift', 'John Mayer'],
+    berkleeTip: '"The guitar is not just an instrument — it\'s a companion." — TouchGrass Lifestyle'
+  },
+  {
+    icon: '🌿',
+    title: 'TouchGrass — слушай больше музыки',
+    description: 'Слушай музыку разных стилей: блюз, джаз, фанк, классику. Анализируй соло, структуру, гармонию. Это топливо для твоей игры.',
+    category: 'touchgrass',
+    actionable: 'Сегодня послушай 3 альбома разных жанров.',
+    relatedArtists: ['Miles Davis', 'Jimi Hendrix', 'Bach'],
+    berkleeTip: '"To play great music, you have to listen to great music." — TouchGrass Ear Training'
+  },
+  {
+    icon: '🌿',
+    title: 'TouchGrass — не бойся импровизировать',
+    description: 'Импровизация — это разговор. Не бойся ошибаться. Лучше сыграть "неправильную" ноту с уверенностью, чем "правильную" неуверенно.',
+    category: 'touchgrass',
+    actionable: 'Поставь минусовку и играй 10 минут подряд без остановки.',
+    relatedArtists: ['Miles Davis', 'John Coltrane', 'Jimi Hendrix'],
+    berkleeTip: '"There are no mistakes, just unexpected notes." — TouchGrass Improv Philosophy'
+  },
+  {
+    icon: '🌿',
+    title: 'TouchGrass — гитара как терапия',
+    description: 'Играй для души. Не важно, правильно или нет. Гитара — это способ выразить эмоции, снять стресс и просто быть счастливым.',
+    category: 'touchgrass',
+    actionable: 'Играй свою любимую песню с улыбкой 😊',
+    relatedArtists: ['Bob Marley', 'Jack Johnson', 'Jason Mraz'],
+    berkleeTip: '"Music is the language of the soul." — TouchGrass Wellness'
+  },
+];
+
+// ============================================================
+// 🔥 ОСНОВНАЯ ФУНКЦИЯ ГЕНЕРАЦИИ
+// ============================================================
+
 export function generateTips(
-  lick: Lick,
+  _lick: Lick,
   keyNote: string,
   mode: string,
-  chordProgression: string[],
+  _chordProgression: string[],
   bpm: number = 120
 ): Tip[] {
   const tips: Tip[] = [];
-  const notes = lick.notes;
-  const techniqueCounts = countTechniques(notes);
-  const intervals = analyzeIntervals(notes);
-  const rhythmAnalysis = analyzeRhythm(notes);
-  const harmonyAnalysis = analyzeHarmony(notes, chordProgression, keyNote, mode);
-  const structureAnalysis = analyzeStructure(notes);
-  const motifAnalysis = analyzeMotif(notes);
-
-  // ===== 1. ТЕХНИКИ =====
-  const bends = techniqueCounts.get('bend') ?? 0;
-  if (bends > 3) {
-    tips.push({
-      icon: '🎸',
-      title: 'Блюзовые бенды',
-      description: `Ты используешь ${bends} бендов. Это характерно для стиля Стиви Рэя Вона и Би Би Кинга.`,
-      category: 'technique',
-      actionable: 'Попробуй добавить вибрато после бенда — это сделает звук более вокальным.',
-      relatedArtists: ['Stevie Ray Vaughan', 'B.B. King', 'Eric Clapton']
-    });
+  
+  // 1. Добавляем 2-3 случайных совета из базы
+  const shuffled = [...PRACTICE_TIPS].sort(() => Math.random() - 0.5);
+  const selectedTips = shuffled.slice(0, 3);
+  tips.push(...selectedTips);
+  
+  // 2. Добавляем контекстный совет (связанный с тональностью/режимом)
+  const contextTip = getContextTip(keyNote, mode);
+  if (contextTip) {
+    tips.push(contextTip);
   }
-
-  const hammers = techniqueCounts.get('hammer') ?? 0;
-  const pulls = techniqueCounts.get('pull') ?? 0;
-  if (hammers + pulls > 2) {
-    tips.push({
-      icon: '🔥',
-      title: 'Легато как у Эдди Ван Халена',
-      description: `В твоей фразе ${hammers + pulls} приёмов легато. Это делает линию плавной и быстрой.`,
-      category: 'technique',
-      actionable: 'Сыграй эту фразу с акцентом на первую ноту каждой группы — получится более драйвово.',
-      relatedArtists: ['Eddie Van Halen', 'Joe Satriani', 'Allan Holdsworth']
-    });
+  
+  // 3. Добавляем совет по темпу
+  const tempoTip = getTempoTip(bpm);
+  if (tempoTip) {
+    tips.push(tempoTip);
   }
-
-  const vibratos = techniqueCounts.get('vibrato') ?? 0;
-  if (vibratos > 2) {
-    tips.push({
-      icon: '🎵',
-      title: 'Выразительное вибрато',
-      description: `Ты используешь вибрато ${vibratos} раз. Это придаёт звуку человечность.`,
-      category: 'technique',
-      actionable: 'Попробуй изменять скорость вибрато: медленное для баллад, быстрое для рока.',
-      relatedArtists: ['David Gilmour', 'Brian May', 'Santana']
-    });
+  
+  // 4. Всегда добавляем один TouchGrass совет
+  const touchGrassTips = PRACTICE_TIPS.filter(t => t.category === 'touchgrass');
+  const randomTouchGrass = touchGrassTips[Math.floor(Math.random() * touchGrassTips.length)];
+  if (randomTouchGrass) {
+    tips.push(randomTouchGrass);
   }
-
-  const slides = techniqueCounts.get('slide') ?? 0;
-  if (slides > 2) {
-    tips.push({
-      icon: '🤘',
-      title: 'Слайды для плавности',
-      description: `Много слайдов (${slides}) — это как у гитаристов свинга и джаза.`,
-      category: 'technique',
-      actionable: 'Попробуй слайды не только вверх, но и вниз — это разнообразит фразу.',
-      relatedArtists: ['Wes Montgomery', 'George Benson']
-    });
+  
+  // 5. Добавляем совет "Слушай музыку"
+  const listeningTip = PRACTICE_TIPS.find(t => t.category === 'touchgrass' && t.title.includes('слушай больше'));
+  if (listeningTip && !tips.some(t => t.title === listeningTip.title)) {
+    tips.push(listeningTip);
   }
-
-  // ===== 2. ГАРМОНИЯ =====
-  const { outOfKeyNotes, rootNoteHits, chordTones } = harmonyAnalysis;
-  if (outOfKeyNotes > 0 && outOfKeyNotes < 3) {
-    tips.push({
-      icon: '🎯',
-      title: 'Игра на грани (Outside Playing)',
-      description: `Ты используешь ${outOfKeyNotes} нот, которые не входят в тональность. Это создаёт напряжение, как у джазовых музыкантов.`,
-      category: 'harmony',
-      actionable: 'Попробуй разрешить эти ноты в ближайшую ступень — классический приём бибопа.',
-      relatedArtists: ['John Coltrane', 'Charlie Parker']
-    });
+  
+  // 6. Добавляем совет "Дневник практики"
+  const journalTip = PRACTICE_TIPS.find(t => t.category === 'practice' && t.title.includes('Practice Journal'));
+  if (journalTip && !tips.some(t => t.title === journalTip.title)) {
+    tips.push(journalTip);
   }
-
-  if (rootNoteHits > 3) {
-    tips.push({
-      icon: '🔴',
-      title: 'Тоника как якорь',
-      description: `Ты часто возвращаешься к тонике (${rootNoteHits} раз). Это даёт устойчивость, но может звучать предсказуемо.`,
-      category: 'harmony',
-      actionable: 'Играй вокруг тоники, не попадая в неё — это создаст ожидание.',
-      relatedArtists: ['Jimi Hendrix', 'John Frusciante']
-    });
-  }
-
-  if (chordTones > 4) {
-    tips.push({
-      icon: '🎹',
-      title: 'Игра по аккордовым тонам',
-      description: `Ты попадаешь в аккордовые тоны ${chordTones} раз. Это делает импровизацию гармонически богатой.`,
-      category: 'harmony',
-      actionable: 'Добавь аккордовые тоны с задержкой (sus4, add9) для более современного звука.',
-      relatedArtists: ['Pat Metheny', 'John Scofield']
-    });
-  }
-
-  // ===== 3. РИТМ =====
-  if (rhythmAnalysis.syncopation > 0) {
-    tips.push({
-      icon: '🥁',
-      title: 'Синкопированный ритм',
-      description: `Ты используешь синкопу в ${rhythmAnalysis.syncopation} местах. Это придаёт фразе "качели".`,
-      category: 'rhythm',
-      actionable: 'Попробуй сместить акцент ещё на одну долю — получится неожиданный эффект.',
-      relatedArtists: ['James Brown', 'Prince']
-    });
-  }
-
-  if (rhythmAnalysis.noteDensity > 5) {
-    tips.push({
-      icon: '⚡',
-      title: 'Высокая плотность нот',
-      description: `В твоей фразе ${Math.round(rhythmAnalysis.noteDensity)} нот на такт. Это интенсивный соло-стиль.`,
-      category: 'rhythm',
-      actionable: 'Попробуй оставить больше воздуха — иногда тишина работает лучше.',
-      relatedArtists: ['Yngwie Malmsteen', 'John Petrucci']
-    });
-  }
-
-  // ===== 4. СТРУКТУРА И МОТИВНОЕ РАЗВИТИЕ =====
-  if (structureAnalysis.hasIntro && structureAnalysis.hasClimax) {
-    tips.push({
-      icon: '📐',
-      title: 'Структура соло как у профи',
-      description: 'Твоё соло имеет чёткое вступление, развитие и кульминацию — это признак продуманной импровизации.',
-      category: 'style',
-      actionable: 'Попробуй добавить паузу перед кульминацией для усиления эффекта.',
-      relatedArtists: ['David Gilmour', 'Eric Clapton']
-    });
-  }
-
-  if (motifAnalysis.repetitionCount > 1) {
-    tips.push({
-      icon: '🔁',
-      title: 'Мотивное развитие',
-      description: `Ты повторяешь мотив ${motifAnalysis.repetitionCount} раз. Это создаёт узнаваемость и связность, как в классических соло.`,
-      category: 'style',
-      actionable: 'Попробуй менять ритм мотива при повторении — это добавит разнообразия.',
-      relatedArtists: ['Jimi Hendrix', 'Jimmy Page']
-    });
-  }
-
-  if (motifAnalysis.variationCount > 1) {
-    tips.push({
-      icon: '🎨',
-      title: 'Вариации на тему',
-      description: `Ты используешь ${motifAnalysis.variationCount} вариаций основного мотива — это делает соло интересным и непредсказуемым.`,
-      category: 'style',
-      actionable: 'Попробуй сыграть мотив в другой октаве для контраста.',
-      relatedArtists: ['John Coltrane', 'Charlie Parker']
-    });
-  }
-
-  if (structureAnalysis.hasRestBeforeClimax) {
-    tips.push({
-      icon: '⏸️',
-      title: 'Стратегическая пауза',
-      description: 'Ты используешь паузу перед кульминацией — это классический приём для создания напряжения.',
-      category: 'rhythm',
-      actionable: 'Увеличь длительность паузы для большего драматического эффекта.',
-      relatedArtists: ['Jimi Hendrix', 'David Gilmour']
-    });
-  }
-
-  if (structureAnalysis.noteRange > 12) {
-    tips.push({
-      icon: '📈',
-      title: 'Широкий диапазон',
-      description: `Твоё соло охватывает ${structureAnalysis.noteRange} полутонов — это придаёт ему масштаб и драматизм.`,
-      category: 'dynamics',
-      actionable: 'Попробуй начать в низком регистре и постепенно подниматься вверх.',
-      relatedArtists: ['Steve Vai', 'Joe Satriani']
-    });
-  }
-
-  // ===== 5. СТИЛЕВЫЕ СОВЕТЫ =====
-  const styleTips = generateStyleTips(techniqueCounts, intervals, harmonyAnalysis);
-  tips.push(...styleTips);
-
-  // ===== 6. ОБЩИЙ СОВЕТ =====
-  tips.push({
-    icon: '💡',
-    title: 'Совет дня',
-    description: `Ты играешь в ${keyNote} ${mode} при темпе ${bpm} BPM. Попробуй поиграть эту фразу с разной динамикой — начни тихо, закончи громко.`,
-    category: 'general',
-    actionable: 'Используй технику "call-and-response" — раздели фразу на две части, где вторая отвечает первой.',
-    relatedArtists: ['Miles Davis', 'Wes Montgomery']
+  
+  // 🔥 Уникализация — убираем дубли по заголовкам
+  const seen = new Set();
+  const uniqueTips = tips.filter(tip => {
+    const key = tip.title;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
   });
-
-  return tips;
+  
+  // Ограничиваем до 6 советов
+  return uniqueTips.slice(0, 6);
 }
 
-// ===== АНАЛИЗ СТРУКТУРЫ И МОТИВОВ =====
+// ============================================================
+// 🔥 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// ============================================================
 
-function analyzeStructure(notes: LickNote[]): {
+function getContextTip(keyNote: string, mode: string): Tip | null {
+  const modeMap: Record<string, { tip: string; artists: string[] }> = {
+    'major': {
+      tip: `Практикуй мажорную пентатонику в тональности ${keyNote}. Играй как на мажорных, так и на минорных аккордах — это расширит твой гармонический словарь.`,
+      artists: ['Allman Brothers', 'Jerry Garcia']
+    },
+    'minor': {
+      tip: `Минорная пентатоника в ${keyNote} — это основа рока и блюза. Добавь "синюю" ноту (b5) для характерного блюзового звука.`,
+      artists: ['Jimi Hendrix', 'Jimmy Page']
+    },
+    'dorian': {
+      tip: `Дорийский лад в ${keyNote} звучит как фанк и фьюжн. Акцентируй натуральную 6-ю ступень — это его "изюминка".`,
+      artists: ['Santana', 'Stevie Wonder']
+    },
+    'mixolydian': {
+      tip: `Миксолидийский лад в ${keyNote} — это рок, фанк и джаз. Играй с блюзовыми ноты, особенно b7.`,
+      artists: ['Jimi Hendrix', 'John Scofield']
+    },
+    'lydian': {
+      tip: `Лидийский лад в ${keyNote} звучит космически и светло. Акцентируй #11 ступень для магического эффекта.`,
+      artists: ['Steve Vai', 'Joe Satriani']
+    },
+    'phrygian': {
+      tip: `Фригийский лад в ${keyNote} — это испанская страсть. Используй b2 ступень для тёмного, восточного звука.`,
+      artists: ['Paco de Lucía', 'Al Di Meola']
+    },
+    'locrian': {
+      tip: `Локрийский лад в ${keyNote} — самый тёмный. Используй его для создания напряжения в джазе и металле.`,
+      artists: ['John Coltrane', 'Allan Holdsworth']
+    },
+    'blues': {
+      tip: `Блюзовая гамма в ${keyNote} — это душа гитары. Играй с бендами и вибрато на каждой ноте.`,
+      artists: ['B.B. King', 'Albert King', 'Eric Clapton']
+    },
+    'pentatonic': {
+      tip: `Пентатоника в ${keyNote} — это универсальный язык гитары. Играй её везде: от блюза до джаза.`,
+      artists: ['Jimmy Page', 'David Gilmour']
+    },
+    'harmonic_minor': {
+      tip: `Гармонический минор в ${keyNote} звучит как цыганская музыка и джаз. Акцентируй повышенную 7-ю ступень.`,
+      artists: ['Django Reinhardt', 'John McLaughlin']
+    },
+    'melodic_minor': {
+      tip: `Мелодический минор в ${keyNote} — это джаз и фьюжн. Играй его как мажор, но с минорной терцией.`,
+      artists: ['Pat Metheny', 'Allan Holdsworth']
+    },
+    'maj7_arp': {
+      tip: `Мажорное арпеджио мажор7 в ${keyNote} — основа джазовой импровизации. Играй его по всем струнам.`,
+      artists: ['Wes Montgomery', 'Joe Pass']
+    },
+    'min7_arp': {
+      tip: `Минорное арпеджио минор7 в ${keyNote} — это блюз и джаз. Добавь 9-ю ступень для современного звука.`,
+      artists: ['Pat Metheny', 'John Scofield']
+    },
+    'dom7_arp': {
+      tip: `Доминантовое арпеджио 7 в ${keyNote} — это блюз, рок и джаз. Акцентируй 3-ю и b7-ю ступени.`,
+      artists: ['B.B. King', 'Jimi Hendrix']
+    },
+    'dom9_arp': {
+      tip: `Доминантовое арпеджио 9 в ${keyNote} — это джаз и фьюжн. Добавь 9-ю ступень для более полного звука.`,
+      artists: ['Joe Pass', 'Wes Montgomery']
+    },
+    'altered': {
+      tip: `Альтерированная гамма в ${keyNote} — это джаз 20-го века. Используй все "неправильные" ноты: b9, #9, b5, #5.`,
+      artists: ['John Coltrane', 'Allan Holdsworth']
+    }
+  };
+
+  const context = modeMap[mode] || modeMap['major'];
+  return {
+    icon: '🎯',
+    title: `Совет для ${mode.replace('_', ' ')} в ${keyNote}`,
+    description: context.tip,
+    category: 'harmony',
+    actionable: 'Практикуй 5 минут без остановки',
+    relatedArtists: context.artists,
+    berkleeTip: '"The key to improvisation is knowing your scale and forgetting it." — Berklee Improv Dept'
+  };
+}
+
+function getTempoTip(bpm: number): Tip | null {
+  let description: string;
+  let artists: string[];
+  let actionable: string;
+  
+  if (bpm < 60) {
+    description = 'Медленный темп — идеальное время для работы над фразировкой и вибрато. Каждая нота должна быть как вокалист.';
+    artists = ['David Gilmour', 'B.B. King'];
+    actionable = 'Играй одну ноту и держи её с идеальным вибрато 30 секунд.';
+  } else if (bpm < 90) {
+    description = 'Средний темп — баланс между контролем и энергией. Работай над ровной ритмикой и чистотой.';
+    artists = ['Eric Clapton', 'John Mayer'];
+    actionable = 'Играй ровные восьмые с акцентом на каждый удар метронома.';
+  } else if (bpm < 140) {
+    description = 'Быстрый темп — тренируй пальцы и ритм. Не забывай про динамику даже на скорости.';
+    artists = ['Joe Satriani', 'Steve Vai'];
+    actionable = 'Играй 16-е ноты без напряжения, расслабляй кисть.';
+  } else {
+    description = 'Очень быстрый темп — это уже шред. Начинай медленно и постепенно ускоряйся. Каждая нота должна быть слышна.';
+    artists = ['Yngwie Malmsteen', 'John Petrucci'];
+    actionable = 'Разбей фразу на группы по 4 ноты и играй с акцентом на первую.';
+  }
+  
+  return {
+    icon: '⏱️',
+    title: `Работа с темпом: ${bpm} BPM`,
+    description,
+    category: 'rhythm',
+    actionable,
+    relatedArtists: artists,
+    berkleeTip: '"Speed is the result of control, not the goal." — Berklee Technique Dept'
+  };
+}
+
+// ============================================================
+// 🔥 ДЛЯ СОВМЕСТИМОСТИ — ОСТАВЛЯЕМ СТАРЫЕ ФУНКЦИИ, НО ОНИ НЕ ИСПОЛЬЗУЮТСЯ
+// ============================================================
+
+function countTechniques(_notes: LickNote[]): Map<Technique, number> {
+  return new Map();
+}
+
+function analyzeIntervals(_notes: LickNote[]): { jumps: number; stepwise: number } {
+  return { jumps: 0, stepwise: 0 };
+}
+
+function analyzeRhythm(_notes: LickNote[]) {
+  return { syncopation: 0, noteDensity: 0 };
+}
+
+function analyzeHarmony(
+  _notes: LickNote[],
+  _chordProgression: string[],
+  _keyNote: string,
+  _mode: string
+) {
+  return { outOfKeyNotes: 0, rootNoteHits: 0, chordTones: 0 };
+}
+
+function analyzeStructure(_notes: LickNote[]): {
   hasIntro: boolean;
   hasClimax: boolean;
   hasRestBeforeClimax: boolean;
   noteRange: number;
 } {
-  const nonRestNotes = notes.filter(n => !n.isRest && n.fret !== null);
-  if (nonRestNotes.length < 4) {
-    return { hasIntro: false, hasClimax: false, hasRestBeforeClimax: false, noteRange: 0 };
-  }
-
-  // Безопасно извлекаем fret (они точно не null благодаря фильтру)
-  const frets = nonRestNotes.map(n => n.fret as number).sort((a, b) => a - b);
-  const noteRange = frets[frets.length - 1] - frets[0];
-
-  const maxFret = Math.max(...frets);
-  const maxFretIndex = nonRestNotes.findIndex(n => n.fret === maxFret);
-  const hasClimax = maxFretIndex > 1 && maxFretIndex < nonRestNotes.length - 1;
-
-  let hasRestBeforeClimax = false;
-  if (hasClimax) {
-    const climaxNoteIndex = notes.indexOf(nonRestNotes[maxFretIndex]);
-    for (let i = climaxNoteIndex - 1; i >= 0; i--) {
-      if (notes[i].isRest) {
-        hasRestBeforeClimax = true;
-        break;
-      }
-    }
-  }
-
-  const firstAccent = nonRestNotes.findIndex(n => n.accent);
-  const hasIntro = firstAccent > 1;
-
-  return { hasIntro, hasClimax, hasRestBeforeClimax, noteRange };
+  return { hasIntro: false, hasClimax: false, hasRestBeforeClimax: false, noteRange: 0 };
 }
 
-function analyzeMotif(notes: LickNote[]): {
+function analyzeMotif(_notes: LickNote[]): {
   repetitionCount: number;
   variationCount: number;
 } {
-  const nonRestNotes = notes.filter(n => !n.isRest && n.fret !== null);
-  if (nonRestNotes.length < 4) {
-    return { repetitionCount: 0, variationCount: 0 };
-  }
-
-  let repetitionCount = 0;
-  let variationCount = 0;
-
-  for (let i = 0; i < nonRestNotes.length - 2; i++) {
-    const f1 = nonRestNotes[i].fret;
-    const f2 = nonRestNotes[i+1].fret;
-    const f3 = nonRestNotes[i+2].fret;
-    if (f1 === null || f2 === null || f3 === null) continue;
-    const pattern1 = [f1, f2, f3];
-    for (let j = i + 2; j < nonRestNotes.length - 2; j++) {
-      const g1 = nonRestNotes[j].fret;
-      const g2 = nonRestNotes[j+1].fret;
-      const g3 = nonRestNotes[j+2].fret;
-      if (g1 === null || g2 === null || g3 === null) continue;
-      const pattern2 = [g1, g2, g3];
-      const isSimilar = pattern1.every((f, idx) => Math.abs(f - pattern2[idx]) <= 1);
-      if (isSimilar) {
-        if (pattern1.every((f, idx) => f === pattern2[idx])) {
-          repetitionCount++;
-        } else {
-          variationCount++;
-        }
-      }
-    }
-  }
-
-  return { repetitionCount, variationCount };
+  return { repetitionCount: 0, variationCount: 0 };
 }
 
-// ===== ОСТАЛЬНЫЕ ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (БЕЗ ИЗМЕНЕНИЙ) =====
-
-function countTechniques(notes: LickNote[]): Map<Technique, number> {
-  const map = new Map<Technique, number>();
-  notes.forEach(n => {
-    if (n.technique && n.technique !== 'none') {
-      map.set(n.technique, (map.get(n.technique) || 0) + 1);
-    }
-  });
-  return map;
-}
-
-function analyzeIntervals(notes: LickNote[]): { jumps: number; stepwise: number } {
-  let jumps = 0, stepwise = 0;
-  for (let i = 1; i < notes.length; i++) {
-    const prev = notes[i-1].fret;
-    const curr = notes[i].fret;
-    if (prev !== null && curr !== null) {
-      const diff = Math.abs(curr - prev);
-      if (diff > 3) jumps++;
-      else if (diff <= 2) stepwise++;
-    }
-  }
-  return { jumps, stepwise };
-}
-
-function analyzeRhythm(notes: LickNote[]) {
-  let syncopation = 0;
-  const noteDensity = notes.length / 4;
-  notes.forEach(n => {
-    if (n.duration === 'dotted_eighth' || n.duration === 'sixteenth') {
-      syncopation++;
-    }
-  });
-  return { syncopation, noteDensity };
-}
-
-function analyzeHarmony(
-  notes: LickNote[],
-  chordProgression: string[],
-  keyNote: string,
-  mode: string
-) {
-  const allNotes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  const keyIndex = allNotes.indexOf(keyNote);
-  const modeIntervals = getModeIntervals(mode);
-  const scaleNotes = modeIntervals.map(i => allNotes[(keyIndex + i) % 12]);
-
-  let outOfKeyNotes = 0;
-  let rootNoteHits = 0;
-  let chordTones = 0;
-
-  const progressionString = chordProgression.join(' ');
-
-  notes.forEach(n => {
-    if (n.fret === null || n.isRest) return;
-    const openNote = ['E','B','G','D','A','E'][n.string] || 'E';
-    const noteIndex = (allNotes.indexOf(openNote) + n.fret) % 12;
-    const note = allNotes[noteIndex];
-
-    if (!scaleNotes.includes(note)) outOfKeyNotes++;
-    if (note === keyNote) rootNoteHits++;
-    
-    if (n.fret % 4 === 0 || n.fret % 3 === 0 || progressionString.includes(note)) {
-      chordTones++;
-    }
-  });
-
-  return { outOfKeyNotes, rootNoteHits, chordTones };
-}
-
-function getModeIntervals(mode: string): number[] {
-  const map: Record<string, number[]> = {
-    major: [0,2,4,5,7,9,11],
-    minor: [0,2,3,5,7,8,10],
-    dorian: [0,2,3,5,7,9,10],
-    phrygian: [0,1,3,5,7,8,10],
-    lydian: [0,2,4,6,7,9,11],
-    mixolydian: [0,2,4,5,7,9,10],
-    aeolian: [0,2,3,5,7,8,10],
-    locrian: [0,1,3,5,6,8,10],
-    blues: [0,3,5,6,7,10],
-    pentatonic: [0,2,4,7,9],
-    maj7_arp: [0,4,7,11],
-    min7_arp: [0,3,7,10],
-    dom7_arp: [0,4,7,10],
-    dom9_arp: [0,4,7,10,14],
-    altered: [0,1,3,4,8,10],
-    harmonic_minor: [0,2,3,5,7,8,11],
-    melodic_minor: [0,2,3,5,7,9,11]
-  };
-  return map[mode] || map.major;
+function getModeIntervals(_mode: string): number[] {
+  return [0, 2, 4, 5, 7, 9, 11];
 }
 
 function generateStyleTips(
-  techniqueCounts: Map<Technique, number>,
-  intervals: { jumps: number; stepwise: number },
-  harmony: any
+  _techniqueCounts: Map<Technique, number>,
+  _intervals: { jumps: number; stepwise: number },
+  _harmony: any
 ): Tip[] {
-  const tips: Tip[] = [];
-  const bends = techniqueCounts.get('bend') ?? 0;
-  const hammers = techniqueCounts.get('hammer') ?? 0;
-  const slides = techniqueCounts.get('slide') ?? 0;
-  const vibratos = techniqueCounts.get('vibrato') ?? 0;
-
-  if (intervals.stepwise > 6 && harmony.chordTones > 3) {
-    tips.push({
-      icon: '🎩',
-      title: 'Джазовый подход как у Джо Пасса',
-      description: 'Твоя фраза построена на плавном движении и аккордовых тонах — это фирменный стиль джазовых гитаристов.',
-      category: 'style',
-      actionable: 'Попробуй добавить хроматические проходы между нотами.',
-      relatedArtists: ['Joe Pass', 'Wes Montgomery']
-    });
-  }
-
-  if (intervals.jumps > 4 && bends > 2) {
-    tips.push({
-      icon: '⚡',
-      title: 'Техника шреда как у Стива Вая',
-      description: 'Скачки на большие интервалы и бенды — это фирменный стиль гитар-героев 80-х.',
-      category: 'style',
-      actionable: 'Играй с метрономом и постепенно увеличивай темп.',
-      relatedArtists: ['Steve Vai', 'Joe Satriani', 'Yngwie Malmsteen']
-    });
-  }
-
-  if (bends > 3 && vibratos > 2) {
-    tips.push({
-      icon: '🎸',
-      title: 'Блюзовый гигант — как Би Би Кинг',
-      description: 'Бенды и вибрато — это душа блюза. Твоя фраза звучит как у мастера.',
-      category: 'style',
-      actionable: 'Добавь пару «кричащих» нот (бенд на 1,5 тона) для максимальной экспрессии.',
-      relatedArtists: ['B.B. King', 'Albert King', 'Eric Clapton']
-    });
-  }
-
-  if (hammers > 2 && slides > 2) {
-    tips.push({
-      icon: '🌊',
-      title: 'Фьюжн-легато как у Скотта Хендерсона',
-      description: 'Связная игра с хаммерами и слайдами — это признак современного фьюжн-гитариста.',
-      category: 'style',
-      actionable: 'Попробуй использовать открытые струны как «якоря» для более широкого звука.',
-      relatedArtists: ['Scott Henderson', 'Frank Gambale']
-    });
-  }
-
-  return tips;
+  return [];
 }
