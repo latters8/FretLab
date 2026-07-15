@@ -1,16 +1,20 @@
+// src/components/harmony/DiatonicChords.tsx
+
 import React, { useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
 
 type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
 
-// 🔥 ИСПРАВЛЕНО: Маппинг бемолей для кликов по аккордам
+// 🔥 Маппинг бемолей
 const ENHARMONIC_MAP: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
 const normalize = (note: string) => ENHARMONIC_MAP[note] || note;
 
 const DiatonicChords: React.FC = () => {
   const { getDiatonicChords, mode, keyNote, setKeyNote, setMode } = useMusic();
-  const [activeFilter, setActiveFilter] = useState<FilterType>('7TH');
+  
+  // 🔥 ИСПРАВЛЕНО: По умолчанию DIA (трезвучия), а не 7TH
+  const [activeFilter, setActiveFilter] = useState<FilterType>('DIA');
   const [modalConfig, setModalConfig] = useState<{chord: string} | null>(null);
 
   const baseChords = getDiatonicChords();
@@ -46,7 +50,6 @@ const DiatonicChords: React.FC = () => {
     const root = match[1];
     const quality = match[2].toLowerCase();
 
-    // 🔥 ИСПРАВЛЕНО: Безопасная отправка ноты в стейт (перевод бемоля в диез)
     setKeyNote(normalize(root));
     
     if (quality.includes('alt')) setMode('altered');

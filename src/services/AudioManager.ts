@@ -8,7 +8,7 @@ class AudioManager {
   // 🎵 Web Audio API контекст
   private audioCtx: AudioContext | null = null;
   
-  // 🎹 Tone.js синтезаторы (для сложных звуков)
+  // 🎹 Tone.js синтезаторы
   public chordSynth: Tone.PolySynth;
   public metronomeSynth: Tone.MembraneSynth;
   public guitarSynth: Tone.PolySynth;
@@ -34,14 +34,12 @@ class AudioManager {
     // 1. ИНИЦИАЛИЗАЦИЯ TONE.JS СИНТЕЗАТОРОВ
     // ============================================
     
-    // Аккорды
     this.chordSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'triangle' as any },
       envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 1.5 }
     } as any).toDestination();
     this.chordSynth.volume.value = -10;
 
-    // Метроном
     this.metronomeSynth = new Tone.MembraneSynth({
       pitchDecay: 0.05,
       octaves: 2,
@@ -50,14 +48,12 @@ class AudioManager {
     } as any).toDestination();
     this.metronomeSynth.volume.value = -12;
 
-    // Гитара (бэкап)
     this.guitarSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'square' as any },
       envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
     } as any).toDestination();
     this.guitarSynth.volume.value = -8;
 
-    // Бас
     this.bassSynth = new Tone.MonoSynth({
       oscillator: { type: 'sawtooth' as any },
       filter: { Q: 1, type: 'lowpass', rolloff: -24 },
@@ -66,14 +62,12 @@ class AudioManager {
     } as any).toDestination();
     this.bassSynth.volume.value = -6;
 
-    // Струнные
     this.stringsSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'sawtooth' as any },
       envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2 }
     } as any).toDestination();
     this.stringsSynth.volume.value = -12;
 
-    // Рояль
     this.pianoSynth = new Tone.PolySynth(Tone.Synth, {
       oscillator: { type: 'square' as any },
       envelope: { attack: 0.01, decay: 0.5, sustain: 0.5, release: 1.5 }
@@ -172,42 +166,6 @@ class AudioManager {
   }
 
   // ============================================
-  // 🎸 WEB AUDIO API - ВОСПРОИЗВЕДЕНИЕ НОТЫ (как в Tablature)
-  // ============================================
-  public playWebAudioNote(
-    freq: number,
-    duration: number,
-    startTime?: number,
-    velocity: number = 0.7,
-    type: OscillatorType = 'triangle'
-  ): void {
-    const ctx = this.audioCtx;
-    if (!ctx) return;
-
-    const time = startTime || ctx.currentTime + 0.05;
-    
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, time);
-
-    // Быстрая атака, плавный спад (как в Tablature)
-    gainNode.gain.setValueAtTime(0, time);
-    gainNode.gain.linearRampToValueAtTime(velocity * 0.7, time + 0.01);
-    gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
-
-    osc.connect(gainNode);
-    gainNode.connect(ctx.destination);
-    
-    osc.start(time);
-    osc.stop(time + duration + 0.05);
-    
-    // Сохраняем ссылку для остановки
-    this.oscillators.push(osc);
-  }
-
-  // ============================================
   // 🎸 WEB AUDIO API - ГИТАРНАЯ НОТА (с гармониками)
   // ============================================
   public playWebAudioGuitarNote(
@@ -217,62 +175,67 @@ class AudioManager {
     velocity: number = 0.7
   ): void {
     const ctx = this.audioCtx;
-    if (!ctx) return;
+    if (!ctx) {
+      console.warn('⚠️ AudioContext не инициализирован');
+      return;
+    }
 
     const time = startTime || ctx.currentTime + 0.05;
     
-    // Основной тон (треугольная волна для мягкости)
-    const osc1 = ctx.createOscillator();
-    const gain1 = ctx.createGain();
-    osc1.type = 'triangle';
-    osc1.frequency.setValueAtTime(freq, time);
-    gain1.gain.setValueAtTime(0, time);
-    gain1.gain.linearRampToValueAtTime(velocity * 0.6, time + 0.01);
-    gain1.gain.exponentialRampToValueAtTime(0.001, time + duration);
-    osc1.connect(gain1);
-    gain1.connect(ctx.destination);
-    osc1.start(time);
-    osc1.stop(time + duration + 0.05);
-    this.oscillators.push(osc1);
+    try {
+      // Основной тон
+      const osc1 = ctx.createOscillator();
+      const gain1 = ctx.createGain();
+      osc1.type = 'triangle';
+      osc1.frequency.setValueAtTime(freq, time);
+      gain1.gain.setValueAtTime(0, time);
+      gain1.gain.linearRampToValueAtTime(velocity * 0.6, time + 0.01);
+      gain1.gain.exponentialRampToValueAtTime(0.001, time + duration);
+      osc1.connect(gain1);
+      gain1.connect(ctx.destination);
+      osc1.start(time);
+      osc1.stop(time + duration + 0.05);
+      this.oscillators.push(osc1);
 
-    // Гармоника 1 (октава, с меньшей громкостью)
-    const osc2 = ctx.createOscillator();
-    const gain2 = ctx.createGain();
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(freq * 2, time);
-    gain2.gain.setValueAtTime(0, time);
-    gain2.gain.linearRampToValueAtTime(velocity * 0.15, time + 0.01);
-    gain2.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.8);
-    osc2.connect(gain2);
-    gain2.connect(ctx.destination);
-    osc2.start(time);
-    osc2.stop(time + duration * 0.8 + 0.05);
-    this.oscillators.push(osc2);
+      // Гармоника 1 (октава)
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sawtooth';
+      osc2.frequency.setValueAtTime(freq * 2, time);
+      gain2.gain.setValueAtTime(0, time);
+      gain2.gain.linearRampToValueAtTime(velocity * 0.15, time + 0.01);
+      gain2.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.8);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(time);
+      osc2.stop(time + duration * 0.8 + 0.05);
+      this.oscillators.push(osc2);
 
-    // Гармоника 2 (терция, для теплоты)
-    const osc3 = ctx.createOscillator();
-    const gain3 = ctx.createGain();
-    osc3.type = 'sine';
-    osc3.frequency.setValueAtTime(freq * 1.25, time);
-    gain3.gain.setValueAtTime(0, time);
-    gain3.gain.linearRampToValueAtTime(velocity * 0.1, time + 0.01);
-    gain3.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.6);
-    osc3.connect(gain3);
-    gain3.connect(ctx.destination);
-    osc3.start(time);
-    osc3.stop(time + duration * 0.6 + 0.05);
-    this.oscillators.push(osc3);
+      // Гармоника 2 (терция)
+      const osc3 = ctx.createOscillator();
+      const gain3 = ctx.createGain();
+      osc3.type = 'sine';
+      osc3.frequency.setValueAtTime(freq * 1.25, time);
+      gain3.gain.setValueAtTime(0, time);
+      gain3.gain.linearRampToValueAtTime(velocity * 0.1, time + 0.01);
+      gain3.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.6);
+      osc3.connect(gain3);
+      gain3.connect(ctx.destination);
+      osc3.start(time);
+      osc3.stop(time + duration * 0.6 + 0.05);
+      this.oscillators.push(osc3);
+    } catch (err) {
+      console.error('Ошибка воспроизведения гитарной ноты:', err);
+    }
   }
 
   // ============================================
   // ⏹️ ОСТАНОВКА ВСЕГО
   // ============================================
   public stopAll() {
-    // Останавливаем Tone.Transport
     Tone.Transport.stop();
     Tone.Transport.cancel(0);
     
-    // Останавливаем Tone.js синтезаторы
     try { this.chordSynth.releaseAll(); } catch(_) {}
     try { this.guitarSynth.releaseAll(); } catch(_) {}
     try { this.bassSynth.triggerRelease(Tone.now()); } catch(_) {}
@@ -286,13 +249,11 @@ class AudioManager {
     try { this.drumRide.triggerRelease(Tone.now()); } catch(_) {}
     try { this.drumTom.triggerRelease(Tone.now()); } catch(_) {}
     
-    // Останавливаем Web Audio API осцилляторы
     this.oscillators.forEach(osc => {
       try { osc.stop(); osc.disconnect(); } catch(_) {}
     });
     this.oscillators = [];
     
-    // Очищаем таймауты
     this.timeouts.forEach(clearTimeout);
     this.timeouts = [];
   }
@@ -340,7 +301,7 @@ class AudioManager {
   }
 
   // ============================================
-  // 🎸 МЕТОДЫ ДЛЯ ГИТАРЫ (совместимость с Tone.js)
+  // 🎸 МЕТОДЫ ДЛЯ ГИТАРЫ
   // ============================================
   public playGuitarNote(note: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity?: number) {
     const defaultTime = time || Tone.now();
@@ -350,6 +311,7 @@ class AudioManager {
   public async init() {
     await this.initAudioContext();
     await Tone.start();
+    console.log('✅ AudioManager инициализирован');
   }
 }
 

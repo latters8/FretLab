@@ -72,8 +72,9 @@ const INTERVALS: Record<Mode, number[]> = {
 const MusicContext = createContext<MusicContextType | undefined>(undefined);
 
 export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  // 🔥 ИСПРАВЛЕНО: Начинаем с МАЖОРА!
   const [keyNote, setKeyNote] = useState<string>('E');
-  const [mode, setMode] = useState<Mode>('aeolian');
+  const [mode, setMode] = useState<Mode>('major');  // major, не aeolian!
   const [bpm, setBpm] = useState<number>(120);
   const [timeSignature, setTimeSignature] = useState<TimeSignature>({ beats: 4, noteValue: 4 });
   
@@ -125,7 +126,6 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       stepRef.current = 0;
       scheduler();
       
-      // Отправляем событие для метронома
       window.dispatchEvent(new CustomEvent('metronome-toggle', { 
         detail: { isPlaying: true } 
       }));
@@ -182,23 +182,48 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       let baseRoman = romanMaj[i];
       let isMinor = false;
 
-      if (int3 === 4 && int5 === 7) { triadQuality = ''; baseRoman = romanMaj[i]; }
-      else if (int3 === 3 && int5 === 7) { triadQuality = 'm'; baseRoman = romanMin[i]; isMinor = true; }
-      else if (int3 === 3 && int5 === 6) { triadQuality = 'dim'; baseRoman = romanMin[i] + '°'; isMinor = true; }
-      else if (int3 === 4 && int5 === 8) { triadQuality = 'aug'; baseRoman = romanMaj[i] + '+'; }
-      else { triadQuality = '5'; baseRoman = romanMaj[i] + '5'; }
+      if (int3 === 4 && int5 === 7) { 
+        triadQuality = ''; 
+        baseRoman = romanMaj[i]; 
+      } else if (int3 === 3 && int5 === 7) { 
+        triadQuality = 'm'; 
+        baseRoman = romanMin[i]; 
+        isMinor = true; 
+      } else if (int3 === 3 && int5 === 6) { 
+        triadQuality = 'dim'; 
+        baseRoman = romanMin[i] + '°'; 
+      } else if (int3 === 4 && int5 === 8) { 
+        triadQuality = 'aug'; 
+        baseRoman = romanMaj[i] + '+'; 
+      } else { 
+        triadQuality = '5'; 
+        baseRoman = romanMaj[i] + '5'; 
+      }
 
       const triad = root + triadQuality;
 
       let seventhQuality = triadQuality;
       let seventhRoman = baseRoman;
 
-      if (int3 === 4 && int5 === 7 && int7 === 11) { seventhQuality = 'maj7'; seventhRoman = romanMaj[i] + 'maj7'; }
-      else if (int3 === 4 && int5 === 7 && int7 === 10) { seventhQuality = '7'; seventhRoman = romanMaj[i] + '7'; }
-      else if (int3 === 3 && int5 === 7 && int7 === 10) { seventhQuality = 'm7'; seventhRoman = romanMin[i] + '7'; }
-      else if (int3 === 3 && int5 === 6 && int7 === 10) { seventhQuality = 'm7b5'; seventhRoman = romanMin[i] + '7b5'; }
-      else if (int3 === 3 && int5 === 6 && int7 === 9) { seventhQuality = 'dim7'; seventhRoman = romanMin[i] + '°7'; }
-      else { seventhQuality = triadQuality + '(add7)'; seventhRoman = baseRoman + '7'; }
+      if (int3 === 4 && int5 === 7 && int7 === 11) { 
+        seventhQuality = 'maj7'; 
+        seventhRoman = romanMaj[i] + 'maj7'; 
+      } else if (int3 === 4 && int5 === 7 && int7 === 10) { 
+        seventhQuality = '7'; 
+        seventhRoman = romanMaj[i] + '7'; 
+      } else if (int3 === 3 && int5 === 7 && int7 === 10) { 
+        seventhQuality = 'm7'; 
+        seventhRoman = romanMin[i] + '7'; 
+      } else if (int3 === 3 && int5 === 6 && int7 === 10) { 
+        seventhQuality = 'm7b5'; 
+        seventhRoman = romanMin[i] + '7b5'; 
+      } else if (int3 === 3 && int5 === 6 && int7 === 9) { 
+        seventhQuality = 'dim7'; 
+        seventhRoman = romanMin[i] + '°7'; 
+      } else { 
+        seventhQuality = triadQuality + '(add7)'; 
+        seventhRoman = baseRoman + '7'; 
+      }
 
       const seventhChord = root + seventhQuality;
 

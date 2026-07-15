@@ -13,7 +13,7 @@ const DrumTester: React.FC = () => {
     await Tone.start();
     
     const velocity = 0.8 + Math.random() * 0.2;
-    audioManager.playDrumHit(type, Tone.now(), velocity);
+    (audioManager as any).playDrumHit(type, Tone.now(), velocity);
     setLastHit(`${type} (${Math.round(velocity * 100)}%)`);
     
     // Визуальная обратная связь
@@ -44,7 +44,7 @@ const DrumTester: React.FC = () => {
     
     pattern.forEach((hit) => {
       const time = Tone.now() + hit.time;
-      audioManager.playDrumHit(hit.type as any, time, 0.8);
+      (audioManager as any).playDrumHit(hit.type as any, time, 0.8);
     });
     
     setTimeout(() => {

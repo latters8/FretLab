@@ -20,7 +20,6 @@ const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', '
 const SoloGenerator: React.FC = () => {
   const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm } = useMusic();
 
-  // Основные состояния
   const [soloData, setSoloData] = useState<SyncSoloData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -33,7 +32,6 @@ const SoloGenerator: React.FC = () => {
   const [progression, setProgression] = useState<{ name: string; notes: string[] }[]>([]);
   const [editingBarIndex, setEditingBarIndex] = useState<number | null>(null);
 
-  // Состояния для барабанов
   const [isDrumOn, setIsDrumOn] = useState(true);
   const [drumPatternName, setDrumPatternName] = useState<string>('ROCK');
   const [drumPattern, setDrumPattern] = useState<DrumPattern>(DrumPatterns.ROCK);
@@ -44,18 +42,20 @@ const SoloGenerator: React.FC = () => {
   const [isRandomizing, setIsRandomizing] = useState(false);
   const [randomHistory, setRandomHistory] = useState<DrumPattern[]>([]);
 
-  // Refs
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // ============================================
-  // 📝 ПАРСЕР АККОРДОВ (полная поддержка)
-  // ============================================
   const getChordNotesLocal = (chordName: string, key: string): string[] => {
-    const rootMatch = chordName.match(/^[A-G][b#]?/);
+    let normalizedName = chordName;
+    if (chordName.includes('mm')) {
+      normalizedName = chordName.replace(/mm/g, 'm');
+    }
+    
+    const rootMatch = normalizedName.match(/^[A-G][b#]?/);
     const root = rootMatch ? rootMatch[0] : key;
-    const quality = chordName.substring(root.length);
+    const quality = normalizedName.substring(root.length);
     
     const map: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' };
     const normalizedRoot = map[root] || root;
@@ -66,7 +66,7 @@ const SoloGenerator: React.FC = () => {
       return [key, ALL_NOTES[(idx + 4) % 12], ALL_NOTES[(idx + 7) % 12]];
     }
 
-    let intervals: number[] = [0, 4, 7]; // Мажор по умолчанию
+    let intervals: number[] = [0, 4, 7];
     
     if (quality === '' || quality === 'M' || quality === 'maj' || quality === 'maj7' || quality === 'M7') {
       intervals = [0, 4, 7, 11];
@@ -108,16 +108,77 @@ const SoloGenerator: React.FC = () => {
   };
 
   // ============================================
-  // 🔄 ЦИКЛИЧНОЕ ПЕРЕКЛЮЧЕНИЕ ТИПОВ АККОРДОВ
+  // ГЕНЕРАЦИЯ ПРОГРЕССИИ С ПОДДЕРЖКОЙ АРПЕДЖИО
   // ============================================
-  const cycleChordType = (name: string): string => {
-    const rootMatch = name.match(/^[A-G][b#]?/);
-    const root = rootMatch ? rootMatch[0] : keyNote;
-    const currentQuality = name.replace(root, '');
-    const types = ['', 'm7', '7', 'maj7', '9', 'm9', 'maj9', '7#9', 'm7b5', 'dim7', 'aug'];
-    const nextIdx = (types.indexOf(currentQuality) + 1) % types.length;
-    return root + types[nextIdx];
+  const generateProgression = () => {
+    const chords = getDiatonicChords();
+    setDiatonicChords(chords);
+    
+    if (chords.length > 0) {
+      const root = keyNote || 'C';
+      
+      let chordSuffix = '';
+      let useChordType: 'triad' | 'seventh' | 'ninth' | 'altered' = 'triad';
+      
+      if (mode === 'maj7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = 'maj7';
+      } else if (mode === 'min7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = 'm7';
+      } else if (mode === 'dom7_arp') {
+        useChordType = 'seventh';
+        chordSuffix = '7';
+      } else if (mode === 'dom9_arp') {
+        useChordType = 'ninth';
+        chordSuffix = '9';
+      } else if (mode === 'altered') {
+        useChordType = 'altered';
+        chordSuffix = '7#9';
+      }
+      
+      const getChordName = (chord: any, index: number): string => {
+        const rootNote = chord?.triad?.replace(/[^A-G#b]/g, '') || root;
+        
+        if (useChordType === 'altered') {
+          if (index === 2) {
+            return rootNote + '7#9';
+          }
+          return rootNote + '7';
+        }
+        
+        if (useChordType === 'triad') {
+          return chord?.triad || root;
+        }
+        
+        if (useChordType === 'seventh' || useChordType === 'ninth') {
+          return rootNote + chordSuffix;
+        }
+        
+        return chord?.triad || root;
+      };
+      
+      const chordIndexes = [0, 3, 4, 0];
+      
+      const newProg = chordIndexes.map((idx, pos) => {
+        const chord = chords[idx % chords.length];
+        const name = getChordName(chord, pos);
+        
+        return {
+          name: name,
+          notes: getChordNotesLocal(name, root)
+        };
+      });
+      
+      setProgression(newProg);
+      stopPlayback();
+      setTimeout(() => { executeGeneration(newProg); }, 50);
+    }
   };
+
+  useEffect(() => {
+    generateProgression();
+  }, [keyNote, mode]);
 
   // ============================================
   // 🎲 ГЕНЕРАЦИЯ СЛУЧАЙНОГО ПАТТЕРНА
@@ -234,70 +295,6 @@ const SoloGenerator: React.FC = () => {
     setDrumPattern(pattern);
   };
 
-  // ============================================
-  // 🔥 АВТО-ПОСТРОЕНИЕ ПРОГРЕССИИ
-  // ============================================
-  useEffect(() => {
-    const chords = getDiatonicChords();
-    setDiatonicChords(chords);
-    
-    if (chords.length > 0) {
-      const root = keyNote || 'C';
-      let newProg: { name: string; notes: string[] }[] = [];
-
-      const isArpeggioOrAltered = mode.includes('_arp') || 
-                                   mode === 'altered' || 
-                                   mode === 'pentatonic' || 
-                                   mode === 'blues';
-
-      if (isArpeggioOrAltered) {
-        if (mode === 'blues') {
-          const ivChord = chords[3]?.triad || `${root}7`;
-          const vChord = chords[4]?.triad || `${root}7`;
-          const ivRoot = ivChord.replace(/[^A-G#b]/g, '');
-          const vRoot = vChord.replace(/[^A-G#b]/g, '');
-          
-          newProg = [
-            { name: `${root}7`, notes: getChordNotesLocal(`${root}7`, root) },
-            { name: `${ivRoot}7`, notes: getChordNotesLocal(`${ivRoot}7`, root) },
-            { name: `${root}7`, notes: getChordNotesLocal(`${root}7`, root) },
-            { name: `${vRoot}7`, notes: getChordNotesLocal(`${vRoot}7`, root) }
-          ];
-        } else {
-          let targetChord = root;
-          if (mode === 'min7_arp' || mode === 'pentatonic') targetChord = `${root}m7`;
-          else if (mode === 'maj7_arp') targetChord = `${root}maj7`;
-          else if (mode === 'dom7_arp') targetChord = `${root}7`;
-          else if (mode === 'dom9_arp') targetChord = `${root}9`;
-          else if (mode === 'altered') targetChord = `${root}7#9`;
-
-          newProg = [
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) },
-            { name: targetChord, notes: getChordNotesLocal(targetChord, root) }
-          ];
-        }
-      } else {
-        newProg = [
-          { name: chords[0]?.triad || root, notes: getChordNotesLocal(chords[0]?.triad || root, root) },
-          { name: chords[3]?.triad || root, notes: getChordNotesLocal(chords[3]?.triad || root, root) },
-          { name: chords[4]?.triad || root, notes: getChordNotesLocal(chords[4]?.triad || root, root) },
-          { name: chords[0]?.triad || root, notes: getChordNotesLocal(chords[0]?.triad || root, root) }
-        ];
-      }
-
-      if (newProg.length > 0) {
-        setProgression(newProg);
-        stopPlayback();
-        setTimeout(() => { executeGeneration(newProg); }, 50);
-      }
-    }
-  }, [keyNote, mode]);
-
-  // ============================================
-  // ⌨️ СЛУШАТЕЛЬ ПРОБЕЛА
-  // ============================================
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.code === 'Space') {
@@ -321,9 +318,16 @@ const SoloGenerator: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [soloData, isChordsOn, isSoloOn, bpm, isLoopOn, isDrumOn, drumPattern]);
 
-  // ============================================
-  // ⏹️ ОСТАНОВКА ВОСПРОИЗВЕДЕНИЯ
-  // ============================================
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setEditingBarIndex(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const stopPlayback = () => {
     if (sequencePartRef.current) {
       sequencePartRef.current.stop();
@@ -341,9 +345,6 @@ const SoloGenerator: React.FC = () => {
     setPlaybackProgress(0);
   };
 
-  // ============================================
-  // 🎸 ГЕНЕРАЦИЯ СОЛО
-  // ============================================
   const executeGeneration = (targetProgression: { name: string; notes: string[] }[]) => {
     setIsGenerating(true);
     setSoloData(null);
@@ -353,8 +354,21 @@ const SoloGenerator: React.FC = () => {
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'G', 'A'];
 
+    const chordsForGeneration = targetProgression.map(chord => {
+      if (!chord.notes || chord.notes.length === 0) {
+        const notes = getChordNotesLocal(chord.name, keyNote || 'C');
+        return { ...chord, notes };
+      }
+      return chord;
+    });
+
     const newSolo = generateSynchronizedSolo(
-      safeScale, keyNote || 'C', mode || 'major', timeSignature || { beats: 4, noteValue: 4 }, targetProgression, false
+      safeScale, 
+      keyNote || 'C', 
+      mode || 'major', 
+      timeSignature || { beats: 4, noteValue: 4 }, 
+      chordsForGeneration,
+      false
     );
 
     setSoloData(newSolo);
@@ -371,10 +385,12 @@ const SoloGenerator: React.FC = () => {
     executeGeneration(progression);
   };
 
-  // ============================================
-  // ▶️ ВОСПРОИЗВЕДЕНИЕ (С Web Audio API для соло)
-  // ============================================
   const playScore = async (data: SyncSoloData) => {
+    if (!data.notes || data.notes.length === 0) {
+      console.warn('⚠️ Нет нот для воспроизведения!');
+      return;
+    }
+    
     await audioManager.init();
     await Tone.start();
     
@@ -385,7 +401,6 @@ const SoloGenerator: React.FC = () => {
     
     const events: any[] = [];
 
-    // 🎸 Аккорды (через Tone.js chordSynth)
     if (isChordsOn) {
       data.chords.forEach(chord => {
         const time = chord.beatStart * quarterDuration;
@@ -400,9 +415,7 @@ const SoloGenerator: React.FC = () => {
       });
     }
 
-    // 🔥 СОЛО - ИСПОЛЬЗУЕМ WEB AUDIO API (как в Tablature)
     if (isSoloOn) {
-      // Частоты открытых струн (как в Tablature)
       const stringToFreq = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
       
       data.notes.forEach(note => {
@@ -412,7 +425,6 @@ const SoloGenerator: React.FC = () => {
           const duration = note.beatDuration * quarterDuration;
           const velocity = note.accent ? 0.9 : 0.6;
           
-          // 🔥 Новый тип события для Web Audio API
           events.push({ 
             time, 
             type: 'solo_web_audio',
@@ -424,7 +436,6 @@ const SoloGenerator: React.FC = () => {
       });
     }
 
-    // 🥁 Барабаны
     if (isDrumOn && drumPattern) {
       const pattern = drumPattern;
       const patternLength = pattern.kick.length;
@@ -454,32 +465,21 @@ const SoloGenerator: React.FC = () => {
         if (pattern.tom && pattern.tom[patternIndex]) {
           events.push({ time, type: 'drum', drum: 'tom', velocity: drumVelocity * 0.75 * humanize() });
         }
-        
-        // 🎵 Метроном
-        if (i % patternLength === 0) {
-          events.push({ time, type: 'metronome', accent: true });
-        } else if (i % (patternLength / 4) === 0 && patternLength / 4 > 0) {
-          events.push({ time, type: 'metronome', accent: false });
-        }
       }
     }
 
-    // 🔥 Создаем Tone.Part с поддержкой Web Audio API
     sequencePartRef.current = new Tone.Part((time, value) => {
       if (value.type === 'chord') {
         audioManager.chordSynth.triggerAttackRelease(value.notes, value.duration, time);
       } else if (value.type === 'solo_web_audio') {
-        // 🔥 ИСПОЛЬЗУЕМ WEB AUDIO API (как в Tablature)
         audioManager.playWebAudioGuitarNote(
           value.freq,
           value.duration,
-          time + 0.05,  // небольшая задержка для синхронизации
+          time + 0.05,
           value.velocity
         );
       } else if (value.type === 'drum') {
         audioManager.playDrumHit(value.drum, time, value.velocity);
-      } else if (value.type === 'metronome') {
-        audioManager.playMetronome(time, value.accent);
       }
     }, events).start(0);
 
@@ -489,7 +489,6 @@ const SoloGenerator: React.FC = () => {
     Tone.Transport.start();
     startTimeRef.current = Tone.now();
 
-    // Обновление прогресса
     const drawPlayhead = () => {
       if (Tone.Transport.state !== 'started') return;
       
@@ -523,9 +522,6 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  // ============================================
-  // 🎨 ВИЗУАЛИЗАЦИЯ
-  // ============================================
   const SVG_WIDTH = 1200;
   const SVG_HEIGHT = 460;
   const TRACK_MARGIN_X = 20;
@@ -534,10 +530,48 @@ const SoloGenerator: React.FC = () => {
   const CHORD_Y = 25;
   const TAB_Y = 140;
 
+  const getNoteSpacing = () => {
+    if (!soloData) return 85;
+    const totalNotes = soloData.notes.filter(n => !n.isRest).length;
+    const totalBeats = soloData.totalBeats;
+    const idealNotes = totalBeats * 2;
+    const baseSpacing = 85;
+    const minSpacing = 30;
+    const maxSpacing = 120;
+    if (totalNotes === 0) return baseSpacing;
+    const ratio = totalNotes / idealNotes;
+    let spacing = baseSpacing / ratio;
+    return Math.max(minSpacing, Math.min(maxSpacing, spacing));
+  };
+
+  const noteSpacing = getNoteSpacing();
+
+  const getSuggestedChords = (currentChord: string): string[] => {
+    const rootMatch = currentChord.match(/^[A-G][b#]?/);
+    const root = rootMatch ? rootMatch[0] : keyNote;
+    const suggestions: string[] = [];
+    
+    const types = ['', 'm', '7', 'maj7', '9', 'm7', 'm7b5', 'dim', 'aug', 'sus4'];
+    types.forEach(type => {
+      const name = root + type;
+      if (name !== currentChord) {
+        suggestions.push(name);
+      }
+    });
+    
+    diatonicChords.forEach(chord => {
+      const name = chord?.triad || '';
+      if (name && name !== currentChord && !suggestions.includes(name)) {
+        suggestions.push(name);
+      }
+    });
+    
+    return suggestions.slice(0, 8);
+  };
+
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', padding: '12px 0' }}>
       
-      {/* Верхний блок с контролами */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
         <div>
           <h2 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio Progress Composer</h2>
@@ -585,7 +619,6 @@ const SoloGenerator: React.FC = () => {
         </div>
       </div>
 
-      {/* Контролы: TEMPO, Chords, Solo */}
       <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', padding: '10px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
@@ -599,7 +632,7 @@ const SoloGenerator: React.FC = () => {
         </label>
       </div>
 
-      {/* Секция барабанов */}
+      {/* 🔥 Секция барабанов с кнопками Random */}
       <div style={{ 
         display: 'flex', 
         gap: '12px', 
@@ -648,6 +681,7 @@ const SoloGenerator: React.FC = () => {
           })}
         </select>
 
+        {/* 🎲 Кнопки случайных паттернов */}
         <button
           onClick={generateRandomPattern}
           disabled={isRandomizing}
@@ -708,6 +742,7 @@ const SoloGenerator: React.FC = () => {
           🎲 5x
         </button>
 
+        {/* История паттернов */}
         {randomHistory.length > 0 && (
           <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>↺</span>
@@ -786,12 +821,7 @@ const SoloGenerator: React.FC = () => {
                       style={{ cursor: 'pointer' }}
                       onClick={(e) => { 
                         e.stopPropagation(); 
-                        const newName = cycleChordType(chord.name);
-                        const nextProg = [...progression];
-                        nextProg[idx] = { name: newName, notes: getChordNotesLocal(newName, keyNote || 'C') };
-                        setProgression(nextProg);
-                        setEditingBarIndex(null);
-                        setTimeout(() => executeGeneration(nextProg), 40);
+                        setEditingBarIndex(editingBarIndex === idx ? null : idx);
                       }}
                     />
                     <text 
@@ -822,7 +852,7 @@ const SoloGenerator: React.FC = () => {
                     notes={soloData.notes} 
                     activeStep={isPlaying && isSoloOn ? Math.floor(playbackProgress * soloData.notes.length) : -1} 
                     height={280} 
-                    noteSpacing={85} 
+                    noteSpacing={noteSpacing}
                   />
                 </div>
               </foreignObject>
@@ -833,27 +863,150 @@ const SoloGenerator: React.FC = () => {
             </svg>
 
             {editingBarIndex !== null && (
-              <div style={{ position: 'absolute', top: `${CHORD_Y + 42}px`, left: `${TRACK_MARGIN_X + editingBarIndex * BAR_WIDTH}px`, width: `${BAR_WIDTH}px`, background: 'var(--bg-panel)', border: '1px solid var(--accent)', borderRadius: '0 0 6px 6px', zIndex: 999, overflow: 'hidden', boxShadow: '0 12px 24px rgba(0,0,0,0.8)', maxHeight: '300px', overflowY: 'auto' }}>
+              <div 
+                ref={menuRef}
+                style={{ 
+                  position: 'absolute', 
+                  top: `${CHORD_Y + 42}px`, 
+                  left: `${TRACK_MARGIN_X + editingBarIndex * BAR_WIDTH}px`, 
+                  width: `${BAR_WIDTH}px`, 
+                  background: 'var(--bg-panel)', 
+                  border: '1px solid var(--accent)', 
+                  borderRadius: '0 0 8px 8px', 
+                  zIndex: 999, 
+                  overflow: 'hidden', 
+                  boxShadow: '0 12px 32px rgba(0,0,0,0.9)',
+                  maxHeight: '260px', 
+                  overflowY: 'auto'
+                }}
+              >
+                <div style={{ 
+                  padding: '8px 12px', 
+                  background: 'var(--bg-secondary)', 
+                  borderBottom: '1px solid var(--border-color)',
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  🎸 Choose chord
+                </div>
+                
                 {diatonicChords.map((opt, oIdx) => {
-                  const name = opt.seventhChord || opt.triad || keyNote;
+                  const name = opt.triad || keyNote;
+                  const isActive = progression[editingBarIndex]?.name === name;
                   return (
                     <div 
-                      key={oIdx} 
+                      key={`diatonic-${oIdx}`} 
                       onClick={() => {
                         const nextProg = [...progression];
-                        nextProg[editingBarIndex] = { name, notes: getChordNotesLocal(name, keyNote || 'C') };
+                        nextProg[editingBarIndex] = { 
+                          name: name, 
+                          notes: getChordNotesLocal(name, keyNote || 'C') 
+                        };
                         setProgression(nextProg);
                         setEditingBarIndex(null);
                         setTimeout(() => executeGeneration(nextProg), 40);
                       }}
-                      style={{ padding: '10px', cursor: 'pointer', fontSize: '14px', fontWeight: 900, borderBottom: '1px solid rgba(255,255,255,0.05)', color: 'var(--text-primary)', textAlign: 'center', transition: '0.1s' }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#000'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-primary)'; }}
+                      style={{ 
+                        padding: '8px 14px', 
+                        cursor: 'pointer', 
+                        fontSize: '13px', 
+                        fontWeight: isActive ? 900 : 600,
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        color: isActive ? 'var(--accent)' : 'var(--text-primary)',
+                        background: isActive ? 'rgba(0,255,157,0.08)' : 'transparent',
+                        transition: '0.1s',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => { 
+                        e.currentTarget.style.background = 'rgba(0,255,157,0.12)';
+                      }}
+                      onMouseLeave={e => { 
+                        e.currentTarget.style.background = isActive ? 'rgba(0,255,157,0.08)' : 'transparent';
+                      }}
                     >
-                      {opt.baseRoman} ({name})
+                      <span>{opt.baseRoman}</span>
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{name}</span>
                     </div>
                   );
                 })}
+                
+                <div style={{ 
+                  padding: '4px 12px', 
+                  background: 'var(--bg-secondary)', 
+                  borderTop: '1px solid var(--border-color)',
+                  borderBottom: '1px solid var(--border-color)',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  color: 'var(--text-muted)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px'
+                }}>
+                  ✨ Suggested
+                </div>
+                
+                {getSuggestedChords(progression[editingBarIndex]?.name || '').map((suggestion, sIdx) => {
+                  const isActive = progression[editingBarIndex]?.name === suggestion;
+                  return (
+                    <div 
+                      key={`suggested-${sIdx}`} 
+                      onClick={() => {
+                        const nextProg = [...progression];
+                        nextProg[editingBarIndex] = { 
+                          name: suggestion, 
+                          notes: getChordNotesLocal(suggestion, keyNote || 'C') 
+                        };
+                        setProgression(nextProg);
+                        setEditingBarIndex(null);
+                        setTimeout(() => executeGeneration(nextProg), 40);
+                      }}
+                      style={{ 
+                        padding: '8px 14px', 
+                        cursor: 'pointer', 
+                        fontSize: '13px', 
+                        fontWeight: isActive ? 900 : 600,
+                        borderBottom: '1px solid rgba(255,255,255,0.04)',
+                        color: isActive ? 'var(--accent)' : 'var(--text-secondary)',
+                        background: isActive ? 'rgba(0,255,157,0.08)' : 'transparent',
+                        transition: '0.1s',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}
+                      onMouseEnter={e => { 
+                        e.currentTarget.style.background = 'rgba(0,255,157,0.12)';
+                      }}
+                      onMouseLeave={e => { 
+                        e.currentTarget.style.background = isActive ? 'rgba(0,255,157,0.08)' : 'transparent';
+                      }}
+                    >
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>→</span>
+                      <span>{suggestion}</span>
+                    </div>
+                  );
+                })}
+                
+                <div 
+                  onClick={() => setEditingBarIndex(null)}
+                  style={{ 
+                    padding: '6px', 
+                    textAlign: 'center', 
+                    cursor: 'pointer', 
+                    fontSize: '11px', 
+                    color: 'var(--text-muted)',
+                    borderTop: '1px solid var(--border-color)',
+                    background: 'var(--bg-secondary)',
+                    fontWeight: 600
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+                >
+                  ✕ Close
+                </div>
               </div>
             )}
           </>

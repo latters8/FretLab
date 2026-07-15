@@ -158,7 +158,7 @@ export const processAIQuery = async (query: string): Promise<AIResponse> => {
         { 
           id: 'lick', 
           title: `⚡ Сгенерировать фразу в ${chord}`, 
-          action: { type: 'OPEN_TAB_GEN' }
+          action: { type: 'OPEN_TAB_GEN' } 
         }
       ]
     };
@@ -234,31 +234,158 @@ export const findFretForNote = (targetNote: string, targetStringIdx: number, min
   return bestFret;
 };
 
-type PhrasePattern = {
-  name: string;
-  intervals: number[]; 
-  durations: string[]; 
-  techniques: Technique[];
-  accentPositions: number[];
-  legatoGroups?: { start: number; end: number; type: 'hammer' | 'pull' }[];
+// ============================================================
+// 🔥 РАСШИРЕННЫЕ РИТМИЧЕСКИЕ ПАТТЕРНЫ
+// ============================================================
+
+const RHYTHM_PATTERNS: Record<string, { name: string; durations: string[]; density: 'sparse' | 'medium' | 'dense' }> = {
+  straight: {
+    name: 'Straight 8ths',
+    durations: ['8n', '8n', '8n', '8n', '8n', '8n', '8n', '8n'],
+    density: 'medium'
+  },
+  straight_16ths: {
+    name: 'Straight 16ths',
+    durations: ['16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n', '16n'],
+    density: 'dense'
+  },
+  shuffle: {
+    name: 'Shuffle 8ths',
+    durations: ['8n.', '8n', '8n.', '8n', '8n.', '8n', '8n.', '8n'],
+    density: 'medium'
+  },
+  shuffle_16ths: {
+    name: 'Shuffle 16ths',
+    durations: ['16n.', '16n', '16n.', '16n', '16n.', '16n', '16n.', '16n', '16n.', '16n', '16n.', '16n', '16n.', '16n', '16n.', '16n'],
+    density: 'dense'
+  },
+  swing: {
+    name: 'Swing 8ths',
+    durations: ['8n.', '8n', '8n.', '8n', '8n.', '8n', '8n.', '8n'],
+    density: 'medium'
+  },
+  syncopated: {
+    name: 'Syncopated Groove',
+    durations: ['8n', '8n.', '8n', '8n.', '16n', '8n', '8n.', '8n'],
+    density: 'medium'
+  },
+  syncopated_dense: {
+    name: 'Syncopated Dense',
+    durations: ['16n', '16n.', '8n', '16n', '16n.', '8n', '16n', '16n.', '8n', '16n', '16n.', '8n'],
+    density: 'dense'
+  },
+  dotted: {
+    name: 'Dotted Rhythms',
+    durations: ['4n.', '8n', '4n.', '8n', '4n.', '8n', '4n.', '8n'],
+    density: 'sparse'
+  },
+  dotted_swing: {
+    name: 'Dotted Swing',
+    durations: ['4n.', '8n', '8n.', '16n', '4n.', '8n', '8n.', '16n'],
+    density: 'medium'
+  },
+  triplet: {
+    name: 'Triplet Feel',
+    durations: ['8t', '8t', '8t', '8t', '8t', '8t', '8t', '8t', '8t', '8t', '8t', '8t'],
+    density: 'medium'
+  },
+  triplet_swing: {
+    name: 'Triplet Swing',
+    durations: ['8t', '8t.', '8t', '8t.', '8t', '8t.', '8t', '8t.', '8t', '8t.', '8t', '8t.'],
+    density: 'dense'
+  },
+  contrast: {
+    name: 'Contrast Rhythms',
+    durations: ['2n', '8n', '8n', '8n', '8n', '2n', '8n', '8n'],
+    density: 'sparse'
+  },
+  bossa: {
+    name: 'Bossa Nova',
+    durations: ['8n', '16n', '8n', '16n', '8n', '16n', '8n', '16n', '8n', '16n', '8n', '16n', '8n', '16n', '8n', '16n'],
+    density: 'dense'
+  }
 };
 
-const GUITAR_PHRASES: PhrasePattern[] = [
-  {
-    name: 'Classic Blues Lick',
-    intervals: [0, 1, 2, 1, 0, 2, 3, 0],
-    durations: ['4n', '8n', '4n', '8n', '4n', '8n', '4n', '2n'],
-    techniques: ['none', 'none', 'vibrato', 'none', 'none', 'slide', 'vibrato', 'none'],
-    accentPositions: [0, 2, 4, 7]
+// ============================================================
+// 🔥 РАСШИРЕННЫЕ МЕЛОДИЧЕСКИЕ ПАТТЕРНЫ
+// ============================================================
+
+const MELODY_PATTERNS: Record<string, { name: string; intervals: number[]; accentPositions: number[] }> = {
+  diatonic: {
+    name: 'Diatonic Steps',
+    intervals: [0, 1, 2, 3, 2, 1, 0, -1, -2, -3, -2, -1],
+    accentPositions: [0, 3, 6, 9]
   },
-  {
-    name: 'Syncopated Groove',
-    intervals: [0, 2, 1, 0, 3, 2, 0, 0],
-    durations: ['8n', '8n', '4n', '8n', '8n', '4n', '8n', '2n'],
-    techniques: ['none', 'slide', 'none', 'none', 'bend', 'none', 'none', 'vibrato'],
-    accentPositions: [1, 2, 4, 7]
+  diatonic_jump: {
+    name: 'Diatonic Jumps',
+    intervals: [0, 2, 1, 3, 2, 4, 3, 5, 4, 3, 2, 1],
+    accentPositions: [0, 3, 6, 9]
+  },
+  arpeggio_major: {
+    name: 'Major Arpeggio',
+    intervals: [0, 2, 4, 7, 9, 11, 7, 4, 2, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  arpeggio_minor: {
+    name: 'Minor Arpeggio',
+    intervals: [0, 2, 3, 7, 10, 7, 3, 2, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  arpeggio_7th: {
+    name: '7th Arpeggio',
+    intervals: [0, 2, 4, 7, 10, 14, 10, 7, 4, 2, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  blues: {
+    name: 'Blues Scale',
+    intervals: [0, 1, 3, 5, 6, 7, 6, 5, 3, 1, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  blues_bend: {
+    name: 'Blues Bends',
+    intervals: [0, 1, 3, 5, 6, 5, 3, 1, 0],
+    accentPositions: [0, 2, 4, 6]
+  },
+  pentatonic_major: {
+    name: 'Major Pentatonic',
+    intervals: [0, 2, 4, 7, 9, 7, 4, 2, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  pentatonic_minor: {
+    name: 'Minor Pentatonic',
+    intervals: [0, 3, 5, 7, 10, 7, 5, 3, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  chromatic_approach: {
+    name: 'Chromatic Approach',
+    intervals: [0, 1, 2, 1, 2, 3, 2, 3, 4, 3, 4, 5],
+    accentPositions: [0, 3, 6, 9]
+  },
+  leaps: {
+    name: 'Melodic Leaps',
+    intervals: [0, 5, 2, 7, 4, 9, 5, 2, 0],
+    accentPositions: [0, 3, 6, 9]
+  },
+  octave_pattern: {
+    name: 'Octave Pattern',
+    intervals: [0, 12, 0, 12, 0, 12, 0],
+    accentPositions: [0, 2, 4, 6]
+  },
+  mixed: {
+    name: 'Mixed Pattern',
+    intervals: [0, 2, 3, 5, 3, 2, 0, 2, 4, 5, 4, 2],
+    accentPositions: [0, 3, 6, 9]
+  },
+  modal: {
+    name: 'Modal Pattern',
+    intervals: [0, 2, 3, 2, 5, 2, 7, 5, 3, 2, 0],
+    accentPositions: [0, 3, 6, 9]
   }
-];
+};
+
+// ============================================================
+// 🔥 ГЕНЕРАЦИЯ РАЗНООБРАЗНЫХ ФРАЗ (ДЛЯ TABLATURE)
+// ============================================================
 
 export const generateSmartLick = (
   scaleNotes: string[], 
@@ -268,15 +395,78 @@ export const generateSmartLick = (
   ..._extraArgs: any[]
 ): Lick => {
   const safeScaleNotes = (scaleNotes && scaleNotes.length > 0) ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
-  const pattern = GUITAR_PHRASES[Math.floor(Math.random() * GUITAR_PHRASES.length)];
+  
+  const rhythmKeys = Object.keys(RHYTHM_PATTERNS);
+  const selectedRhythmKey = rhythmKeys[Math.floor(Math.random() * rhythmKeys.length)];
+  const rhythm = RHYTHM_PATTERNS[selectedRhythmKey];
+  
+  const melodyKeys = Object.keys(MELODY_PATTERNS);
+  const selectedMelodyKey = melodyKeys[Math.floor(Math.random() * melodyKeys.length)];
+  const melody = MELODY_PATTERNS[selectedMelodyKey];
+  
+  let intervals: number[] = [];
+  let durations: string[] = [];
+  let accentPositions: number[] = [];
+  let techniques: Technique[] = [];
+  
+  const phraseLength = Math.floor(Math.random() * 8) + 8;
+  
+  for (let i = 0; i < phraseLength; i++) {
+    const melodyIdx = i % melody.intervals.length;
+    let interval = melody.intervals[melodyIdx];
+    
+    if (Math.random() > 0.7) {
+      const variation = Math.floor(Math.random() * 3) - 1;
+      interval = Math.max(0, Math.min(12, interval + variation));
+    }
+    
+    intervals.push(interval);
+  }
+  
+  for (let i = 0; i < phraseLength; i++) {
+    const rhythmIdx = i % rhythm.durations.length;
+    let duration = rhythm.durations[rhythmIdx];
+    
+    if (Math.random() > 0.85) {
+      const alternatives = ['16n', '8n', '4n', '8n.', '16n.'];
+      duration = alternatives[Math.floor(Math.random() * alternatives.length)];
+    }
+    
+    durations.push(duration);
+  }
+  
+  for (let i = 0; i < phraseLength; i++) {
+    const isAccent = melody.accentPositions.includes(i % melody.accentPositions.length) ||
+                    (i % 4 === 0 && Math.random() > 0.5);
+    accentPositions.push(isAccent ? 1 : 0);
+  }
+  
+  for (let i = 0; i < phraseLength; i++) {
+    let tech: Technique = 'none';
+    const rand = Math.random();
+    
+    if (durations[i] === '16n' || durations[i] === '16n.') {
+      tech = rand > 0.6 ? 'hammer' : (rand > 0.3 ? 'pull' : 'none');
+    } else if (durations[i] === '4n' || durations[i] === '4n.' || durations[i] === '2n') {
+      tech = rand > 0.5 ? 'vibrato' : (rand > 0.25 ? 'bend' : 'none');
+    } else if (durations[i] === '8n' || durations[i] === '8n.') {
+      tech = rand > 0.7 ? 'slide' : 'none';
+    } else if (durations[i] === '8t' || durations[i] === '16t') {
+      tech = rand > 0.5 ? 'hammer' : 'pull';
+    }
+    
+    techniques.push(tech);
+  }
+  
   const startFret = Math.floor(Math.random() * 5) + 3;
   let currentString = Math.floor(Math.random() * 3) + 2;
+  let lastScaleIdx = Math.floor(safeScaleNotes.length / 2);
   
   const notes: LickNote[] = [];
   
-  for (let i = 0; i < pattern.intervals.length; i++) {
-    const degree = pattern.intervals[i];
-    const noteIndex = degree % safeScaleNotes.length;
+  for (let i = 0; i < intervals.length; i++) {
+    const degree = intervals[i];
+    const noteIndex = (lastScaleIdx + degree + safeScaleNotes.length) % safeScaleNotes.length;
     const selectedNote = safeScaleNotes[noteIndex];
     
     let fret = findFretForNote(selectedNote, currentString, 0, 21);
@@ -285,34 +475,81 @@ export const generateSmartLick = (
       for (let s = 1; s <= 4; s++) {
         const altFret = findFretForNote(selectedNote, s, 0, 18);
         if (altFret >= startFret - 2 && altFret <= startFret + 4) {
-          currentString = s; fret = altFret; break;
+          currentString = s;
+          fret = altFret;
+          break;
         }
       }
     }
     
-    const isAccent = pattern.accentPositions.includes(i);
-    notes.push({
-      string: currentString,
-      fret: Math.max(0, fret),
-      duration: pattern.durations[i],
-      technique: pattern.techniques[i] || 'none',
-      tiedToNext: false,
-      velocity: isAccent ? 0.9 : 0.6,
-      accent: isAccent,
-      durationFactor: 1
-    });
+    const isAccent = accentPositions[i] === 1;
+    const isRest = Math.random() > 0.92;
+    
+    if (isRest) {
+      notes.push({
+        string: 0,
+        fret: null,
+        isRest: true,
+        duration: durations[i],
+        technique: 'none',
+        velocity: 0,
+        accent: false
+      });
+    } else {
+      notes.push({
+        string: currentString,
+        fret: Math.max(0, fret),
+        duration: durations[i],
+        technique: techniques[i] || 'none',
+        tiedToNext: false,
+        velocity: isAccent ? 0.9 : 0.6,
+        accent: isAccent,
+        durationFactor: 1
+      });
+    }
+    
+    lastScaleIdx = noteIndex;
+    
+    if (Math.random() > 0.8) {
+      const newString = Math.floor(Math.random() * 4) + 1;
+      if (Math.abs(newString - currentString) <= 2) {
+        currentString = newString;
+      }
+    }
   }
+  
+  if (notes.length > 0 && !notes[notes.length - 1].isRest) {
+    const lastNote = notes[notes.length - 1];
+    lastNote.duration = '2n';
+    lastNote.technique = 'vibrato';
+    lastNote.velocity = 0.9;
+    lastNote.accent = true;
+  }
+  
+  const feelNames: Record<string, string> = {
+    straight: 'Straight',
+    shuffle: 'Shuffle',
+    swing: 'Swing',
+    syncopated: 'Syncopated',
+    dotted: 'Dotted',
+    triplet: 'Triplet'
+  };
+  
+  const rhythmName = feelNames[selectedRhythmKey.split('_')[0]] || selectedRhythmKey;
   
   return {
     id: `lick-${Date.now()}`,
-    name: `${pattern.name} ${keyNote} ${mode.replace(/_/g, ' ')}`,
-    notes, tempo: bpm
+    name: `${rhythmName} ${selectedMelodyKey.replace('_', ' ')} ${keyNote} ${mode.replace(/_/g, ' ')}`,
+    notes,
+    tempo: bpm,
+    feel: 'straight'
   };
 };
 
 // ============================================================
-// 🎸 АЛГОРИТМ 2: 4-ТАКТНОЕ СОЛО (ДЛЯ SOLOGENERATOR.TSX)
+// 🔥 ГЕНЕРАТОР СОЛО ДЛЯ SOLOGENERATOR (С ПОДДЕРЖКОЙ ВСЕХ РЕЖИМОВ)
 // ============================================================
+
 export interface SyncChord {
   name: string;
   notes: string[];
@@ -332,27 +569,40 @@ export interface SyncSoloData {
   notes: SyncNote[];
 }
 
-// 🔥 ИСПРАВЛЕНО: Теперь генератор принимает массив аккордов (прогрессию), а не один аккорд-заглушку
 export const generateSynchronizedSolo = (
   scaleNotes: string[],
   keyNote: string,
-  _mode: string,
+  mode: string,
   timeSignature: { beats: number; noteValue: number },
-  progressionChords: { name: string; notes: string[] }[], // Массив из 4 аккордов
+  progressionChords: { name: string; notes: string[] }[],
   _forceAllChords: boolean
 ): SyncSoloData => {
   const bars = 4;
   const beatsPerBar = timeSignature.beats;
   const totalBeats = bars * beatsPerBar;
   
+  // Формируем аккорды с проверкой нот
   const chords: SyncChord[] = [];
   
-  // Распределяем переданные аккорды по 4 тактам
   for (let i = 0; i < bars; i++) {
-    const chordObj = progressionChords[i % progressionChords.length]; // Если передали меньше 4, зациклим
+    const chordObj = progressionChords[i % progressionChords.length];
+    let chordNotes = chordObj.notes;
+    if (!chordNotes || chordNotes.length === 0) {
+      const root = chordObj.name.replace(/[^A-G#b]/g, '');
+      const rootIdx = ALL_NOTES.indexOf(root);
+      if (rootIdx !== -1) {
+        chordNotes = [
+          ALL_NOTES[rootIdx],
+          ALL_NOTES[(rootIdx + 4) % 12],
+          ALL_NOTES[(rootIdx + 7) % 12]
+        ];
+      } else {
+        chordNotes = [keyNote];
+      }
+    }
     chords.push({
       name: chordObj.name,
-      notes: chordObj.notes,
+      notes: chordNotes,
       beatStart: i * beatsPerBar,
       durationBeats: beatsPerBar
     });
@@ -362,80 +612,352 @@ export const generateSynchronizedSolo = (
   let currentBeat = 0;
   
   const safeScale = scaleNotes && scaleNotes.length > 0 ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
-  let currentString = 2; 
-  const startFret = Math.floor(Math.random() * 5) + 3; 
+  
+  let currentString = 2;
+  const startFret = Math.floor(Math.random() * 5) + 3;
+  let lastScaleIdx = Math.floor(safeScale.length / 2);
+  let consecutiveNotes = 0;
 
-  while (currentBeat < totalBeats) {
-    if (currentBeat > totalBeats - 0.5) break;
+  // ОПРЕДЕЛЯЕМ РЕЖИМ
+  const isArpeggioMode = mode.includes('_arp') || mode === 'arpeggio';
+  const isAlteredMode = mode === 'altered';
+  const isPentatonicMode = mode === 'pentatonic' || mode === 'blues';
 
-    const durOpts = [
-      { val: 0.25, type: '16n' },
-      { val: 0.5, type: '8n' },
-      { val: 0.5, type: '8n' },
-      { val: 1.0, type: '4n' }
+  // ============================================================
+  // 🔥 АРПЕДЖИО И АЛЬТЕРАЦИИ - УЛУЧШЕННЫЙ ГЕНЕРАТОР
+  // ============================================================
+  if (isArpeggioMode || isAlteredMode) {
+    const isArp = isArpeggioMode;
+    const stepDuration = isArp ? 0.25 : 0.375;
+    const totalSteps = Math.min(Math.floor(totalBeats / stepDuration), 32);
+    let stepCounter = 0;
+    
+    // Паттерны для альтераций
+    const alteredPatterns = [
+      [0, 1, 3, 4, 6, 8, 10, 6, 4, 3, 1, 0],
+      [0, 1, 2, 1, 2, 3, 4, 3, 2, 1, 0],
+      [0, 1, 3, 4, 6, 4, 3, 1, 0],
+      [0, 1, 2, 1, 3, 4, 3, 1, 0, -1, -2, -1]
     ];
-    const dur = durOpts[Math.floor(Math.random() * durOpts.length)];
-    if (currentBeat + dur.val > totalBeats) break;
-
-    if (currentBeat % 1 !== 0 && Math.random() < 0.15) {
-      notes.push({
-        string: 0, fret: null, isRest: true,
-        beatStart: currentBeat, beatDuration: dur.val, duration: dur.type, technique: 'none'
-      });
-    } else {
-      let noteStr = safeScale[Math.floor(Math.random() * safeScale.length)];
-      const isStrongBeat = currentBeat % 1 === 0;
+    const selectedAlteredPattern = alteredPatterns[Math.floor(Math.random() * alteredPatterns.length)];
+    let alteredIdx = 0;
+    
+    while (currentBeat < totalBeats && stepCounter < totalSteps) {
+      if (currentBeat > totalBeats - 0.1) break;
       
-      // Определяем, в каком такте мы находимся, чтобы взять ноты ТЕКУЩЕГО аккорда
       const currentBarIndex = Math.floor(currentBeat / beatsPerBar);
-      const activeChord = chords[currentBarIndex];
-      const activeChordNotes = activeChord.notes;
-
-      if (currentBeat === 0) {
-        // Первая нота всего соло - тоника первого аккорда прогрессии
-        noteStr = activeChordNotes[0] || keyNote; 
-      } else if (isStrongBeat && activeChordNotes.length > 0 && Math.random() > 0.2) {
-        // На сильную долю (1, 2, 3, 4) почти всегда играем ноту текущего диатонического аккорда
-        noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
+      const chord = chords[currentBarIndex % chords.length];
+      const chordNotes = chord?.notes || [keyNote];
+      const rootNote = chord?.name?.replace(/[^A-G#b]/g, '') || keyNote;
+      
+      let noteStr = '';
+      let useAccent = stepCounter % 4 === 0;
+      
+      if (isArp) {
+        // Арпеджио - последовательно по аккордовым тонам
+        const noteIdx = stepCounter % chordNotes.length;
+        noteStr = chordNotes[noteIdx] || chordNotes[0] || keyNote;
+        useAccent = stepCounter % 3 === 0;
+      } else {
+        // Альтерации - смешиваем аккордовые тона с хроматикой
+        if (stepCounter % 3 === 0) {
+          const noteIdx = Math.floor(Math.random() * chordNotes.length);
+          noteStr = chordNotes[noteIdx] || chordNotes[0] || keyNote;
+        } else if (stepCounter % 3 === 1) {
+          const baseIdx = safeScale.indexOf(chordNotes[0] || keyNote);
+          const offset = selectedAlteredPattern[alteredIdx % selectedAlteredPattern.length];
+          alteredIdx++;
+          const idx = (baseIdx + offset + safeScale.length) % safeScale.length;
+          noteStr = safeScale[idx] || keyNote;
+        } else {
+          // Тритоновая замена
+          const baseIdx = ALL_NOTES.indexOf(rootNote);
+          const tritoneIdx = (baseIdx + 6) % 12;
+          const tritoneNote = ALL_NOTES[tritoneIdx];
+          if (safeScale.includes(tritoneNote)) {
+            noteStr = tritoneNote;
+          } else {
+            const idx = (baseIdx + 1) % 12;
+            noteStr = ALL_NOTES[idx];
+          }
+        }
       }
-
+      
+      if (!noteStr) noteStr = keyNote || 'C';
+      
       let fret = findFretForNote(noteStr, currentString, 0, 21);
       
       if (fret < startFret - 2 || fret > startFret + 5) {
         for (let s = 1; s <= 4; s++) {
           const altFret = findFretForNote(noteStr, s, 0, 19);
           if (altFret >= startFret - 2 && altFret <= startFret + 5) {
-            currentString = s; fret = altFret; break;
+            currentString = s;
+            fret = altFret;
+            break;
           }
         }
       }
-
+      
+      if (fret < 0 || fret > 21) {
+        fret = 5;
+        currentString = 2;
+      }
+      
+      const durVal = stepDuration;
+      const durType = isArp ? '16n' : '8n.';
+      
+      let technique: Technique = 'none';
+      if (isArp && stepCounter > 0 && stepCounter % 2 === 0) {
+        technique = Math.random() > 0.5 ? 'hammer' : 'pull';
+      } else if (!isArp && stepCounter % 3 === 0) {
+        technique = 'bend';
+      } else if (!isArp && stepCounter % 5 === 0) {
+        technique = 'vibrato';
+      }
+      
       notes.push({
         string: currentString,
-        fret: Math.max(0, fret),
+        fret: Math.max(0, Math.min(21, fret)),
         isRest: false,
         beatStart: currentBeat,
-        beatDuration: dur.val,
-        duration: dur.type,
-        technique: dur.val >= 1.0 ? 'vibrato' : 'none',
-        accent: isStrongBeat,
-        velocity: isStrongBeat ? 0.9 : 0.6
+        beatDuration: durVal,
+        duration: durType,
+        technique: technique,
+        accent: useAccent,
+        velocity: useAccent ? 0.95 : 0.6
       });
+      
+      currentBeat += durVal;
+      stepCounter++;
+      
+      if (Math.random() > 0.7) {
+        const newString = Math.floor(Math.random() * 4) + 1;
+        if (Math.abs(newString - currentString) <= 2) {
+          currentString = newString;
+        }
+      }
     }
-    currentBeat += dur.val;
+    
+    // Фолбэк - если нот нет
+    if (notes.length === 0) {
+      for (let i = 0; i < 8; i++) {
+        const beat = i * 0.5;
+        if (beat < totalBeats) {
+          const idx = i % safeScale.length;
+          const note = safeScale[idx] || keyNote;
+          const fret = findFretForNote(note, 2, 3, 15);
+          notes.push({
+            string: 2,
+            fret: Math.max(0, Math.min(21, fret)),
+            isRest: false,
+            beatStart: beat,
+            beatDuration: 0.5,
+            duration: '8n',
+            technique: 'none',
+            accent: i % 2 === 0,
+            velocity: 0.7
+          });
+        }
+      }
+    }
+    
+    // Финальная нота
+    if (notes.length > 0) {
+      const lastNote = notes[notes.length - 1];
+      const lastChordNotes = chords[bars - 1].notes;
+      const resolveNote = lastChordNotes[0] || keyNote;
+      const fret = findFretForNote(resolveNote, lastNote.string, startFret - 2, startFret + 5);
+      lastNote.fret = Math.max(0, Math.min(21, fret));
+      lastNote.technique = 'vibrato';
+      lastNote.duration = '2n';
+      lastNote.beatDuration = 2;
+      lastNote.velocity = 0.9;
+      lastNote.accent = true;
+    }
+    
+    return { bars, totalBeats, chords, notes };
   }
 
-  // Концовка
+  // ============================================================
+  // 🔥 ДЛЯ ОСТАЛЬНЫХ РЕЖИМОВ (major, minor, pentatonic, blues, dorian, и т.д.)
+  // ============================================================
+  
+  const rhythmStyles = [
+    { durations: ['8n', '8n'], density: 0.5 },
+    { durations: ['16n', '16n'], density: 0.7 },
+    { durations: ['8n.', '8n'], density: 0.5 },
+    { durations: ['8n.', '8n'], density: 0.5 },
+    { durations: ['8n', '8n.', '8n', '8n.', '16n', '8n'], density: 0.6 },
+    { durations: ['8t', '8t', '8t'], density: 0.6 },
+    { durations: ['4n.', '8n'], density: 0.3 },
+    { durations: ['8n', '16n', '8n', '16n'], density: 0.7 }
+  ];
+  
+  const selectedStyle = rhythmStyles[Math.floor(Math.random() * rhythmStyles.length)];
+  const durPool = selectedStyle.durations;
+  
+  let melodicPatterns: { steps: number[] }[];
+  
+  if (isPentatonicMode) {
+    melodicPatterns = [
+      { steps: [0, 2, 4, 7, 9, 7, 4, 2, 0] },
+      { steps: [0, 3, 5, 7, 10, 7, 5, 3, 0] },
+    ];
+  } else {
+    melodicPatterns = [
+      { steps: [0, 1, 2, 1, 0, -1, -2, -1] },
+      { steps: [0, 2, 4, 7, 9, 7, 4, 2] },
+      { steps: [0, 1, 3, 5, 6, 5, 3, 1] },
+      { steps: [0, 2, 4, 7, 9, 7, 4, 2] },
+      { steps: [0, 1, 2, 1, 2, 3, 2, 3] },
+      { steps: [0, 5, 2, 7, 4, 9, 5, 2] }
+    ];
+  }
+  
+  const selectedMelody = melodicPatterns[Math.floor(Math.random() * melodicPatterns.length)];
+  let patternIdx = 0;
+
+  const durationMap: Record<string, number> = {
+    '4n': 1.0, '4n.': 1.5,
+    '8n': 0.5, '8n.': 0.75,
+    '16n': 0.25, '16n.': 0.375,
+    '8t': 0.333, '16t': 0.167,
+    '2n': 2.0
+  };
+
+  let maxSteps = totalBeats * 4;
+  let steps = 0;
+
+  while (currentBeat < totalBeats && steps < maxSteps) {
+    if (currentBeat > totalBeats - 0.25) break;
+
+    let durVal = 0.5;
+    let durType = '8n';
+    
+    const durChoice = durPool[Math.floor(Math.random() * durPool.length)];
+    durVal = durationMap[durChoice] || 0.5;
+    durType = durChoice;
+    
+    if (consecutiveNotes > 6 && Math.random() > 0.6) {
+      durVal = 1.0;
+      durType = '4n';
+      consecutiveNotes = 0;
+    }
+    
+    if (Math.random() > 0.92 && consecutiveNotes > 3) {
+      notes.push({
+        string: 0, fret: null, isRest: true,
+        beatStart: currentBeat, beatDuration: durVal,
+        duration: durType, technique: 'none', velocity: 0, accent: false
+      });
+      currentBeat += durVal;
+      consecutiveNotes = 0;
+      steps++;
+      continue;
+    }
+
+    if (currentBeat + durVal > totalBeats) break;
+
+    const isStrongBeat = currentBeat % 1 === 0 || currentBeat % 1 === 0.5;
+    const currentBarIndex = Math.floor(currentBeat / beatsPerBar);
+    const activeChordNotes = chords[currentBarIndex]?.notes || [keyNote];
+
+    let noteStr = '';
+    
+    if (isStrongBeat && Math.random() > 0.5) {
+      noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
+      const foundIdx = safeScale.indexOf(noteStr);
+      if (foundIdx !== -1) lastScaleIdx = foundIdx;
+    } else {
+      const step = selectedMelody.steps[patternIdx % selectedMelody.steps.length];
+      patternIdx++;
+      
+      let finalStep = step;
+      if (Math.random() > 0.8) {
+        finalStep += (Math.random() > 0.5 ? 1 : -1);
+      }
+      
+      lastScaleIdx = (lastScaleIdx + finalStep + safeScale.length) % safeScale.length;
+      noteStr = safeScale[lastScaleIdx];
+    }
+
+    let fret = findFretForNote(noteStr, currentString, 0, 21);
+    
+    if (fret < startFret - 2 || fret > startFret + 5) {
+      for (let s = 1; s <= 4; s++) {
+        const altFret = findFretForNote(noteStr, s, 0, 19);
+        if (altFret >= startFret - 2 && altFret <= startFret + 5) {
+          currentString = s;
+          fret = altFret;
+          break;
+        }
+      }
+    }
+
+    let technique: Technique = 'none';
+    if (durVal >= 1.0) {
+      technique = Math.random() > 0.5 ? 'vibrato' : 'bend';
+    } else if (durVal <= 0.25) {
+      technique = Math.random() > 0.5 ? 'hammer' : 'pull';
+    } else if (durVal === 0.333 || durVal === 0.167) {
+      technique = Math.random() > 0.6 ? 'hammer' : 'pull';
+    } else if (durVal === 0.75 || durVal === 0.5) {
+      technique = Math.random() > 0.8 ? 'slide' : 'none';
+    }
+
+    notes.push({
+      string: currentString,
+      fret: Math.max(0, fret),
+      isRest: false,
+      beatStart: currentBeat,
+      beatDuration: durVal,
+      duration: durType,
+      technique: technique,
+      accent: isStrongBeat,
+      velocity: isStrongBeat ? 0.9 : 0.6
+    });
+
+    currentBeat += durVal;
+    consecutiveNotes++;
+    steps++;
+  }
+
+  // ФИНАЛ
   if (notes.length > 0) {
-     const lastNote = notes[notes.length - 1];
-     if (!lastNote.isRest) {
-        const lastChordNotes = chords[bars - 1].notes;
-        const resolveNote = lastChordNotes[0] || keyNote; // Разрешаемся в тонику последнего аккорда
-        lastNote.fret = findFretForNote(resolveNote, lastNote.string, startFret - 2, startFret + 5);
-        lastNote.technique = 'vibrato';
-        lastNote.duration = '2n';
-        lastNote.beatDuration = 2;
-     }
+    const lastNote = notes[notes.length - 1];
+    if (!lastNote.isRest) {
+      const lastChordNotes = chords[bars - 1].notes;
+      const resolveNote = lastChordNotes[0] || keyNote;
+      const fret = findFretForNote(resolveNote, lastNote.string, startFret - 2, startFret + 5);
+      lastNote.fret = Math.max(0, Math.min(21, fret));
+      lastNote.technique = 'vibrato';
+      lastNote.duration = '2n';
+      lastNote.beatDuration = 2;
+      lastNote.velocity = 0.9;
+      lastNote.accent = true;
+    }
+  }
+
+  // Если нот слишком мало
+  if (notes.length < 4) {
+    const rootNote = keyNote || 'C';
+    for (let i = 0; i < 8; i++) {
+      const beat = i * 0.5;
+      if (beat < totalBeats) {
+        const fret = findFretForNote(rootNote, 2, 3, 15);
+        notes.push({
+          string: 2,
+          fret: Math.max(0, Math.min(21, fret)),
+          isRest: false,
+          beatStart: beat,
+          beatDuration: 0.5,
+          duration: '8n',
+          technique: 'none',
+          accent: i % 2 === 0,
+          velocity: 0.7
+        });
+      }
+    }
   }
 
   return { bars, totalBeats, chords, notes };

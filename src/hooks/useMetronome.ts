@@ -27,7 +27,7 @@ export const useMetronome = (bpm: number, timeSignature: TimeSignature) => {
       const gain = ctx.createGain();
       
       osc.type = 'sine';
-      osc.frequency.value = isAccent ? 1200 : 800;
+      osc.frequency.value = isAccent ? 1500 : 1000;
       
       gain.gain.setValueAtTime(0.5, time);
       gain.gain.exponentialRampToValueAtTime(0.001, time + 0.08);
