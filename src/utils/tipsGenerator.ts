@@ -9,11 +9,11 @@ export interface Tip {
   category: 'harmony' | 'technique' | 'rhythm' | 'dynamics' | 'style' | 'practice' | 'touchgrass';
   actionable?: string;
   relatedArtists?: string[];
-  berkleeTip?: string; // 🔥 Специальный блок "Berklee Says"
+  berkleeTip?: string;
 }
 
 // ============================================================
-// 🔥 НОВАЯ БАЗА СОВЕТОВ — УНИВЕРСАЛЬНЫЕ ПРАКТИЧЕСКИЕ УПРАЖНЕНИЯ
+// 🔥 БАЗА СОВЕТОВ — УНИВЕРСАЛЬНЫЕ ПРАКТИЧЕСКИЕ УПРАЖНЕНИЯ
 // ============================================================
 
 const PRACTICE_TIPS: Tip[] = [
@@ -279,7 +279,7 @@ export function generateTips(
     tips.push(journalTip);
   }
   
-  // 🔥 Уникализация — убираем дубли по заголовкам
+  // Уникализация — убираем дубли по заголовкам
   const seen = new Set();
   const uniqueTips = tips.filter(tip => {
     const key = tip.title;
@@ -408,57 +408,4 @@ function getTempoTip(bpm: number): Tip | null {
     relatedArtists: artists,
     berkleeTip: '"Speed is the result of control, not the goal." — Berklee Technique Dept'
   };
-}
-
-// ============================================================
-// 🔥 ДЛЯ СОВМЕСТИМОСТИ — ОСТАВЛЯЕМ СТАРЫЕ ФУНКЦИИ, НО ОНИ НЕ ИСПОЛЬЗУЮТСЯ
-// ============================================================
-
-function countTechniques(_notes: LickNote[]): Map<Technique, number> {
-  return new Map();
-}
-
-function analyzeIntervals(_notes: LickNote[]): { jumps: number; stepwise: number } {
-  return { jumps: 0, stepwise: 0 };
-}
-
-function analyzeRhythm(_notes: LickNote[]) {
-  return { syncopation: 0, noteDensity: 0 };
-}
-
-function analyzeHarmony(
-  _notes: LickNote[],
-  _chordProgression: string[],
-  _keyNote: string,
-  _mode: string
-) {
-  return { outOfKeyNotes: 0, rootNoteHits: 0, chordTones: 0 };
-}
-
-function analyzeStructure(_notes: LickNote[]): {
-  hasIntro: boolean;
-  hasClimax: boolean;
-  hasRestBeforeClimax: boolean;
-  noteRange: number;
-} {
-  return { hasIntro: false, hasClimax: false, hasRestBeforeClimax: false, noteRange: 0 };
-}
-
-function analyzeMotif(_notes: LickNote[]): {
-  repetitionCount: number;
-  variationCount: number;
-} {
-  return { repetitionCount: 0, variationCount: 0 };
-}
-
-function getModeIntervals(_mode: string): number[] {
-  return [0, 2, 4, 5, 7, 9, 11];
-}
-
-function generateStyleTips(
-  _techniqueCounts: Map<Technique, number>,
-  _intervals: { jumps: number; stepwise: number },
-  _harmony: any
-): Tip[] {
-  return [];
-}
+} 
