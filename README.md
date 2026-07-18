@@ -1,77 +1,42 @@
-# React + TypeScript + Vite
+# FretLab
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+FretLab — это профессиональная веб-платформа для гитаристов, объединяющая инструменты для анализа звука, генерации соло-партий и интерактивного обучения. Проект построен как современная DAW-подобная рабочая станция для музыкантов.
 
-Currently, two official plugins are available:
+## 🚀 Основные возможности
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+* **AI Solo & Chord Generator**: Интеллектуальный генератор гармонии и мелодических линий, синхронизированный по тактам.
+* **Студийный звуковой движок**: Реализация качественного гитарного звука с использованием `Tone.js`, `FMSynth` и `FatOscillator` для создания плотного, профессионального звучания.
+* **Точная синхронизация**: Визуализация нот и аккордов непосредственно на SVG-сетке, имитирующая интерфейс профессионального софта (Guitar Pro, Songsterr).
+* **Гибкая настройка**: Поддержка различных гамм, ладов и музыкальных ключей.
 
-## React Compiler
+## 🛠 Технологический стек
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Frontend**: React, TypeScript.
+* **Audio Engine**: Tone.js (Web Audio API).
+* **Graphics**: SVG для визуализации музыкальных табулатур.
+* **Dev Tools**: Интеграция с Gemini Code Assist для ускорения разработки и отладки кода.
 
-## Expanding the ESLint configuration
+## 📂 Структура проекта
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+* `src/services/AudioManager.ts`: Звуковой движок. Отвечает за синтез, обработку эффектов (хорус, атака/затухание) и полифонию.
+* `src/components/tools/SoloGenerator.tsx`: Компонент генератора. Выполняет математический расчет нот в пределах выбранной гаммы и управляет синхронизацией воспроизведения.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## ⚡ Быстрый старт
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+1.  Убедитесь, что у вас установлен `Node.js`.
+2.  Клонируйте репозиторий.
+3.  Установите зависимости:
+    ```bash
+    npm install
+    ```
+4.  Запустите проект:
+    ```bash
+    npm start
+    ```
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## 📈 Разработка и поддержка
 
-```
+Проект активно развивается с применением современных практик ИИ-ассистирования. Мы используем **Gemini Code Assist** в VS Code для обеспечения высокой скорости написания и чистоты кода.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-DONE!
+---
+*FretLab — создано для гитаристов, которые ценят точность и качество.*
