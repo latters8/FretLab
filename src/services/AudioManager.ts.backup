@@ -5,19 +5,21 @@ import * as Tone from 'tone';
 class AudioManager {
   private static instance: AudioManager;
 
-  // 🎹 Ленивые поля (инициализация при первом обращении)
-  private _chordSynth: Tone.PolySynth | null = null;
-  private _metronomeSynth: Tone.MembraneSynth | null = null;
-  private _guitarSynth: Tone.PolySynth | null = null;
-  private _bassSynth: Tone.MonoSynth | null = null;
-  private _stringsSynth: Tone.PolySynth | null = null;
-  private _pianoSynth: Tone.PolySynth | null = null;
-  private _drumKick: Tone.MembraneSynth | null = null;
-  private _drumSnare: Tone.NoiseSynth | null = null;
-  private _drumHihat: Tone.NoiseSynth | null = null;
-  private _drumCrash: Tone.NoiseSynth | null = null;
-  private _drumRide: Tone.MetalSynth | null = null;
-  private _drumTom: Tone.MembraneSynth | null = null;
+  // 🎹 Tone.js синтезаторы
+  public chordSynth: Tone.PolySynth;
+  public metronomeSynth: Tone.MembraneSynth;
+  public guitarSynth: Tone.PolySynth;
+  public bassSynth: Tone.MonoSynth;
+  public stringsSynth: Tone.PolySynth;
+  public pianoSynth: Tone.PolySynth;
+
+  // 🥁 Барабаны — fallback-синтезаторы
+  public drumKick: Tone.MembraneSynth;
+  public drumSnare: Tone.NoiseSynth;
+  public drumHihat: Tone.NoiseSynth;
+  public drumCrash: Tone.NoiseSynth;
+  public drumRide: Tone.MetalSynth;
+  public drumTom: Tone.MembraneSynth;
 
   // 🥁 Сэмплер барабанов (ленивая инициализация)
   public drumSampler: Tone.Sampler | null = null;
@@ -27,153 +29,96 @@ class AudioManager {
   private oscillators: OscillatorNode[] = [];
   private timeouts: number[] = [];
 
-  // 🎹 Ленивые геттеры для синтезаторов
-  get chordSynth(): Tone.PolySynth {
-    if (!this._chordSynth) {
-      this._chordSynth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'triangle' as any },
-        envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 1.5 }
-      } as any).toDestination();
-      this._chordSynth.volume.value = -10;
-    }
-    return this._chordSynth;
-  }
-
-  get metronomeSynth(): Tone.MembraneSynth {
-    if (!this._metronomeSynth) {
-      this._metronomeSynth = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 2,
-        oscillator: { type: 'sine' as any },
-        envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.01 }
-      } as any).toDestination();
-      this._metronomeSynth.volume.value = -12;
-    }
-    return this._metronomeSynth;
-  }
-
-  get guitarSynth(): Tone.PolySynth {
-    if (!this._guitarSynth) {
-      this._guitarSynth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'square' as any },
-        envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
-      } as any).toDestination();
-      this._guitarSynth.volume.value = -8;
-    }
-    return this._guitarSynth;
-  }
-
-  get bassSynth(): Tone.MonoSynth {
-    if (!this._bassSynth) {
-      this._bassSynth = new Tone.MonoSynth({
-        oscillator: { type: 'sawtooth' as any },
-        filter: { Q: 1, type: 'lowpass', rolloff: -24 },
-        envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1 },
-        filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1, baseFrequency: 100, octaves: 3 }
-      } as any).toDestination();
-      this._bassSynth.volume.value = -6;
-    }
-    return this._bassSynth;
-  }
-
-  get stringsSynth(): Tone.PolySynth {
-    if (!this._stringsSynth) {
-      this._stringsSynth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'sawtooth' as any },
-        envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2 }
-      } as any).toDestination();
-      this._stringsSynth.volume.value = -12;
-    }
-    return this._stringsSynth;
-  }
-
-  get pianoSynth(): Tone.PolySynth {
-    if (!this._pianoSynth) {
-      this._pianoSynth = new Tone.PolySynth(Tone.Synth, {
-        oscillator: { type: 'square' as any },
-        envelope: { attack: 0.01, decay: 0.5, sustain: 0.5, release: 1.5 }
-      } as any).toDestination();
-      this._pianoSynth.volume.value = -8;
-    }
-    return this._pianoSynth;
-  }
-
-  // 🥁 Барабаны — ленивые геттеры
-  get drumKick(): Tone.MembraneSynth {
-    if (!this._drumKick) {
-      this._drumKick = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 5,
-        oscillator: { type: 'sine' as any },
-        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }
-      } as any).toDestination();
-      this._drumKick.volume.value = 0;
-    }
-    return this._drumKick;
-  }
-
-  get drumSnare(): Tone.NoiseSynth {
-    if (!this._drumSnare) {
-      this._drumSnare = new Tone.NoiseSynth({
-        noise: { type: 'white' },
-        envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 }
-      } as any).toDestination();
-      this._drumSnare.volume.value = -8;
-    }
-    return this._drumSnare;
-  }
-
-  get drumHihat(): Tone.NoiseSynth {
-    if (!this._drumHihat) {
-      this._drumHihat = new Tone.NoiseSynth({
-        noise: { type: 'pink' },
-        envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }
-      } as any).toDestination();
-      this._drumHihat.volume.value = -14;
-    }
-    return this._drumHihat;
-  }
-
-  get drumCrash(): Tone.NoiseSynth {
-    if (!this._drumCrash) {
-      this._drumCrash = new Tone.NoiseSynth({
-        noise: { type: 'white' },
-        envelope: { attack: 0.01, decay: 1.5, sustain: 0, release: 1.5 }
-      } as any).toDestination();
-      this._drumCrash.volume.value = -12;
-    }
-    return this._drumCrash;
-  }
-
-  get drumRide(): Tone.MetalSynth {
-    if (!this._drumRide) {
-      this._drumRide = new Tone.MetalSynth({
-        envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
-        harmonicity: 5.1,
-        modulationIndex: 32,
-        resonance: 4000,
-        octaves: 1.5
-      } as any).toDestination();
-      this._drumRide.volume.value = -16;
-    }
-    return this._drumRide;
-  }
-
-  get drumTom(): Tone.MembraneSynth {
-    if (!this._drumTom) {
-      this._drumTom = new Tone.MembraneSynth({
-        pitchDecay: 0.05,
-        octaves: 4,
-        oscillator: { type: 'sine' as any },
-        envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
-      } as any).toDestination();
-      this._drumTom.volume.value = -10;
-    }
-    return this._drumTom;
-  }
-
   private constructor() {
-    // Ленивая инициализация — синтезаторы создаются при первом обращении
+    // ============================================
+    // 1. ИНИЦИАЛИЗАЦИЯ TONE.JS СИНТЕЗАТОРОВ
+    // ============================================
+
+    this.chordSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'triangle' as any },
+      envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 1.5 }
+    } as any).toDestination();
+    this.chordSynth.volume.value = -10;
+
+    this.metronomeSynth = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 2,
+      oscillator: { type: 'sine' as any },
+      envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.01 }
+    } as any).toDestination();
+    this.metronomeSynth.volume.value = -12;
+
+    this.guitarSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'square' as any },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
+    } as any).toDestination();
+    this.guitarSynth.volume.value = -8;
+
+    this.bassSynth = new Tone.MonoSynth({
+      oscillator: { type: 'sawtooth' as any },
+      filter: { Q: 1, type: 'lowpass', rolloff: -24 },
+      envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1 },
+      filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1, baseFrequency: 100, octaves: 3 }
+    } as any).toDestination();
+    this.bassSynth.volume.value = -6;
+
+    this.stringsSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'sawtooth' as any },
+      envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2 }
+    } as any).toDestination();
+    this.stringsSynth.volume.value = -12;
+
+    this.pianoSynth = new Tone.PolySynth(Tone.Synth, {
+      oscillator: { type: 'square' as any },
+      envelope: { attack: 0.01, decay: 0.5, sustain: 0.5, release: 1.5 }
+    } as any).toDestination();
+    this.pianoSynth.volume.value = -8;
+
+    // ============================================
+    // 2. БАРАБАНЫ — Fallback MIDI-синтезаторы
+    // ============================================
+    this.drumKick = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 5,
+      oscillator: { type: 'sine' as any },
+      envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }
+    } as any).toDestination();
+    this.drumKick.volume.value = 0;
+
+    this.drumSnare = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 }
+    } as any).toDestination();
+    this.drumSnare.volume.value = -8;
+
+    this.drumHihat = new Tone.NoiseSynth({
+      noise: { type: 'pink' },
+      envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }
+    } as any).toDestination();
+    this.drumHihat.volume.value = -14;
+
+    this.drumCrash = new Tone.NoiseSynth({
+      noise: { type: 'white' },
+      envelope: { attack: 0.01, decay: 1.5, sustain: 0, release: 1.5 }
+    } as any).toDestination();
+    this.drumCrash.volume.value = -12;
+
+    this.drumRide = new Tone.MetalSynth({
+      envelope: { attack: 0.001, decay: 1.4, release: 0.2 },
+      harmonicity: 5.1,
+      modulationIndex: 32,
+      resonance: 4000,
+      octaves: 1.5
+    } as any).toDestination();
+    this.drumRide.volume.value = -16;
+
+    this.drumTom = new Tone.MembraneSynth({
+      pitchDecay: 0.05,
+      octaves: 4,
+      oscillator: { type: 'sine' as any },
+      envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
+    } as any).toDestination();
+    this.drumTom.volume.value = -10;
   }
 
   public static getInstance(): AudioManager {
@@ -208,12 +153,12 @@ class AudioManager {
     this.drumSamplerPromise = new Promise((resolve) => {
       const sampler = new Tone.Sampler(
         {
-          C1: 'samples/drums/kick.mp3',
-          D1: 'samples/drums/snare.mp3',
-          'F#1': 'samples/drums/hihat.mp3',
-          A1: 'samples/drums/crash.mp3',
-          E1: 'samples/drums/ride.wav',
-          G1: 'samples/drums/tom.mp3',
+          C1: '/samples/drums/kick.mp3',
+          D1: '/samples/drums/snare.mp3',
+          'F#1': '/samples/drums/hihat.mp3',
+          A1: '/samples/drums/crash.mp3',
+          E1: '/samples/drums/ride.wav',
+          G1: '/samples/drums/tom.mp3',
         },
         () => {
           console.log('✅ Drum sampler loaded');

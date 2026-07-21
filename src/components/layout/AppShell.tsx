@@ -11,16 +11,17 @@ import ChordDictionary from '../tools/ChordDictionary';
 import SoloGenerator from '../tools/SoloGenerator';
 import ToolBox from '../tools/ToolBox';
 import PracticeDashboard from '../PracticeDashboard';
+import GameRoom from '../GameRoom/GameRoom';
 import { useMusic } from '../../context/MusicContext';
 
-type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'practice' | 'settings';
+type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'practice' | 'gameroom';
 
 const MODULES = {
   engine: { icon: '🎸', title: 'Fretboard Engine', description: 'Interactive fretboard with playback' },
   dictionary: { icon: '📖', title: 'Chord Dictionary', description: 'Explore chords and voicings' },
   autotab: { icon: '🎼', title: 'Solo Generator', description: 'AI-powered solo generation' },
   practice: { icon: '🏋️', title: 'Practice Dashboard', description: 'Track your progress' },
-  settings: { icon: '⚙️', title: 'Settings', description: 'App preferences' },
+  gameroom: { icon: '🎮', title: 'Game Room', description: 'Take a break with open-source games' },
 } as const;
 
 const AppShell: React.FC = () => {
@@ -99,7 +100,7 @@ const AppShell: React.FC = () => {
     const handleKeyPress = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '5') {
         e.preventDefault();
-        const modules: ModuleType[] = ['engine', 'dictionary', 'autotab', 'practice', 'settings'];
+        const modules: ModuleType[] = ['engine', 'dictionary', 'autotab', 'practice', 'gameroom'];
         const index = parseInt(e.key) - 1;
         if (index < modules.length) {
           setActiveModule(modules[index]);
@@ -183,7 +184,7 @@ const AppShell: React.FC = () => {
     );
   };
 
-  const renderContent = () => {
+const renderContent = () => {
     switch (activeModule) {
       case 'engine':
         return (
@@ -196,7 +197,7 @@ const AppShell: React.FC = () => {
               <Tablature />
             </main>
             
-            <aside className="right-column" style={{ 
+            <aside className="right-column mobile-order-after" style={{ 
               display: 'flex', 
               flexDirection: 'column', 
               gap: '24px', 
@@ -232,93 +233,10 @@ const AppShell: React.FC = () => {
           </main>
         );
 
-      case 'settings':
+      case 'gameroom':
         return (
-          <main className="center-column" style={{ 
-            overflowY: 'auto',
-            padding: '20px',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start'
-          }}>
-            <div style={{
-              maxWidth: '600px',
-              width: '100%',
-              background: 'var(--bg-panel)',
-              borderRadius: 'var(--radius)',
-              padding: '32px',
-              border: '1px solid var(--border-color)'
-            }}>
-              <h2 style={{ color: 'var(--text-primary)', marginBottom: '24px' }}>
-                ⚙️ Settings
-              </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                    Theme
-                  </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <option>Dark</option>
-                    <option>Light</option>
-                    <option>System</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                    Language
-                  </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <option>English</option>
-                    <option>Русский</option>
-                    <option>Deutsch</option>
-                    <option>Español</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ color: 'var(--text-muted)', fontSize: '14px', display: 'block', marginBottom: '8px' }}>
-                    MIDI Input
-                  </label>
-                  <select style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    background: 'var(--bg-secondary)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '6px',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <option>None</option>
-                    <option>MIDI Device 1</option>
-                    <option>MIDI Device 2</option>
-                  </select>
-                </div>
-                <button style={{
-                  padding: '10px 20px',
-                  background: 'var(--accent)',
-                  border: 'none',
-                  borderRadius: '6px',
-                  color: '#000',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  marginTop: '8px'
-                }}>
-                  Save Settings
-                </button>
-              </div>
-            </div>
+          <main className="center-column" style={{ overflowY: 'auto', padding: 0 }}>
+            <GameRoom />
           </main>
         );
 
@@ -350,7 +268,7 @@ const AppShell: React.FC = () => {
             {renderNavIcon('dictionary')}
             {renderNavIcon('autotab')}
             {renderNavIcon('practice')}
-            {renderNavIcon('settings')}
+            {renderNavIcon('gameroom')}
             
             <div style={{
               marginTop: 'auto',

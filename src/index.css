@@ -8,7 +8,7 @@ body[data-theme="nebula"] { --bg-root: #0b0c10; --bg-panel: #1f2833; --bg-primar
 body[data-theme="titanium"] { --bg-root: #1c1d21; --bg-panel: #2a2b30; --bg-primary: #212226; --bg-secondary: #2e3036; --bg-hover: #3a3d45; --text-primary: #ffffff; --text-secondary: #e5c158; --text-muted: #8a8d96; --border-color: #3e414a; --accent: #ffcc00; --accent-blue: #ff9100; }
 body[data-theme="crimson"] { --bg-root: #0d0202; --bg-panel: #1a0808; --bg-primary: #120505; --bg-secondary: #240c0c; --bg-hover: #361414; --text-primary: #ffffff; --text-secondary: #ff6b6b; --text-muted: #855c55; --border-color: #401a1a; --accent: #ff3333; --accent-blue: #ec407a; }
 
-/* --- ГЛОБАЛЬНЫЕ ОГРАНИЧИТЕЛИ (ЛЕКАРСТВО ОТ ПУСТОТЫ) --- */
+/* --- ГЛОБАЛЬНЫЕ ОГРАНИЧИТЕЛИ --- */
 body {
   margin: 0;
   padding: 0;
@@ -16,7 +16,7 @@ body {
   background: var(--bg-root);
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
-  overflow-x: hidden; /* 🔥 ЖЕСТКО ОБРУБАЕМ ВЫЛЕТЫ ЗА ЭКРАН */
+  overflow-x: hidden;
 }
 
 * { box-sizing: border-box; }
@@ -93,7 +93,7 @@ body {
   min-width: 0; 
 }
 
-/* Эффект Full-Bleed на Десктопе */
+/* Full-Bleed на Десктопе */
 .center-column > div {
   width: 100% !important;
   max-width: 100vw !important;
@@ -125,116 +125,118 @@ body {
   border-bottom: 1px solid var(--border-color);
 }
 
-/* --- 🔥 МОБИЛЬНАЯ АДАПТИВНОСТЬ (ЭКРАНЫ ДО 768px) --- */
-@media (max-width: 768px) {
-  /* Шапка становится гибкой и переносится */
-  .app-header {
-    height: auto;
-    flex-direction: column;
-    padding: 16px;
+/* --- ПЛАНШЕТ (≤1024px) --- */
+@media (max-width: 1024px) {
+  .right-column {
+    width: 280px;
+    padding: 16px 12px;
     gap: 16px;
   }
+  .left-sidebar {
+    width: 70px;
+  }
+  .app-header {
+    padding: 0 16px;
+  }
+}
+
+/* --- МОБИЛЬНЫЙ (≤768px) --- */
+@media (max-width: 768px) {
+  .app-header { 
+    height: auto; 
+    flex-direction: column; 
+    padding: 12px 16px; 
+    gap: 12px; 
+  }
+  .header-brand, .header-controls { 
+    width: 100%; 
+    justify-content: space-between; 
+    gap: 8px; 
+    flex-wrap: wrap; 
+  }
   .header-brand {
-    width: 100%;
-    justify-content: space-between;
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .app-layout { 
+    flex-direction: column; 
+    overflow-y: auto; 
+    overflow-x: hidden; 
+  }
+  .left-sidebar { 
+    width: 100%; 
+    height: 56px; 
+    flex-direction: row; 
+    justify-content: center; 
+    padding: 0 8px; 
+    gap: 4px; 
+    border-right: none; 
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    bottom: 0;
+    z-index: 100;
+    order: 100;
+  }
+  .main-workspace, .center-column { 
+    flex-direction: column; 
+    overflow: visible; 
+    height: auto; 
+  }
+  .center-column {
+    min-height: 0;
+  }
+.right-column { 
+    width: 100%; 
+    flex-shrink: 1; 
+    border-left: none; 
+    border-top: 1px solid var(--border-color); 
+    padding: 12px 0; 
+    overflow: visible; 
+    height: auto; 
+  }
+  .right-column.mobile-order-after {
+    order: 10;
+  }
+  .right-column > div {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+  .fretboard-scroll-wrapper {
+    overflow-x: auto;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .desktop-only {
+    display: none !important;
+  }
+}
+
+/* --- МАЛЕНЬКИЕ МОБИЛЬНЫЕ (≤480px) --- */
+@media (max-width: 480px) {
+  .app-header {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+  .left-sidebar {
+    height: 48px;
+    gap: 0;
+  }
+  .left-sidebar > div {
+    padding: 6px !important;
+    font-size: 18px !important;
+  }
+  .right-column {
+    padding: 8px 0;
+    gap: 8px;
+  }
+  .header-brand > div {
+    font-size: 16px !important;
   }
   .header-controls {
-    width: 100%;
-    justify-content: space-between;
-    gap: 12px;
-    flex-wrap: wrap; /* Кнопки перенесутся вниз, если не влезут */
-  }
-
-  /* Весь контейнер выстраивается в колонку и скроллится целиком */
-  .app-layout {
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-  }
-
-  .left-sidebar {
-    width: 100%;
-    height: 60px;
-    flex-direction: row;
-    justify-content: center;
-    padding: 0;
-    gap: 32px;
-    border-right: none;
-    border-bottom: 1px solid var(--border-color);
-  }
-
-  .main-workspace {
-    flex-direction: column;
-    overflow: visible; /* Отключаем обрезку высоты */
-    height: auto;
-  }
-
-  .center-column {
-    overflow: visible;
-    height: auto;
-  }
-
-  .right-column {
-    width: 100%;
-    border-left: none;
-    border-top: 1px solid var(--border-color);
-    padding: 16px 0;
-    overflow: visible;
-    height: auto;
+    gap: 6px;
   }
 }
-/* --- ТЕМЫ --- */
-:root {
-  --bg-root: #090a0f; --bg-panel: #111216; --bg-primary: #1a1b23; --bg-secondary: #22242e; --bg-hover: #2a2d39;
-  --text-primary: #ffffff; --text-secondary: #a0a5b5; --text-muted: #6b7280; --border-color: #2a2d39;
-  --accent: #00FF9D; --accent-blue: #00b8ff; --radius: 12px;
-}
-body[data-theme="nebula"] { --bg-root: #0b0c10; --bg-panel: #1f2833; --bg-primary: #12161c; --bg-secondary: #1a2129; --bg-hover: #2c3540; --text-primary: #ffffff; --text-secondary: #45f3ff; --text-muted: #667885; --border-color: #2c3e50; --accent: #45f3ff; --accent-blue: #00a8ff; }
-body[data-theme="titanium"] { --bg-root: #1c1d21; --bg-panel: #2a2b30; --bg-primary: #212226; --bg-secondary: #2e3036; --bg-hover: #3a3d45; --text-primary: #ffffff; --text-secondary: #e5c158; --text-muted: #8a8d96; --border-color: #3e414a; --accent: #ffcc00; --accent-blue: #ff9100; }
-body[data-theme="crimson"] { --bg-root: #0d0202; --bg-panel: #1a0808; --bg-primary: #120505; --bg-secondary: #240c0c; --bg-hover: #361414; --text-primary: #ffffff; --text-secondary: #ff6b6b; --text-muted: #855c55; --border-color: #401a1a; --accent: #ff3333; --accent-blue: #ec407a; }
 
-body { margin: 0; padding: 0; font-family: sans-serif; background: var(--bg-root); color: var(--text-primary); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-* { box-sizing: border-box; }
-
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-root); }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--accent); }
-
-.app-container { display: flex; flex-direction: column; height: 100vh; width: 100vw; overflow: hidden; background: var(--bg-secondary); }
-
-.app-header { height: 64px; background: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); z-index: 50; flex-shrink: 0; }
-.header-brand, .header-controls { display: flex; align-items: center; gap: 24px; }
-
-.app-layout { display: flex; flex-direction: row; flex: 1; overflow: hidden; }
-
-.left-sidebar { width: 90px; flex-shrink: 0; border-right: 1px solid var(--border-color); background: var(--bg-primary); display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; }
-
-.main-workspace { flex: 1; display: flex; overflow: hidden; min-width: 0; }
-.center-column { flex: 1; padding: 0 !important; overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; background: var(--bg-root); min-width: 0; }
-.center-column > div { width: 100% !important; max-width: 100vw !important; border-radius: 0 !important; border-left: none !important; border-right: none !important; margin: 0 !important; flex-shrink: 0 !important; }
-
-/* 🔥 ИСПРАВЛЕНО: Безопасная ширина правой колонки */
-.right-column {
-  width: 340px;
-  flex-shrink: 0;
-  padding: 24px 16px;
-  border-left: 1px solid var(--border-color);
-  background: var(--bg-panel);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
-}
-
-.fretboard-scroll-wrapper { width: 100%; overflow-x: auto; overflow-y: hidden; background: var(--bg-panel); border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); }
-
-@media (max-width: 768px) {
-  .app-header { height: auto; flex-direction: column; padding: 16px; gap: 16px; }
-  .header-brand, .header-controls { width: 100%; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .app-layout { flex-direction: column; overflow-y: auto; overflow-x: hidden; }
-  .left-sidebar { width: 100%; height: 60px; flex-direction: row; justify-content: center; padding: 0; gap: 32px; border-right: none; border-bottom: 1px solid var(--border-color); }
-  .main-workspace, .center-column { flex-direction: column; overflow: visible; height: auto; }
-  .right-column { width: 100%; flex-shrink: 1; border-left: none; border-top: 1px solid var(--border-color); padding: 16px 0; overflow: visible; height: auto; }
-}

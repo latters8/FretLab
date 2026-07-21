@@ -782,8 +782,9 @@ export const generateSynchronizedSolo = (
   // 🔥 ДЛЯ ОСТАЛЬНЫХ РЕЖИМОВ (major, minor, pentatonic, blues, dorian, и т.д.)
   // ============================================================
   
-  // Соло сейчас иногда получает много «длинных» длительностей (4n/2n).
-  // Пересобираем пул стилей так, чтобы чаще получались короткие 8n/16n.
+  // Ставит цель: делать «фразу на каждый такт», а не ровный поток.
+  // 1) Жёстко ограничиваем длительности (только 8n/16n и их точечные/триплетные).
+  // 2) Добавляем контроль длины «фразы» внутри while: небольшие фрагменты чаще сменяются.
   const rhythmStyles = [
     { durations: ['16n', '16n', '8n', '16n'], density: 0.8 },
     { durations: ['16n', '16n.', '16n', '8n'], density: 0.85 },
@@ -799,6 +800,7 @@ export const generateSynchronizedSolo = (
   const durPool = selectedStyle.durations;
   
   let melodicPatterns: { steps: number[] }[];
+
   
   if (isPentatonicMode) {
     melodicPatterns = [

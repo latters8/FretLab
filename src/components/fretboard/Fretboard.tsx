@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
 
 const TUNINGS = {
@@ -30,6 +30,13 @@ const Fretboard: React.FC = () => {
   const [material, setMaterial] = useState<keyof typeof MATERIALS>('glass');
   const [fretColor, setFretColor] = useState<'dark' | 'light'>('dark');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('notes');
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const strings = TUNINGS[tuningName].slice().reverse(); 
   const frets = Array.from({ length: 25 }, (_, i) => i);
@@ -43,19 +50,19 @@ const Fretboard: React.FC = () => {
   const isCyberpunk = material === 'glass' && fretColor === 'light';
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', minWidth: '800px' }}>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: isMobile ? '12px' : '24px', border: '1px solid var(--border-color)', minWidth: isMobile ? '600px' : '800px' }}>
       
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px', alignItems: 'center' }}>
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', marginBottom: isMobile ? '12px' : '24px', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '8px' : '0' }}>
         
         {/* ЛЕВАЯ ПАНЕЛЬ СЕЛЕКТОРОВ */}
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-           <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', marginRight: '8px' }}>Fretboard Engine</div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+           {!isMobile && <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', marginRight: '8px' }}>Fretboard Engine</div>}
            
-           <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none', cursor: 'pointer' }}>
+           <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px' }}>
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
           
-          <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none', cursor: 'pointer' }}>
+          <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px', maxWidth: isMobile ? '120px' : 'none' }}>
             <optgroup label="Standard Scales">
               {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
             </optgroup>
@@ -71,7 +78,7 @@ const Fretboard: React.FC = () => {
           <select 
             value={displayMode} 
             onChange={(e) => setDisplayMode(e.target.value as DisplayMode)} 
-            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', outline: 'none', cursor: 'pointer' }}
+            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px' }}
           >
             <option value="notes">🎵 Notes</option>
             <option value="intervals">🔢 Intervals</option>
@@ -81,14 +88,14 @@ const Fretboard: React.FC = () => {
         </div>
 
         {/* ПРАВАЯ ПАНЕЛЬ СЕЛЕКТОРОВ */}
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t} Tuning</option>)}
           </select>
-          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
+          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
             {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m} Neck</option>)}
           </select>
-          <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 8px', borderRadius: '4px', fontSize: '13px', outline: 'none', cursor: 'pointer' }}>
+          <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', outline: 'none', cursor: 'pointer' }}>
             <option value="dark">Dark Frets</option>
             <option value="light">Light Frets</option>
           </select>

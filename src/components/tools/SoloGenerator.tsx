@@ -5,6 +5,7 @@ import { useMusic } from '../../context/MusicContext';
 import { generateSynchronizedSolo, type SyncSoloData } from '../../services/AIEngine';
 import { generateTips, type Tip } from '../../utils/tipsGenerator';
 import TablatureDisplay from '../fretboard/TablatureDisplay';
+import AnimatedTipBlock from '../tips/AnimatedTipBlock';
 import * as Tone from 'tone';
 import { audioManager } from '../../services/AudioManager';
 import { 
@@ -31,6 +32,14 @@ const SoloGenerator: React.FC = () => {
   const [diatonicChords, setDiatonicChords] = useState<any[]>([]);
   const [progression, setProgression] = useState<{ name: string; notes: string[] }[]>([]);
   const [editingBarIndex, setEditingBarIndex] = useState<number | null>(null);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const [isDrumOn, setIsDrumOn] = useState(true);
   const [drumPatternName, setDrumPatternName] = useState<string>('ROCK');
@@ -131,9 +140,31 @@ const SoloGenerator: React.FC = () => {
   const generateProgression = () => {
     const chords = getDiatonicChords();
     setDiatonicChords(chords);
-    
-    if (chords.length > 0) {
-      const root = keyNote || 'C';
+
+    // 🔥 Fallback: для arpeggio/altered getDiatonicChords() может вернуть [] (scale.length < 7)
+    // В этом случае всё равно нужно построить progression и запустить генерацию.
+    const isArpOrAltered = [
+      'maj7_arp',
+      'min7_arp',
+      'dom7_arp',
+      'dom9_arp',
+      'altered',
+    ].includes(mode);
+
+    const root = keyNote || 'C';
+    const fallbackTriadRoots: string[] = (() => {
+      // Берём triads из scale, если есть хотя бы 1 нота, иначе используем хардкод C major.
+      const scaleNotes = getScaleNotes();
+      const scaleRoot = scaleNotes.length > 0 ? scaleNotes : ['C','D','E','G','A'];
+      // Для генерации достаточно 4 “опорных” ступеней.
+      return [scaleRoot[0], scaleRoot[3] || scaleRoot[1], scaleRoot[4] || scaleRoot[2], scaleRoot[0]];
+    })();
+
+    const effectiveChords = chords.length > 0
+      ? chords
+      : (isArpOrAltered ? fallbackTriadRoots.map((r, i) => ({ baseRoman: String(i), triad: r + '', seventhChord: r + '', ninthChord: r + '', eleventhChord: r + '' })) : []);
+
+    if (effectiveChords.length > 0) {
       
       let chordSuffix = '';
       let useChordType: 'triad' | 'seventh' | 'ninth' | 'altered' = 'triad';
@@ -424,14 +455,14 @@ const SoloGenerator: React.FC = () => {
 
     if (isChordsOn) {
       data.chords.forEach(chord => {
-        const time = chord.beatStart * quarterDuration;
+        const time = chord.beatStart;
         const notes = (chord.notes && chord.notes.length > 0 ? chord.notes : [keyNote])
           .map(n => `${n.replace(/[0-9]/g, '')}3`);
         events.push({ 
           time, 
           type: 'chord', 
           notes, 
-          duration: chord.durationBeats * quarterDuration * 0.95,
+          duration: chord.durationBeats * 0.95,
           barIndex: Math.floor(chord.beatStart / beatsPerBar)
         });
       });
@@ -459,9 +490,9 @@ const SoloGenerator: React.FC = () => {
           return;
         }
 
-        const time = note.beatStart * quarterDuration;
+        const time = note.beatStart;
         const freq = stringToFreq[note.string] * Math.pow(2, note.fret / 12);
-        const duration = note.beatDuration * quarterDuration;
+        const duration = note.beatDuration;
         const velocity = note.accent ? 0.9 : 0.6;
 
         events.push({ 
@@ -537,7 +568,7 @@ const SoloGenerator: React.FC = () => {
     }, events).start(0);
 
     sequencePartRef.current.loop = isLoopOn;
-    sequencePartRef.current.loopEnd = totalDurationSec;
+    sequencePartRef.current.loopEnd = data.totalBeats;
 
     Tone.Transport.start();
     startTimeRef.current = Tone.now();
@@ -592,8 +623,8 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
     }
   };
 
-  // 🔥 ИЗМЕНЕНО: SVG_HEIGHT увеличено, добавлены SOLO_Y
-  const SVG_WIDTH = 1200;
+  // 🔥 ИЗМЕНЕНО: SVG_HEIGHT увеличено, добавлены SOLO_Y, адаптивная ширина
+  const SVG_WIDTH = isMobile ? window.innerWidth - 20 : 1200;
   const SVG_HEIGHT = 520; // было 460
   const TRACK_MARGIN_X = 20;
   const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
@@ -646,10 +677,10 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
         <div>
-          <h2 style={{ margin: '0 0 6px 0', fontSize: '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio Progress Composer</h2>
-          <div style={{ display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-muted)' }}>
-            <span>Тональность: <strong style={{ color: 'var(--accent)' }}>{keyNote} {mode.replace(/_/g, ' ')}</strong></span>
-            <span>Размер: <strong>{timeSignature.beats}/{timeSignature.noteValue}</strong></span>
+<h2 style={{ margin: '0 0 6px 0', fontSize: isMobile ? '14px' : '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio</h2>
+          <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', fontSize: isMobile ? '10px' : '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+            <span>Key: <strong style={{ color: 'var(--accent)' }}>{keyNote} {mode.replace(/_/g, ' ')}</strong></span>
+            <span>Time: <strong>{timeSignature.beats}/{timeSignature.noteValue}</strong></span>
           </div>
         </div>
 
@@ -1319,12 +1350,9 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
       </div>
 
       {tips.length > 0 && (
-        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-          {tips.map((tip, i) => (
-            <div key={i} style={{ fontSize: '12px', background: 'rgba(0,255,157,0.04)', padding: '10px 14px', borderRadius: '6px', borderLeft: '3px solid var(--accent)', color: 'var(--text-primary)' }}>
-              <strong>{tip.title}:</strong> {tip.description}
-            </div>
-          ))}
+        <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', width: '100%' }}>
+          <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>💡 Советы к соло:</div>
+          <AnimatedTipBlock tips={tips} />
         </div>
       )}
 

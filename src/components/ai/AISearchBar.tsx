@@ -56,190 +56,119 @@ const WELCOME_MESSAGE = {
 // 🔥 НОВЫЙ КОМПОНЕНТ — ОТОБРАЖЕНИЕ СОВЕТА В СТИЛЕ BERKLEE
 // ============================================================
 
-const TipDisplay: React.FC<{ 
-  text: string;
-  tipData?: {
-    title?: string;
-    category?: string;
-    berkleeTip?: string;
-    actionable?: string;
-    relatedArtists?: string[];
-  };
-}> = ({ text, tipData }) => {
-  // Определяем, есть ли в тексте маркеры Berklee или TouchGrass
-  const hasBerklee = text.includes('Berklee') || text.includes('🎓');
-  const hasTouchGrass = text.includes('TouchGrass') || text.includes('🌿');
+type TipDisplayData = NonNullable<ChatMessage['tipData']>;
 
-  // Извлекаем заголовок (первая строка до \n или : )
-  const lines = text.split('\n').filter(line => line.trim().length > 0);
-  const titleLine = lines.find(line => 
-    line.includes(':') || 
-    line.match(/^[A-ZА-Я][a-zа-я]+/) ||
-    line.match(/^[🎸🤘🎵🌀🎹🎯🔥🥁⚡🌊🎩📝🧠🌿]/)
-  );
-  
-  let title = tipData?.title || '';
-  let description = text;
-  
-  // Если есть заголовок в тексте (формат "Заголовок: описание")
-  if (titleLine && titleLine.includes(':')) {
-    const parts = titleLine.split(':');
-    title = parts[0].trim();
-    description = text.replace(titleLine, parts.slice(1).join(':').trim()).trim();
-  } else if (tipData?.title) {
-    title = tipData.title;
-    description = text;
-  }
-
-  // Получаем категорию
-  const category = tipData?.category || 'Совет';
-  const categoryEmojis: Record<string, string> = {
-    'technique': '🎸',
-    'harmony': '🎹',
-    'rhythm': '🥁',
-    'dynamics': '🌊',
-    'style': '🎩',
-    'practice': '📝',
-    'touchgrass': '🌿',
-    'general': '💡'
+const TipDisplay: React.FC<{ text: string; tipData: TipDisplayData }> = ({ tipData }) => {
+  const categoryColors: Record<string, string> = {
+    technique: '#ff6b6b',
+    harmony: '#4ecdc4',
+    rhythm: '#ffd166',
+    dynamics: '#06d6a0',
+    style: '#118ab2',
+    practice: '#f72585',
+    touchgrass: '#76c893',
   };
-  const categoryEmoji = categoryEmojis[category] || '💡';
+
+  const category = tipData.category ?? 'general';
+  const color = categoryColors[category] || 'var(--accent)';
 
   return (
-    <div style={{
-      background: 'linear-gradient(135deg, rgba(0,255,157,0.04), rgba(0,255,157,0.01))',
-      border: '1px solid rgba(0,255,157,0.08)',
-      borderRadius: '16px',
-      padding: '14px 18px',
-      maxWidth: '95%',
-      width: '100%',
-      fontSize: '13px',
-      lineHeight: '1.6',
-      color: 'var(--text-primary)',
-      marginTop: '4px',
-    }}>
-      {/* Заголовок с категорией */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginBottom: '6px',
-      }}>
-        <span style={{ fontSize: '18px' }}>{categoryEmoji}</span>
-        <span style={{
-          fontSize: '11px',
-          fontWeight: 700,
-          color: 'var(--accent)',
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          opacity: 0.7,
-          background: 'rgba(0,255,157,0.08)',
-          padding: '2px 10px',
-          borderRadius: '12px',
-        }}>
-          {category}
-        </span>
-        {tipData?.relatedArtists && tipData.relatedArtists.length > 0 && (
-          <span style={{
-            fontSize: '10px',
-            color: 'var(--text-muted)',
-            opacity: 0.5,
-            marginLeft: 'auto',
-          }}>
-            🎤 {tipData.relatedArtists.slice(0, 2).join(' · ')}
-          </span>
-        )}
-      </div>
-
-      {/* Заголовок совета */}
-      {title && (
-        <div style={{
-          fontSize: '16px',
-          fontWeight: 800,
-          color: 'var(--text-primary)',
-          marginBottom: '6px',
-          letterSpacing: '-0.3px',
-        }}>
-          {title}
-        </div>
-      )}
-
-      {/* Описание */}
-      <div style={{
-        color: 'var(--text-secondary)',
+    <div
+      style={{
+        background: 'linear-gradient(135deg, rgba(0,255,157,0.04), rgba(0,255,157,0.01))',
+        border: '1px solid rgba(0,255,157,0.08)',
+        borderRadius: '16px',
+        padding: '14px 18px',
+        maxWidth: '95%',
+        width: '100%',
         fontSize: '13px',
         lineHeight: '1.6',
-        marginBottom: '8px',
-        whiteSpace: 'pre-wrap',
-      }}>
-        {description}
-      </div>
-
-      {/* Практическое действие (actionable) */}
-      {tipData?.actionable && (
-        <div style={{
-          background: 'rgba(0,255,157,0.06)',
-          borderLeft: '3px solid var(--accent)',
-          padding: '6px 12px',
-          borderRadius: '4px',
-          marginBottom: '8px',
-          fontSize: '12px',
-          color: 'var(--text-primary)',
-        }}>
-          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>🎯 Практика:</span> {tipData.actionable}
-        </div>
-      )}
-
-      {/* Цитата Berklee */}
-      {tipData?.berkleeTip && (
-        <div style={{
-          marginTop: '6px',
-          paddingTop: '8px',
-          borderTop: '1px solid rgba(0,255,157,0.08)',
-          fontSize: '12px',
-          fontStyle: 'italic',
-          color: 'var(--text-muted)',
-          opacity: 0.8,
-        }}>
-          <span style={{ color: 'var(--accent)', fontWeight: 700 }}>🎓</span> “{tipData.berkleeTip}”
-        </div>
-      )}
-
-      {/* Брендирование TouchGrass */}
-      {hasTouchGrass && (
-        <div style={{
-          marginTop: '6px',
-          fontSize: '10px',
-          color: '#6bcb77',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          opacity: 0.5,
+        color: 'var(--text-primary)',
+        marginTop: '4px',
+      }}
+    >
+      <div
+        style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '4px',
-        }}>
-          <span>🌿</span> TouchGrass Philosophy
+          justifyContent: 'space-between',
+          marginBottom: '8px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '18px' }}>{'🎓'}</span>
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 700,
+              color,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              background: `${color}15`,
+              padding: '2px 10px',
+              borderRadius: '12px',
+            }}
+          >
+            {category}
+          </span>
+        </div>
+      </div>
+
+      {tipData.title && (
+        <div
+          style={{
+            fontSize: '16px',
+            fontWeight: 800,
+            color: 'var(--text-primary)',
+            marginBottom: '6px',
+          }}
+        >
+          {tipData.title}
         </div>
       )}
 
-      {/* Брендирование Berklee */}
-      {hasBerklee && !tipData?.berkleeTip && (
-        <div style={{
-          marginTop: '4px',
-          fontSize: '10px',
-          color: 'var(--accent)',
-          fontWeight: 700,
-          textTransform: 'uppercase',
-          letterSpacing: '0.5px',
-          opacity: 0.5,
-        }}>
-          🎓 Berklee Tip
+      {tipData.berkleeTip && (
+        <div
+          style={{
+            marginBottom: '8px',
+            padding: '10px 12px',
+            background: 'rgba(0,255,157,0.04)',
+            borderLeft: `3px solid ${color}`,
+            borderRadius: '6px',
+            color: 'var(--text-secondary)',
+            fontStyle: 'italic',
+          }}
+        >
+          {tipData.berkleeTip}
+        </div>
+      )}
+
+      {tipData.actionable && (
+        <div
+          style={{
+            background: 'rgba(0,255,157,0.06)',
+            borderLeft: `3px solid ${color}`,
+            padding: '6px 12px',
+            borderRadius: '4px',
+            marginBottom: '8px',
+            fontSize: '12px',
+          }}
+        >
+          <span style={{ fontWeight: 700, color: 'var(--accent)' }}>🎯 </span>
+          {tipData.actionable}
+        </div>
+      )}
+
+      {tipData.relatedArtists && tipData.relatedArtists.length > 0 && (
+        <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+          🎤 Related: {tipData.relatedArtists.join(', ')}
         </div>
       )}
     </div>
   );
 };
+
+
 
 // ============================================================
 // 🔥 КОМПОНЕНТЫ ВЫБОРА

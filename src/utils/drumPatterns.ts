@@ -25,7 +25,129 @@ export const DrumPatterns: Record<string, DrumPattern> = {
     tempoRange: { min: 80, max: 160 },
     complexity: 2
   },
-  // ... остальные паттерны
+
+  // ===== РОК ВАРИАЦИИ =====
+  ROCK_RIDE: {
+    kick: [1, 0, 0, 0, 1, 0, 0, 0],
+    snare: [0, 0, 1, 0, 0, 0, 1, 0],
+    hihat: [0, 0, 0, 0, 0, 0, 0, 0],
+    ride: [1, 1, 1, 1, 1, 1, 1, 1],
+    crash: [1, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Rock Ride',
+    description: 'Rock with ride cymbal for brighter sound',
+    tempoRange: { min: 80, max: 160 },
+    complexity: 2
+  },
+
+  ROCK_TOMS: {
+    kick: [1, 0, 0, 0, 1, 0, 0, 0],
+    snare: [0, 0, 1, 0, 0, 0, 1, 0],
+    hihat: [1, 1, 1, 1, 1, 1, 1, 1],
+    tom: [0, 0, 0, 0, 0, 0, 0, 1],
+    crash: [1, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Rock Toms',
+    description: 'Rock with tom fill on last beat',
+    tempoRange: { min: 80, max: 160 },
+    complexity: 3
+  },
+
+  // ===== ФАНК =====
+  FUNK: {
+    kick: [1, 0, 0, 1, 0, 1, 0, 0],
+    snare: [0, 0, 1, 0, 0, 0, 1, 0],
+    hihat: [0, 1, 0, 1, 0, 1, 0, 1],
+    name: 'Funk',
+    description: 'Funk groove with ghost notes on snare',
+    tempoRange: { min: 90, max: 130 },
+    complexity: 3
+  },
+
+  FUNK_OPEN_HIHAT: {
+    kick: [1, 0, 0, 1, 0, 1, 0, 0],
+    snare: [0, 0, 1, 0, 0, 0, 1, 0],
+    hihat: [1, 1, 1, 0, 1, 1, 1, 0],
+    ride: [0, 0, 0, 1, 0, 0, 0, 1],
+    name: 'Funk Open Hi-Hat',
+    description: 'Funk with open hi-hat on off-beats',
+    tempoRange: { min: 90, max: 130 },
+    complexity: 3
+  },
+
+  // ===== ДЖАЗ =====
+  JAZZ_RIDE: {
+    kick: [1, 0, 0, 0, 0, 0, 0, 0],
+    snare: [0, 0, 0, 0, 1, 0, 0, 0],
+    hihat: [0, 0, 0, 0, 0, 0, 0, 0],
+    ride: [1, 0, 1, 0, 1, 0, 1, 0],
+    crash: [0, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Jazz Ride',
+    description: 'Classic jazz ride pattern with light kick',
+    tempoRange: { min: 100, max: 200 },
+    complexity: 3
+  },
+
+  JAZZ_BRUSHES: {
+    kick: [1, 0, 0, 0, 0, 0, 0, 0],
+    snare: [0, 0, 0, 0, 1, 0, 0, 0],
+    hihat: [1, 1, 1, 1, 1, 1, 1, 1],
+    ride: [0, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Jazz Brushes',
+    description: 'Jazz with brushes on snare (simulated with hihat)',
+    tempoRange: { min: 100, max: 200 },
+    complexity: 2
+  },
+
+  // ===== ЛАТИНА =====
+  LATIN_CLAVE: {
+    kick: [1, 0, 0, 0, 0, 0, 1, 0],
+    snare: [0, 0, 0, 1, 0, 0, 0, 0],
+    hihat: [1, 0, 1, 0, 1, 0, 1, 0],
+    ride: [0, 1, 0, 0, 1, 0, 0, 1],
+    name: 'Latin Clave',
+    description: 'Latin groove with clave rhythm',
+    tempoRange: { min: 100, max: 160 },
+    complexity: 4
+  },
+
+  // ===== ПРОГРЕССИВ =====
+  PROG_COMPLEX: {
+    kick: [1, 0, 1, 0, 0, 1, 0, 0],
+    snare: [0, 0, 0, 0, 1, 0, 0, 1],
+    hihat: [1, 1, 1, 1, 1, 1, 1, 1],
+    tom: [0, 0, 0, 1, 0, 0, 1, 0],
+    crash: [1, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Prog Rock',
+    description: 'Progressive rock with complex fills',
+    tempoRange: { min: 100, max: 150 },
+    complexity: 4
+  },
+
+  // ===== БАЛЛАДА =====
+  BALLAD: {
+    kick: [1, 0, 0, 0, 0, 0, 0, 0],
+    snare: [0, 0, 0, 0, 1, 0, 0, 0],
+    hihat: [0, 0, 0, 0, 0, 0, 0, 0],
+    ride: [1, 0, 1, 0, 1, 0, 1, 0],
+    crash: [1, 0, 0, 0, 0, 0, 0, 0],
+    name: 'Ballad',
+    description: 'Slow ballad with ride cymbal',
+    tempoRange: { min: 50, max: 80 },
+    complexity: 2
+  },
+
+  // ===== ДЖЕМ / ИМПРОВ =====
+  JAM_16TH: {
+    kick: [1, 0, 0, 0, 0, 1, 0, 0],
+    snare: [0, 0, 1, 0, 0, 0, 1, 0],
+    hihat: [1, 1, 1, 1, 1, 1, 1, 1],
+    ride: [0, 0, 0, 0, 0, 0, 0, 0],
+    tom: [0, 0, 0, 0, 0, 0, 0, 1],
+    name: 'Jam 16th',
+    description: 'Jam groove with 16th note hihat and tom fill',
+    tempoRange: { min: 90, max: 140 },
+    complexity: 3
+  },
+
 };
 
 // ============================================

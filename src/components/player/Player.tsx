@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
+import { BACKING_TRACK_SEEDS } from '../../data/BackingTrackSeeds';
+
 
 interface PlayerProps {
   height?: string | number;
@@ -15,6 +17,32 @@ const Player: React.FC<PlayerProps> = ({
   const { isPlaying, currentTrack, setCurrentTrack } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [urlInput, setUrlInput] = useState('');
+  const [playerHeight, setPlayerHeight] = useState(height);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w <= 480) setPlayerHeight('280px');
+      else if (w <= 768) setPlayerHeight('320px');
+      else setPlayerHeight(height as string);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [height]);
+
+
+
+  const youtubeSeeds = useMemo(() => BACKING_TRACK_SEEDS.filter((s) => s.platform === 'youtube'), []);
+
+  const pickNextFromSeeds = (excludeId?: string | null) => {
+    if (youtubeSeeds.length === 0) return null;
+    const candidates = excludeId ? youtubeSeeds.filter((s) => s.id !== excludeId) : youtubeSeeds;
+    const pool = candidates.length > 0 ? candidates : youtubeSeeds;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    return pick;
+  };
+
 
   // Базовая синхронизация Play/Pause (работает стабильно, если пользователь нажал Play в самом плеере хотя бы раз)
   useEffect(() => {
@@ -28,6 +56,7 @@ const Player: React.FC<PlayerProps> = ({
       console.error("FretLab Player Error:", error);
     }
   }, [isPlaying, currentTrack]);
+
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,9 +131,9 @@ const Player: React.FC<PlayerProps> = ({
   };
 
   return (
-    <div style={{ background: 'var(--bg-panel)', width: '100%', height: height, display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
+    <div style={{ background: 'var(--bg-panel)', width: '100%', height: playerHeight, display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
       
-      <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'center' }}>
+      <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginRight: '4px' }}>SEARCH:</span>
@@ -123,20 +152,46 @@ const Player: React.FC<PlayerProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px', flex: 1 }}>
+        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px', flexWrap: 'wrap' }}>
           <input 
             type="text" 
             value={urlInput}
             onChange={e => setUrlInput(e.target.value)}
-            placeholder="🔗 Paste YouTube, RUTUBE, or VK Video link here..."
-            style={{ flex: 1, background: 'var(--bg-root)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', outline: 'none', transition: '0.2s' }}
+            placeholder="🔗 Paste link..."
+            style={{ flex: 1, minWidth: '120px', background: 'var(--bg-root)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', outline: 'none', transition: '0.2s' }}
             onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
             onBlur={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
           />
+          <button
+            type="button"
+            onClick={() => {
+              const next = pickNextFromSeeds(currentTrack?.platform === 'youtube' ? currentTrack.id : null);
+              if (!next) return;
+              // переключаем сразу
+              setCurrentTrack({ platform: 'youtube', id: next.id, title: 'YouTube Stream' });
+            }}
+            disabled={youtubeSeeds.length === 0}
+            style={{
+              background: 'transparent',
+              color: youtubeSeeds.length === 0 ? 'var(--text-muted)' : 'var(--accent)',
+              border: '1px solid var(--border-color)',
+              padding: '0 14px',
+              borderRadius: '20px',
+              fontSize: '12px',
+              fontWeight: 900,
+              cursor: youtubeSeeds.length === 0 ? 'not-allowed' : 'pointer',
+              transition: '0.2s',
+              whiteSpace: 'nowrap'
+            }}
+            title="Random NEXT backing track (seed pool)"
+          >
+            NEXT
+          </button>
           <button type="submit" style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '0 24px', borderRadius: '20px', fontSize: '12px', fontWeight: 900, cursor: 'pointer', transition: '0.2s' }}>
             LOAD
           </button>
         </form>
+
       </div>
 
       <div style={{ flex: 1, position: 'relative', backgroundColor: '#000' }}>

@@ -5,6 +5,7 @@ import { useMusic } from '../../context/MusicContext';
 import { generateSmartLick, type Lick } from '../../services/AIEngine';
 import { generateTips, type Tip } from '../../utils/tipsGenerator';
 import TablatureDisplay from './TablatureDisplay';
+import AnimatedTipBlock from '../tips/AnimatedTipBlock';
 
 const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
 
@@ -20,6 +21,15 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   const [localActiveStep, setLocalActiveStep] = useState<number>(-1);
   const [playbackSpeed, setPlaybackSpeed] = useState(1.0);
   const [tips, setTips] = useState<Tip[]>([]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  const effectiveCompact = compact || isMobile;
 
   // 🔥 КОНТЕКСТ СОЗДАЕТСЯ ОДИН РАЗ (Нет утечек!)
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -148,15 +158,15 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   }, []);
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', overflow: 'hidden', marginTop: compact ? '0' : '16px' }}>
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', overflow: 'hidden', marginTop: effectiveCompact ? '0' : '16px' }}>
       
-      <div style={{ padding: compact ? '10px 16px' : '16px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+      <div style={{ padding: effectiveCompact ? '10px 16px' : '16px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: compact ? '11px' : '12px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🎲 AI Phrase Builder</span>
-          <span style={{ fontSize: compact ? '13px' : '14px', fontWeight: 900, color: 'var(--accent)' }}>{currentLick ? currentLick.name : 'Генерация...'}</span>
+          <span style={{ fontSize: effectiveCompact ? '11px' : '12px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🎲 AI Phrase Builder</span>
+          <span style={{ fontSize: effectiveCompact ? '13px' : '14px', fontWeight: 900, color: 'var(--accent)' }}>{currentLick ? currentLick.name : 'Генерация...'}</span>
         </div>
 
-        {!compact && (
+        {!effectiveCompact && (
           <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>SPEED</span>
@@ -179,18 +189,14 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
         )}
       </div>
 
-<div style={{ padding: compact ? '12px' : '24px', overflowX: 'auto', background: '#111216', flex: 1, display: 'flex', alignItems: 'flex-start' }}>
-<TablatureDisplay notes={currentLick ? currentLick.notes : []} activeStep={localActiveStep} isGenerating={isGenerating} compact={compact} noteSpacing={compact ? 50 : 70} height={compact ? 160 : 260} />
+<div style={{ padding: effectiveCompact ? '12px' : '24px', overflowX: 'auto', background: '#111216', flex: 1, display: 'flex', alignItems: 'flex-start' }}>
+<TablatureDisplay notes={currentLick ? currentLick.notes : []} activeStep={localActiveStep} isGenerating={isGenerating} compact={effectiveCompact} noteSpacing={effectiveCompact ? 50 : 70} height={effectiveCompact ? 160 : 260} />
       </div>
 
-      {tips.length > 0 && !compact && (
-        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-primary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💡 Анализ фразы:</div>
-          {tips.slice(0, 2).map((tip, i) => (
-            <div key={i} style={{ fontSize: '12px', color: 'var(--text-primary)', background: 'rgba(0,255,157,0.03)', padding: '8px 12px', borderRadius: '4px', borderLeft: '3px solid #00b8ff' }}>
-              <strong>{tip.title}:</strong> {tip.description}
-            </div>
-          ))}
+      {tips.length > 0 && !effectiveCompact && (
+        <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
+          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>💡 Совет:</div>
+          <AnimatedTipBlock tips={tips} />
         </div>
       )}
 

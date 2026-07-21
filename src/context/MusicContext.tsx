@@ -3,6 +3,10 @@
 import { createContext, useState, useContext, useRef, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 
+// ============================================
+// 🎵 ТИПЫ
+// ============================================
+
 export type Mode = 'major' | 'minor' | 'harmonic_minor' | 'melodic_minor' | 'pentatonic' | 'blues' | 'aeolian' | 'dorian' | 'phrygian' | 'lydian' | 'mixolydian' | 'locrian' | 'maj7_arp' | 'min7_arp' | 'dom7_arp' | 'dom9_arp' | 'altered';
 
 export interface DiatonicChord {
@@ -29,24 +33,6 @@ export interface TimeSignature {
   noteValue: number;
 }
 
-interface MusicContextType {
-  keyNote: string;
-  mode: Mode;
-  bpm: number;
-  isPlaying: boolean;
-  activeStep: number;
-  currentTrack: TrackInfo;
-  timeSignature: TimeSignature;
-  setKeyNote: (key: string) => void;
-  setMode: (mode: Mode) => void;
-  setBpm: (bpm: number) => void;
-  setCurrentTrack: (track: TrackInfo) => void;
-  setTimeSignature: (sig: TimeSignature) => void;
-  togglePlay: () => void;
-  getScaleNotes: () => string[];
-  getDiatonicChords: () => DiatonicChord[];
-}
-
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const INTERVALS: Record<Mode, number[]> = {
@@ -69,87 +55,43 @@ const INTERVALS: Record<Mode, number[]> = {
   altered: [0, 1, 3, 4, 8, 10]
 };
 
-const MusicContext = createContext<MusicContextType | undefined>(undefined);
+// ============================================
+// 🎼 MUSIC THEORY CONTEXT
+// ============================================
 
-export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // 🔥 ИСПРАВЛЕНО: Начинаем с Em (E минор)
+interface MusicTheoryContextType {
+  keyNote: string;
+  mode: Mode;
+  timeSignature: TimeSignature;
+  currentTrack: TrackInfo;
+  setKeyNote: (key: string) => void;
+  setMode: (mode: Mode) => void;
+  setTimeSignature: (sig: TimeSignature) => void;
+  setCurrentTrack: (track: TrackInfo) => void;
+  getScaleNotes: () => string[];
+  getDiatonicChords: () => DiatonicChord[];
+}
+
+const MusicTheoryContext = createContext<MusicTheoryContextType | undefined>(undefined);
+
+export const MusicTheoryProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [keyNote, setKeyNote] = useState<string>('E');
-  const [mode, setMode] = useState<Mode>('minor');  // 🔥 E minor 
-  const [bpm, setBpm] = useState<number>(120);
+  const [mode, setMode] = useState<Mode>('minor');
   const [timeSignature, setTimeSignature] = useState<TimeSignature>({ beats: 4, noteValue: 4 });
-  
   const [currentTrack, setCurrentTrack] = useState<TrackInfo>({
     platform: 'youtube',
     id: 'HdsP-KYQZDQ',
     title: 'Liquid Groove Fusion Backing Track - Em'
   });
 
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [activeStep, setActiveStep] = useState<number>(-1);
-
-  const audioContext = useRef<AudioContext | null>(null);
-  const nextNoteTime = useRef(0);
-  const timerID = useRef<number>(0);
-  const stepRef = useRef(0);
-
-  const playClick = (time: number, isAccent: boolean) => {
-    if (!audioContext.current) return;
-    const osc = audioContext.current.createOscillator();
-    const gain = audioContext.current.createGain();
-    osc.frequency.value = isAccent ? 1200 : 800;
-    gain.gain.setValueAtTime(0.5, time);
-    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
-    osc.connect(gain);
-    gain.connect(audioContext.current.destination);
-    osc.start(time);
-    osc.stop(time + 0.1);
-  };
-
-  const scheduler = useCallback(() => {
-    if (!audioContext.current) return;
-    while (nextNoteTime.current < audioContext.current.currentTime + 0.1) {
-      const current = stepRef.current;
-      const isAccent = current % timeSignature.beats === 0;
-      playClick(nextNoteTime.current, isAccent);
-      setActiveStep(current);
-      nextNoteTime.current += (60.0 / bpm) / 4;
-      stepRef.current = (current + 1) % 32;
-    }
-    timerID.current = requestAnimationFrame(scheduler);
-  }, [bpm, timeSignature]);
-
-  useEffect(() => {
-    if (isPlaying) {
-      if (!audioContext.current) audioContext.current = new AudioContext();
-      if (audioContext.current.state === 'suspended') audioContext.current.resume();
-      nextNoteTime.current = audioContext.current.currentTime + 0.1;
-      stepRef.current = 0;
-      scheduler();
-      
-      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
-        detail: { isPlaying: true } 
-      }));
-    } else {
-      cancelAnimationFrame(timerID.current);
-      setActiveStep(-1);
-      
-      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
-        detail: { isPlaying: false } 
-      }));
-    }
-    return () => cancelAnimationFrame(timerID.current);
-  }, [isPlaying, scheduler]);
-
-  const togglePlay = () => setIsPlaying(prev => !prev);
-
-  const getScaleNotes = () => {
+  const getScaleNotes = useCallback(() => {
     const rootIndex = ALL_NOTES.indexOf(keyNote);
     if (rootIndex === -1) return [];
     const modeIntervals = INTERVALS[mode] || INTERVALS.major;
     return modeIntervals.map(interval => ALL_NOTES[(rootIndex + interval) % 12]);
-  };
+  }, [keyNote, mode]);
 
-  const getDiatonicChords = (): DiatonicChord[] => {
+  const getDiatonicChords = useCallback((): DiatonicChord[] => {
     const scale = getScaleNotes();
     if (scale.length < 7) return [];
 
@@ -275,22 +217,138 @@ export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       });
     }
     return chords;
-  };
+  }, [getScaleNotes]);
 
   return (
-    <MusicContext.Provider value={{
-      keyNote, mode, bpm, isPlaying, activeStep, currentTrack,
-      timeSignature,
-      setKeyNote, setMode, setBpm, setCurrentTrack, setTimeSignature,
-      togglePlay, getScaleNotes, getDiatonicChords
+    <MusicTheoryContext.Provider value={{
+      keyNote, mode, timeSignature, currentTrack,
+      setKeyNote, setMode, setTimeSignature, setCurrentTrack,
+      getScaleNotes, getDiatonicChords
     }}>
       {children}
-    </MusicContext.Provider>
+    </MusicTheoryContext.Provider>
   );
 };
 
-export const useMusic = () => {
-  const context = useContext(MusicContext);
-  if (context === undefined) throw new Error('useMusic must be used within a MusicProvider');
+export const useMusicTheory = () => {
+  const context = useContext(MusicTheoryContext);
+  if (context === undefined) throw new Error('useMusicTheory must be used within a MusicTheoryProvider');
   return context;
+};
+
+// ============================================
+// 🎵 MUSIC PLAYBACK CONTEXT
+// ============================================
+
+interface MusicPlaybackContextType {
+  bpm: number;
+  isPlaying: boolean;
+  activeStep: number;
+  setBpm: (bpm: number) => void;
+  togglePlay: () => void;
+}
+
+const MusicPlaybackContext = createContext<MusicPlaybackContextType | undefined>(undefined);
+
+export const MusicPlaybackProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [bpm, setBpm] = useState<number>(120);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [activeStep, setActiveStep] = useState<number>(-1);
+
+  const audioContext = useRef<AudioContext | null>(null);
+  const nextNoteTime = useRef(0);
+  const timerID = useRef<number>(0);
+  const stepRef = useRef(0);
+
+  const playClick = (time: number, isAccent: boolean) => {
+    if (!audioContext.current) return;
+    const osc = audioContext.current.createOscillator();
+    const gain = audioContext.current.createGain();
+    osc.frequency.value = isAccent ? 1200 : 800;
+    gain.gain.setValueAtTime(0.5, time);
+    gain.gain.exponentialRampToValueAtTime(0.001, time + 0.1);
+    osc.connect(gain);
+    gain.connect(audioContext.current.destination);
+    osc.start(time);
+    osc.stop(time + 0.1);
+  };
+
+  const scheduler = useCallback(() => {
+    if (!audioContext.current) return;
+    while (nextNoteTime.current < audioContext.current.currentTime + 0.1) {
+      const current = stepRef.current;
+      const isAccent = current % 4 === 0; // default 4/4
+      playClick(nextNoteTime.current, isAccent);
+      setActiveStep(current);
+      nextNoteTime.current += (60.0 / bpm) / 4;
+      stepRef.current = (current + 1) % 32;
+    }
+    timerID.current = requestAnimationFrame(scheduler);
+  }, [bpm]);
+
+  useEffect(() => {
+    if (isPlaying) {
+      if (!audioContext.current) audioContext.current = new AudioContext();
+      if (audioContext.current.state === 'suspended') audioContext.current.resume();
+      nextNoteTime.current = audioContext.current.currentTime + 0.1;
+      stepRef.current = 0;
+      scheduler();
+      
+      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
+        detail: { isPlaying: true } 
+      }));
+    } else {
+      cancelAnimationFrame(timerID.current);
+      setActiveStep(-1);
+      
+      window.dispatchEvent(new CustomEvent('metronome-toggle', { 
+        detail: { isPlaying: false } 
+      }));
+    }
+    return () => cancelAnimationFrame(timerID.current);
+  }, [isPlaying, scheduler]);
+
+  const togglePlay = () => setIsPlaying(prev => !prev);
+
+  return (
+    <MusicPlaybackContext.Provider value={{
+      bpm, isPlaying, activeStep,
+      setBpm, togglePlay
+    }}>
+      {children}
+    </MusicPlaybackContext.Provider>
+  );
+};
+
+export const useMusicPlayback = () => {
+  const context = useContext(MusicPlaybackContext);
+  if (context === undefined) throw new Error('useMusicPlayback must be used within a MusicPlaybackProvider');
+  return context;
+};
+
+// ============================================
+// 🎵 ОБЩИЙ ПРОВАЙДЕР (для удобства)
+// ============================================
+
+export const MusicProvider: React.FC<{ children: ReactNode }> = ({ children }) => (
+  <MusicTheoryProvider>
+    <MusicPlaybackProvider>
+      {children}
+    </MusicPlaybackProvider>
+  </MusicTheoryProvider>
+);
+// ============================================
+// 🎵 ОБРАТНАЯ СОВМЕСТИМОСТЬ (useMusic)
+// ============================================
+
+export interface MusicContextType extends MusicTheoryContextType, MusicPlaybackContextType {}
+
+export const useMusic = (): MusicContextType => {
+  const theory = useMusicTheory();
+  const playback = useMusicPlayback();
+  
+  return {
+    ...theory,
+    ...playback
+  };
 };
