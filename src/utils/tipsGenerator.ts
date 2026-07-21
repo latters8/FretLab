@@ -13,11 +13,7 @@ export interface Tip {
 }
 
 // ============================================================
-<<<<<<< Updated upstream
-// 🔥 БАЗА СОВЕТОВ — УНИВЕРСАЛЬНЫЕ ПРАКТИЧЕСКИЕ УПРАЖНЕНИЯ
-=======
 // 🔥 ДЕЛЬНЫЕ СОВЕТЫ — КОНКРЕТНЫЕ И ПРАКТИЧНЫЕ
->>>>>>> Stashed changes
 // ============================================================
 
 const TECHNIQUE_TIPS: Tip[] = [
@@ -257,71 +253,8 @@ export function generateTips(
   _chordProgression: string[],
   _bpm: number = 120
 ): Tip[] {
-<<<<<<< Updated upstream
-  const tips: Tip[] = [];
-  
-  // 1. Добавляем 2-3 случайных совета из базы
-  const shuffled = [...PRACTICE_TIPS].sort(() => Math.random() - 0.5);
-  const selectedTips = shuffled.slice(0, 3);
-  tips.push(...selectedTips);
-  
-  // 2. Добавляем контекстный совет (связанный с тональностью/режимом)
-  const contextTip = getContextTip(keyNote, mode);
-  if (contextTip) {
-    tips.push(contextTip);
-  }
-  
-  // 3. Добавляем совет по темпу
-  const tempoTip = getTempoTip(bpm);
-  if (tempoTip) {
-    tips.push(tempoTip);
-  }
-  
-  // 4. Всегда добавляем один TouchGrass совет
-  const touchGrassTips = PRACTICE_TIPS.filter(t => t.category === 'touchgrass');
-  const randomTouchGrass = touchGrassTips[Math.floor(Math.random() * touchGrassTips.length)];
-  if (randomTouchGrass) {
-    tips.push(randomTouchGrass);
-  }
-  
-  // 5. Добавляем совет "Слушай музыку"
-  const listeningTip = PRACTICE_TIPS.find(t => t.category === 'touchgrass' && t.title.includes('слушай больше'));
-  if (listeningTip && !tips.some(t => t.title === listeningTip.title)) {
-    tips.push(listeningTip);
-  }
-  
-  // 6. Добавляем совет "Дневник практики"
-  const journalTip = PRACTICE_TIPS.find(t => t.category === 'practice' && t.title.includes('Practice Journal'));
-  if (journalTip && !tips.some(t => t.title === journalTip.title)) {
-    tips.push(journalTip);
-  }
-  
-  // Уникализация — убираем дубли по заголовкам
-  const seen = new Set();
-  const uniqueTips = tips.filter(tip => {
-    const key = tip.title;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-  
-  // Ограничиваем до 6 советов
-  // Поддержка старых анализаторов (чтобы убрать TS6133 и не менять поведение генерации)
-  // eslint-disable-next-line @typescript-eslint/no-unused-expressions
-  void countTechniques;
-  void analyzeIntervals;
-  void analyzeRhythm;
-  void analyzeHarmony;
-  void analyzeStructure;
-  void analyzeMotif;
-  void getModeIntervals;
-  void generateStyleTips;
-
-  return uniqueTips.slice(0, 6);
-=======
   // Возвращаем 1 случайный совет вместо стопки
   return [getContextTip(keyNote, mode) || getRandomTip()];
->>>>>>> Stashed changes
 }
 
 function getContextTip(keyNote: string, mode: string): Tip | null {
@@ -405,15 +338,4 @@ function getContextTip(keyNote: string, mode: string): Tip | null {
     berkleeTip: '"The key to improvisation is knowing your scale and forgetting it." — Berklee'
   };
 }
-
-// ============================================================
-// 🔥 СТАРЫЕ ФУНКЦИИ (для совместимости)
-// ============================================================
-
-
-
-
-
-
-
 
