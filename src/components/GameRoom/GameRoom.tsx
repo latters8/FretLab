@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import './GameRoom.module.css';
+import './GameRoom.css';
 
 // === GAME CATALOG (12 classic arcade games from juliensimon/browser-games) ===
 const GAMES = [
