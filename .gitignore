@@ -22,6 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
 # Секретные ключи окружения
 .env
 .env.local
@@ -30,5 +31,20 @@ dist-ssr
 # Windows artifact
 nul
 
-# Project rules (local IDE config)
+# Project rules & AI Agents
 .blackboxrules
+.cursorrules
+.clinerules
+.windsurfrules
+
+# TODOs
+TODO.md
+TODO.txt
+TODO/
+todo.md
+*.todo
+
+# Local Configs
+config.yaml
+config.local.yaml
+config.local.json

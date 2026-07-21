@@ -253,8 +253,29 @@ export function generateTips(
   _chordProgression: string[],
   _bpm: number = 120
 ): Tip[] {
-  // Возвращаем 1 случайный совет вместо стопки
-  return [getContextTip(keyNote, mode) || getRandomTip()];
+  // Возвращаем 6 случайных советов для карусели (AnimatedTipBlock)
+  const allTips = getAllTips();
+  const contextTip = getContextTip(keyNote, mode);
+
+  // Перемешиваем все советы
+  const shuffled = [...allTips].sort(() => Math.random() - 0.5);
+
+  const result: Tip[] = [];
+  if (contextTip) {
+    result.push(contextTip);
+  }
+
+  for (const tip of shuffled) {
+    if (result.length >= 6) break;
+    // Избегаем дубликатов
+    const isDuplicate = result.some(t => t.title === tip.title && t.description === tip.description);
+    if (!isDuplicate) {
+      result.push(tip);
+    }
+  }
+
+  // Финальное перемешивание
+  return result.sort(() => Math.random() - 0.5);
 }
 
 function getContextTip(keyNote: string, mode: string): Tip | null {

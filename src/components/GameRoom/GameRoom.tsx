@@ -1,302 +1,279 @@
 import React, { useState } from 'react';
-import {
-  SnakeGame, PongGame, Puzzle2048Game, TetrisGame, MinesweeperGame, Match3Game,
-  MazeRunnerGame, SpaceDefenderGame, PixelRacerGame, ChessGame, HexglGame,
-  SandboxGame, SudokuGame, WordleGame, StreetFighterGame, MkjsGame,
-  ContraGame, SokobanGame
-} from './games';
 import './GameRoom.module.css';
 
-// Minimal SVG icons for each game (8x8 pixel art style, simplified)
-const ICONS: Record<string, React.ReactNode> = {
-  snake: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="4" y="4" width="6" height="6" fill="#00FF9D" rx="1"/>
-      <rect x="10" y="4" width="6" height="6" fill="#00cc7a" rx="1"/>
-      <rect x="16" y="4" width="6" height="6" fill="#00cc7a" rx="1"/>
-      <rect x="4" y="10" width="6" height="6" fill="#00cc7a" rx="1"/>
-      <rect x="4" y="16" width="6" height="6" fill="#00cc7a" rx="1"/>
-      <circle cx="12" cy="7" r="1.5" fill="#fff"/>
-    </svg>
-  ),
-  tetris: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="8" y="4" width="6" height="6" fill="#e94560" rx="1"/>
-      <rect x="14" y="4" width="6" height="6" fill="#e94560" rx="1"/>
-      <rect x="8" y="10" width="6" height="6" fill="#e94560" rx="1"/>
-      <rect x="14" y="10" width="6" height="6" fill="#e94560" rx="1"/>
-      <rect x="20" y="10" width="6" height="6" fill="#00FF9D" rx="1"/>
-      <rect x="20" y="16" width="6" height="6" fill="#00FF9D" rx="1"/>
-      <rect x="4" y="20" width="6" height="6" fill="#f9a825" rx="1"/>
-    </svg>
-  ),
-  pong: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="2" y="10" width="3" height="10" fill="#00FF9D" rx="1"/>
-      <rect x="27" y="12" width="3" height="10" fill="#e94560" rx="1"/>
-      <circle cx="16" cy="16" r="2" fill="#fff"/>
-      <line x1="16" y1="0" x2="16" y2="32" stroke="#2a2d39" strokeWidth="1" strokeDasharray="3"/>
-    </svg>
-  ),
-  maze: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="2" y="2" width="28" height="28" fill="#16213e" rx="3"/>
-      <rect x="6" y="6" width="5" height="5" fill="#e94560" rx="1"/>
-      <rect x="14" y="6" width="5" height="5" fill="#0f3460" rx="1"/>
-      <rect x="22" y="14" width="5" height="5" fill="#00FF9D" rx="1"/>
-      <rect x="6" y="14" width="5" height="5" fill="#0f3460" rx="1"/>
-      <rect x="6" y="22" width="5" height="5" fill="#0f3460" rx="1"/>
-      <rect x="14" y="22" width="5" height="5" fill="#0f3460" rx="1"/>
-    </svg>
-  ),
-  space: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#0a0a1a"/>
-      <polygon points="16,4 8,24 24,24" fill="#00FF9D"/>
-      <rect x="4" y="26" width="24" height="4" fill="#e94560" rx="1"/>
-      <circle cx="6" cy="8" r="2" fill="#f9a825"/>
-      <circle cx="26" cy="12" r="1.5" fill="#f9a825"/>
-    </svg>
-  ),
-  racer: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
-      <rect x="8" y="18" width="16" height="8" fill="#e94560" rx="2"/>
-      <rect x="10" y="14" width="12" height="4" fill="#f9a825" rx="1"/>
-      <rect x="6" y="22" width="4" height="4" fill="#333" rx="1"/>
-      <rect x="22" y="22" width="4" height="4" fill="#333" rx="1"/>
-      <line x1="0" y1="10" x2="32" y2="10" stroke="#fff" strokeWidth="1" strokeDasharray="4"/>
-      <line x1="0" y1="30" x2="32" y2="30" stroke="#fff" strokeWidth="1" strokeDasharray="4"/>
-    </svg>
-  ),
-  chess: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#c9a96e"/>
-      <rect x="4" y="4" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="16" y="4" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="10" y="10" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="22" y="10" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="4" y="16" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="16" y="16" width="6" height="6" fill="#8b6914" rx="1"/>
-      <rect x="14" y="22" width="4" height="6" fill="#333" rx="1"/>
-    </svg>
-  ),
-  hexgl: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#0a0a1a"/>
-      <polygon points="16,4 26,12 26,22 16,28 6,22 6,12" fill="none" stroke="#45f3ff" strokeWidth="1.5"/>
-      <polygon points="16,8 22,14 22,20 16,24 10,20 10,14" fill="#45f3ff" opacity="0.3"/>
-      <rect x="2" y="24" width="28" height="3" fill="#e94560" rx="1"/>
-    </svg>
-  ),
-  sandbox: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#87CEEB"/>
-      <rect x="4" y="14" width="10" height="12" fill="#8B4513" rx="1"/>
-      <rect x="6" y="10" width="6" height="4" fill="#228B22" rx="1"/>
-      <rect x="18" y="10" width="10" height="16" fill="#A9A9A9" rx="1"/>
-      <rect x="20" y="12" width="3" height="3" fill="#87CEEB" rx="1"/>
-      <rect x="26" y="24" width="4" height="4" fill="#228B22" rx="1"/>
-    </svg>
-  ),
-  sudoku: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
-      <line x1="12" y1="0" x2="12" y2="32" stroke="#333" strokeWidth="2"/>
-      <line x1="20" y1="0" x2="20" y2="32" stroke="#333" strokeWidth="2"/>
-      <line x1="0" y1="12" x2="32" y2="12" stroke="#333" strokeWidth="2"/>
-      <line x1="0" y1="20" x2="32" y2="20" stroke="#333" strokeWidth="2"/>
-      <text x="6" y="10" fontSize="8" fill="#00FF9D" fontFamily="monospace" fontWeight="bold">5</text>
-      <text x="22" y="10" fontSize="8" fill="#e94560" fontFamily="monospace" fontWeight="bold">3</text>
-      <text x="22" y="30" fontSize="8" fill="#00FF9D" fontFamily="monospace" fontWeight="bold">7</text>
-      <text x="14" y="18" fontSize="8" fill="#f9a825" fontFamily="monospace" fontWeight="bold">1</text>
-    </svg>
-  ),
-  wordle: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
-      <rect x="2" y="2" width="8" height="8" fill="#00FF9D" rx="1"/>
-      <rect x="12" y="2" width="8" height="8" fill="#f9a825" rx="1"/>
-      <rect x="22" y="2" width="8" height="8" fill="#333" rx="1"/>
-      <rect x="2" y="12" width="8" height="8" fill="#333" rx="1"/>
-      <rect x="12" y="12" width="8" height="8" fill="#00FF9D" rx="1"/>
-      <rect x="22" y="12" width="8" height="8" fill="#f9a825" rx="1"/>
-      <rect x="2" y="22" width="8" height="8" fill="#f9a825" rx="1"/>
-      <rect x="12" y="22" width="8" height="8" fill="#333" rx="1"/>
-      <rect x="22" y="22" width="8" height="8" fill="#00FF9D" rx="1"/>
-    </svg>
-  ),
-  streetfighter: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#2a1a1a"/>
-      <rect x="0" y="24" width="32" height="8" fill="#444"/>
-      <rect x="4" y="8" width="6" height="6" fill="#fff" rx="1"/>
-      <rect x="4" y="14" width="6" height="8" fill="#e94560" rx="1"/>
-      <rect x="4" y="22" width="3" height="4" fill="#333" rx="1"/>
-      <rect x="7" y="22" width="3" height="4" fill="#333" rx="1"/>
-      <rect x="22" y="8" width="6" height="6" fill="#f9a825" rx="1"/>
-      <rect x="22" y="14" width="6" height="8" fill="#e94560" rx="1"/>
-      <rect x="22" y="22" width="3" height="4" fill="#333" rx="1"/>
-      <rect x="25" y="22" width="3" height="4" fill="#333" rx="1"/>
-      <text x="12" y="20" fontSize="7" fill="#fff" fontFamily="monospace" fontWeight="bold">VS</text>
-    </svg>
-  ),
-  mkjs: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a0a0a"/>
-      <rect x="0" y="24" width="32" height="8" fill="#333"/>
-      <rect x="6" y="10" width="5" height="5" fill="#f5d0a9" rx="1"/>
-      <rect x="6" y="15" width="5" height="7" fill="#e94560" rx="1"/>
-      <rect x="6" y="22" width="3" height="4" fill="#333"/>
-      <rect x="8" y="22" width="3" height="4" fill="#333"/>
-      <rect x="21" y="10" width="5" height="5" fill="#f5d0a9" rx="1"/>
-      <rect x="21" y="15" width="5" height="7" fill="#8b1c3a" rx="1"/>
-      <rect x="21" y="22" width="3" height="4" fill="#333"/>
-      <rect x="23" y="22" width="3" height="4" fill="#333"/>
-      <polygon points="16,14 14,18 18,18" fill="#f9a825"/>
-    </svg>
-  ),
-  contra: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a2a1a"/>
-      <rect x="0" y="26" width="32" height="6" fill="#4e7c2f"/>
-      <rect x="8" y="12" width="4" height="4" fill="#f5d0a9" rx="1"/>
-      <rect x="8" y="16" width="5" height="8" fill="#228B22" rx="1"/>
-      <rect x="8" y="24" width="3" height="4" fill="#333"/>
-      <rect x="10" y="24" width="3" height="4" fill="#333"/>
-      <rect x="13" y="15" width="6" height="3" fill="#666" rx="1"/>
-      <rect x="19" y="14" width="2" height="5" fill="#666" rx="1"/>
-      <rect x="22" y="10" width="4" height="4" fill="#e94560" rx="1"/>
-      <rect x="22" y="14" width="5" height="7" fill="#8b1c3a" rx="1"/>
-    </svg>
-  ),
-  puzzle2048: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#bbada0"/>
-      <rect x="2" y="2" width="13" height="13" fill="#eee4da" rx="1"/>
-      <rect x="17" y="2" width="13" height="13" fill="#ede0c8" rx="1"/>
-      <rect x="2" y="17" width="13" height="13" fill="#f2b179" rx="1"/>
-      <rect x="17" y="17" width="13" height="13" fill="#f59563" rx="1"/>
-      <text x="5" y="12" fontSize="9" fill="#776e65" fontFamily="monospace" fontWeight="bold">2</text>
-      <text x="20" y="12" fontSize="9" fill="#776e65" fontFamily="monospace" fontWeight="bold">4</text>
-      <text x="5" y="27" fontSize="9" fill="#fff" fontFamily="monospace" fontWeight="bold">8</text>
-      <text x="19" y="27" fontSize="7" fill="#fff" fontFamily="monospace" fontWeight="bold">16</text>
-    </svg>
-  ),
-  sokoban: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#5d4037"/>
-      <line x1="10" y1="0" x2="10" y2="32" stroke="#4e342e" strokeWidth="1"/>
-      <line x1="20" y1="0" x2="20" y2="32" stroke="#4e342e" strokeWidth="1"/>
-      <line x1="0" y1="10" x2="32" y2="10" stroke="#4e342e" strokeWidth="1"/>
-      <line x1="0" y1="20" x2="32" y2="20" stroke="#4e342e" strokeWidth="1"/>
-      <rect x="10" y="10" width="8" height="8" fill="#8B4513" stroke="#5d4037" strokeWidth="1"/>
-      <rect x="12" y="12" width="4" height="4" fill="#5d4037"/>
-      <rect x="4" y="4" width="4" height="4" fill="#f9a825" rx="1"/>
-      <rect x="22" y="2" width="6" height="6" fill="#00FF9D" opacity="0.5" rx="1"/>
-    </svg>
-  ),
-  minesweeper: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#c0c0c0"/>
-      <line x1="10" y1="0" x2="10" y2="32" stroke="#808080" strokeWidth="1"/>
-      <line x1="20" y1="0" x2="20" y2="32" stroke="#808080" strokeWidth="1"/>
-      <line x1="0" y1="10" x2="32" y2="10" stroke="#808080" strokeWidth="1"/>
-      <line x1="0" y1="20" x2="32" y2="20" stroke="#808080" strokeWidth="1"/>
-      <rect x="2" y="2" width="8" height="8" fill="#e0e0e0"/>
-      <text x="4" y="8" fontSize="7" fill="#0000ff" fontFamily="monospace" fontWeight="bold">1</text>
-      <rect x="12" y="2" width="8" height="8" fill="#e0e0e0"/>
-      <text x="14" y="8" fontSize="7" fill="#008000" fontFamily="monospace" fontWeight="bold">2</text>
-      <rect x="22" y="12" width="8" height="8" fill="#e0e0e0"/>
-      <text x="24" y="18" fontSize="7" fill="#ff0000" fontFamily="monospace" fontWeight="bold">3</text>
-      <circle cx="16" cy="24" r="3" fill="#333"/>
-      <line x1="13" y1="21" x2="19" y2="27" stroke="#333" strokeWidth="1"/>
-      <line x1="19" y1="21" x2="13" y2="27" stroke="#333" strokeWidth="1"/>
-    </svg>
-  ),
-  match3: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a1a3e"/>
-      <line x1="10" y1="0" x2="10" y2="32" stroke="#333" strokeWidth="1"/>
-      <line x1="20" y1="0" x2="20" y2="32" stroke="#333" strokeWidth="1"/>
-      <line x1="0" y1="10" x2="32" y2="10" stroke="#333" strokeWidth="1"/>
-      <line x1="0" y1="20" x2="32" y2="20" stroke="#333" strokeWidth="1"/>
-      <circle cx="5" cy="5" r="3.5" fill="#e94560"/>
-      <circle cx="15" cy="5" r="3.5" fill="#00FF9D"/>
-      <circle cx="25" cy="5" r="3.5" fill="#f9a825"/>
-      <circle cx="5" cy="15" r="3.5" fill="#f9a825"/>
-      <circle cx="15" cy="15" r="3.5" fill="#e94560"/>
-      <circle cx="25" cy="15" r="3.5" fill="#00FF9D"/>
-      <circle cx="5" cy="25" r="3.5" fill="#00FF9D"/>
-      <circle cx="15" cy="25" r="3.5" fill="#f9a825"/>
-      <circle cx="25" cy="25" r="3.5" fill="#e94560"/>
-    </svg>
-  ),
-};
-
-// Game catalog with playable status
+// === GAME CATALOG (12 classic arcade games from juliensimon/browser-games) ===
 const GAMES = [
-  { id: 'snake', title: 'SNAKE.EXE', genre: 'Arcade', tag: 'PLAYABLE', icon: 'snake', playable: true },
-  { id: 'tetris', title: 'TETRIS BLOCK', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'tetris', playable: true },
-  { id: 'pong', title: 'PONG CLASSIC', genre: 'Sports', tag: 'PLAYABLE', icon: 'pong', playable: true },
-  { id: 'maze', title: 'MAZE RUNNER', genre: 'Adventure', tag: 'PLAYABLE', icon: 'maze', playable: true },
-  { id: 'space', title: 'SPACE DEFENDER', genre: 'Shooter', tag: 'PLAYABLE', icon: 'space', playable: true },
-  { id: 'racer', title: 'PIXEL RACER', genre: 'Racing', tag: 'PLAYABLE', icon: 'racer', playable: true },
-  { id: 'chess', title: 'LICHESS.ORG', genre: 'Strategy', tag: 'PLAYABLE', icon: 'chess', playable: true },
-  { id: 'hexgl', title: 'HEXGL RACER', genre: 'Racing', tag: 'PLAYABLE', icon: 'hexgl', playable: true },
-  { id: 'sandbox', title: 'SANDBOXELS', genre: 'Sandbox', tag: 'PLAYABLE', icon: 'sandbox', playable: true },
-  { id: 'sudoku', title: 'SUDOKU PRO', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'sudoku', playable: true },
-  { id: 'wordle', title: 'WORDLE CLONE', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'wordle', playable: true },
-  { id: 'streetfighter', title: 'STREET FIGHTER', genre: 'Fighting', tag: 'PLAYABLE', icon: 'streetfighter', playable: true },
-  { id: 'mkjs', title: 'MK.JS FIGHTING', genre: 'Fighting', tag: 'PLAYABLE', icon: 'mkjs', playable: true },
-  { id: 'contra', title: 'CONTRA FORCE', genre: 'Shooter', tag: 'PLAYABLE', icon: 'contra', playable: true },
-  { id: 'puzzle2048', title: '2048 PUZZLE', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'puzzle2048', playable: true },
-  { id: 'sokoban', title: 'SOKOBAN BOX', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'sokoban', playable: true },
-  { id: 'minesweeper', title: 'MINESWEEPER', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'minesweeper', playable: true },
-  { id: 'match3', title: 'MATCH 3 GEMS', genre: 'Puzzle', tag: 'PLAYABLE', icon: 'match3', playable: true },
+  {
+    id: 'computer-space',
+    title: 'COMPUTER SPACE',
+    year: 1971,
+    genre: 'Arcade',
+    description: 'The first commercially sold coin-operated video game. Players control a rocket ship battling two flying saucers in a space arena, with thrust-based movement and projectile shooting mechanics — a pioneering title that started the arcade revolution.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'pong',
+    title: 'PONG',
+    year: 1972,
+    genre: 'Sports',
+    description: 'The first commercially successful video game. A simple yet addictive table tennis simulation where two players control paddles to bounce a ball back and forth, with the goal of scoring points against each other — the game that put the arcade industry on the map.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'gun-fight',
+    title: 'GUN FIGHT',
+    year: 1975,
+    genre: 'Shooter',
+    description: 'Two cowboys duel in a western shootout behind sagebrush cover. Players take aim at each other while dodging bullets in a classic wild west standoff, featuring one of the earliest uses of a microprocessor in arcade gaming.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'breakout',
+    title: 'BREAKOUT',
+    year: 1976,
+    genre: 'Arcade',
+    description: 'Smash through rows of colored bricks at the top of the screen using a paddle and ball. A timeless arcade classic that challenges players to clear all bricks while managing ball speed and paddle positioning — created by Atari and inspired by Pong.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'space-invaders',
+    title: 'SPACE INVADERS',
+    year: 1978,
+    genre: 'Shooter',
+    description: 'Defend Earth from descending alien formations. Players control a laser cannon moving horizontally, shooting rows of iconic pixel aliens that gradually speed up and march closer to the ground as they are eliminated — a global phenomenon that defined the shoot-\'em-up genre.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'galaxian',
+    title: 'GALAXIAN',
+    year: 1979,
+    genre: 'Shooter',
+    description: 'Dive-bombing aliens with vibrant RGB color. An evolution of Space Invaders where enemy squadrons break formation to perform kamikaze-style dive attacks, introducing colorful graphics and more dynamic enemy behavior that raised the bar for arcade shooters.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'asteroids',
+    title: 'ASTEROIDS',
+    year: 1979,
+    genre: 'Shooter',
+    description: 'Blast asteroids into fragments in deep space. Players pilot a spaceship through an asteroid field, shooting and splitting larger rocks into smaller, faster pieces while avoiding collision and enemy UFOs — renowned for its vector graphics and physics-based gameplay.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'lunar-lander',
+    title: 'LUNAR LANDER',
+    year: 1979,
+    genre: 'Simulation',
+    description: 'Guide your lunar module to a safe landing on the moon. A physics-based simulation where players manage thrust, rotation, and fuel consumption to gently land the spacecraft on designated landing pads across the cratered surface — an early triumph of realistic simulation in gaming.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'pac-man',
+    title: 'PAC-MAN',
+    year: 1980,
+    genre: 'Arcade',
+    description: 'Navigate the maze, eat dots, and avoid four colorful ghosts. The iconic yellow character must clear every level of all pellets while dodging Blinky, Pinky, Inky, and Clyde — with power pellets granting temporary invincibility — becoming a cultural icon of the 1980s.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'centipede',
+    title: 'CENTIPEDE',
+    year: 1980,
+    genre: 'Shooter',
+    description: 'Blast the centipede through a mushroom field. Players defend against a descending centipede that winds through a forest of mushrooms, with bonus enemies like spiders and fleas adding to the frantic action — celebrated for its trackball controls and vibrant psychedelic visuals.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'missile-command',
+    title: 'MISSILE COMMAND',
+    year: 1980,
+    genre: 'Shooter',
+    description: 'Defend six cities from nuclear missiles. Players use a trackball to aim and launch counter-missiles from three bases, intercepting incoming ballistic missiles before they destroy Earth\'s last strongholds — a tense, strategic classic with an unforgettable cinematic feel.',
+    tag: 'PLAYABLE',
+  },
+  {
+    id: 'defender',
+    title: 'DEFENDER',
+    year: 1981,
+    genre: 'Shooter',
+    description: 'Defend humanoids from alien abduction in a side-scrolling shooter. Players fly over a landscape to rescue humans from alien kidnappers, with smart bombs and a radar scanner to track threats — pushing the hardware to its limits with fast-paced action and complex controls.',
+    tag: 'PLAYABLE',
+  },
 ];
 
 const ALL_GENRES = ['All', ...Array.from(new Set(GAMES.map(g => g.genre))).sort()];
 
-const GAME_COMPONENTS: Record<string, React.ReactNode> = {
-  snake: <SnakeGame />,
-  pong: <PongGame />,
-  puzzle2048: <Puzzle2048Game />,
-  tetris: <TetrisGame />,
-  minesweeper: <MinesweeperGame />,
-  match3: <Match3Game />,
-  maze: <MazeRunnerGame />,
-  space: <SpaceDefenderGame />,
-  racer: <PixelRacerGame />,
-  chess: <ChessGame />,
-  hexgl: <HexglGame />,
-  sandbox: <SandboxGame />,
-  sudoku: <SudokuGame />,
-  wordle: <WordleGame />,
-  streetfighter: <StreetFighterGame />,
-  mkjs: <MkjsGame />,
-  contra: <ContraGame />,
-  sokoban: <SokobanGame />,
+// === Pixel-art SVG icons for each game ===
+const ICONS: Record<string, React.ReactNode> = {
+  'computer-space': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#0a0a1a"/>
+      <polygon points="16,4 6,28 26,28" fill="none" stroke="#45f3ff" strokeWidth="1"/>
+      <circle cx="12" cy="18" r="1.5" fill="#e94560"/>
+      <circle cx="20" cy="14" r="1" fill="#f9a825"/>
+      <rect x="4" y="24" width="24" height="2" fill="#45f3ff" opacity="0.3"/>
+    </svg>
+  ),
+  pong: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="2" y="10" width="3" height="10" fill="#fff" rx="1"/>
+      <rect x="27" y="12" width="3" height="10" fill="#fff" rx="1"/>
+      <circle cx="16" cy="16" r="2" fill="#fff"/>
+      <line x1="16" y1="0" x2="16" y2="32" stroke="#333" strokeWidth="1" strokeDasharray="3"/>
+    </svg>
+  ),
+  'gun-fight': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#4a2c0a"/>
+      <rect x="0" y="26" width="32" height="6" fill="#6b4423"/>
+      <rect x="4" y="14" width="4" height="12" fill="#8B4513"/>
+      <rect x="4" y="12" width="6" height="3" fill="#f5d0a9"/>
+      <rect x="22" y="14" width="4" height="12" fill="#8B4513"/>
+      <rect x="22" y="12" width="6" height="3" fill="#f5d0a9"/>
+      <rect x="8" y="20" width="6" height="2" fill="#666"/>
+      <rect x="18" y="20" width="6" height="2" fill="#666"/>
+      <circle cx="7" cy="13" r="2" fill="#f9a825"/>
+    </svg>
+  ),
+  breakout: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+      <rect x="2" y="2" width="28" height="4" fill="#e94560" rx="1"/>
+      <rect x="2" y="7" width="28" height="4" fill="#f9a825" rx="1"/>
+      <rect x="2" y="12" width="28" height="4" fill="#45f3ff" rx="1"/>
+      <rect x="2" y="17" width="28" height="4" fill="#00FF9D" rx="1"/>
+      <rect x="10" y="24" width="12" height="3" fill="#fff" rx="1"/>
+      <circle cx="16" cy="23" r="1.5" fill="#fff"/>
+    </svg>
+  ),
+  'space-invaders': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="6" y="4" width="4" height="4" fill="#45f3ff"/>
+      <rect x="14" y="4" width="4" height="4" fill="#45f3ff"/>
+      <rect x="22" y="4" width="4" height="4" fill="#45f3ff"/>
+      <rect x="4" y="10" width="6" height="4" fill="#e94560"/>
+      <rect x="14" y="10" width="4" height="4" fill="#e94560"/>
+      <rect x="22" y="10" width="6" height="4" fill="#e94560"/>
+      <rect x="10" y="16" width="4" height="4" fill="#f9a825"/>
+      <rect x="18" y="16" width="4" height="4" fill="#f9a825"/>
+      <rect x="12" y="24" width="8" height="4" fill="#00FF9D"/>
+    </svg>
+  ),
+  galaxian: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#0a0a2e"/>
+      <rect x="8" y="4" width="16" height="6" fill="#e94560" rx="1"/>
+      <rect x="6" y="10" width="4" height="4" fill="#f9a825"/>
+      <rect x="22" y="10" width="4" height="4" fill="#f9a825"/>
+      <rect x="12" y="14" width="8" height="4" fill="#45f3ff"/>
+      <rect x="14" y="18" width="4" height="4" fill="#fff"/>
+      <circle cx="8" cy="8" r="1" fill="#fff" opacity="0.5"/>
+      <circle cx="24" cy="6" r="1" fill="#fff" opacity="0.5"/>
+      <circle cx="16" cy="2" r="1" fill="#fff" opacity="0.5"/>
+    </svg>
+  ),
+  asteroids: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <polygon points="16,4 12,12 20,12" fill="none" stroke="#fff" strokeWidth="1"/>
+      <polygon points="12,12 8,20 16,24 20,20 20,12" fill="none" stroke="#45f3ff" strokeWidth="1"/>
+      <circle cx="6" cy="8" r="3" fill="none" stroke="#666" strokeWidth="1"/>
+      <circle cx="26" cy="22" r="4" fill="none" stroke="#666" strokeWidth="1"/>
+      <circle cx="26" cy="22" r="1" fill="#666"/>
+      <circle cx="10" cy="26" r="2" fill="none" stroke="#666" strokeWidth="1"/>
+    </svg>
+  ),
+  'lunar-lander': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="0" y="26" width="32" height="6" fill="#444"/>
+      <polygon points="14,16 12,26 20,26 18,16" fill="#666"/>
+      <rect x="15" y="12" width="2" height="5" fill="#fff"/>
+      <polygon points="12,26 10,28 14,28" fill="#e94560"/>
+      <polygon points="20,26 18,28 22,28" fill="#e94560"/>
+      <rect x="14" y="20" width="4" height="2" fill="#f9a825"/>
+      <circle cx="16" cy="18" r="1" fill="#45f3ff"/>
+    </svg>
+  ),
+  'pac-man': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="4" y="4" width="24" height="24" fill="#1a1a4e" rx="2"/>
+      <circle cx="16" cy="16" r="6" fill="#f9a825"/>
+      <polygon points="16,16 22,11 22,21" fill="#000"/>
+      <circle cx="12" cy="10" r="1" fill="#fff"/>
+      <circle cx="20" cy="10" r="1" fill="#fff"/>
+      <circle cx="8" cy="14" r="2" fill="#e94560"/>
+      <circle cx="24" cy="14" r="2" fill="#45f3ff"/>
+    </svg>
+  ),
+  centipede: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#0a1a0a"/>
+      <circle cx="4" cy="6" r="2" fill="#e94560"/>
+      <circle cx="8" cy="6" r="2" fill="#e94560"/>
+      <circle cx="12" cy="6" r="2" fill="#e94560"/>
+      <circle cx="16" cy="8" r="2" fill="#e94560"/>
+      <circle cx="20" cy="10" r="2" fill="#e94560"/>
+      <circle cx="24" cy="12" r="2" fill="#e94560"/>
+      <circle cx="26" cy="16" r="2" fill="#e94560"/>
+      <rect x="2" y="16" width="3" height="3" fill="#45f3ff"/>
+      <rect x="8" y="20" width="3" height="3" fill="#45f3ff"/>
+      <rect x="14" y="24" width="3" height="3" fill="#45f3ff"/>
+      <rect x="20" y="22" width="3" height="3" fill="#45f3ff"/>
+      <rect x="4" y="28" width="24" height="4" fill="#4a2c0a"/>
+    </svg>
+  ),
+  'missile-command': (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="2" y="24" width="6" height="8" fill="#444"/>
+      <rect x="13" y="24" width="6" height="8" fill="#444"/>
+      <rect x="24" y="24" width="6" height="8" fill="#444"/>
+      <circle cx="10" cy="6" r="2" fill="#e94560"/>
+      <circle cx="22" cy="10" r="2" fill="#f9a825"/>
+      <circle cx="16" cy="4" r="2" fill="#45f3ff"/>
+      <line x1="5" y1="24" x2="10" y2="6" stroke="#f9a825" strokeWidth="1"/>
+      <line x1="16" y1="24" x2="16" y2="4" stroke="#45f3ff" strokeWidth="1"/>
+      <line x1="27" y1="24" x2="22" y2="10" stroke="#e94560" strokeWidth="1"/>
+    </svg>
+  ),
+  defender: (
+    <svg viewBox="0 0 32 32" className="game-icon">
+      <rect x="0" y="0" width="32" height="32" fill="#000"/>
+      <rect x="0" y="2" width="32" height="6" fill="#0a2a0a"/>
+      <polygon points="16,8 10,24 22,24" fill="#45f3ff"/>
+      <rect x="6" y="24" width="4" height="4" fill="#f9a825"/>
+      <rect x="22" y="24" width="4" height="4" fill="#e94560"/>
+      <rect x="14" y="20" width="4" height="8" fill="#45f3ff"/>
+      <circle cx="8" cy="12" r="2" fill="#e94560"/>
+      <circle cx="24" cy="14" r="2" fill="#f9a825"/>
+      <rect x="2" y="28" width="28" height="4" fill="#333"/>
+      <rect x="0" y="2" width="32" height="1" fill="#00FF9D" opacity="0.5"/>
+      <rect x="0" y="6" width="32" height="1" fill="#00FF9D" opacity="0.5"/>
+    </svg>
+  ),
 };
 
 const GameRoom: React.FC = () => {
   const [selectedGenre, setSelectedGenre] = useState('All');
   const [activeGame, setActiveGame] = useState<string | null>(null);
-  const [hoveredGame, setHoveredGame] = useState<string | null>(null);
 
   const filteredGames = selectedGenre === 'All'
     ? GAMES
     : GAMES.filter(g => g.genre === selectedGenre);
 
-  const handleCardClick = (gameId: string, playable: boolean) => {
-    if (!playable) return; // Non-playable games just show hover details
+  const handleCardClick = (gameId: string) => {
     setActiveGame(gameId);
   };
 
   const handleBack = () => setActiveGame(null);
 
-  // Game view
+  // === GAME VIEW (iframe) ===
   if (activeGame) {
+    const game = GAMES.find(g => g.id === activeGame)!;
     return (
       <div className="game-room">
         <div className="game-view">
@@ -304,30 +281,33 @@ const GameRoom: React.FC = () => {
             ← Back to Game Room
           </button>
           <h2 className="game-view-title">
-            {GAMES.find(g => g.id === activeGame)?.title}
+            {game.title} ({game.year})
           </h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 16, fontSize: 13 }}>
+            {game.description}
+          </p>
           <div className="game-canvas-wrapper">
-            {GAME_COMPONENTS[activeGame] || (
-              <div className="coming-soon-view">
-                <div className="coming-soon-icon">🎮</div>
-                <h3>Coming Soon</h3>
-                <p>This game is being developed</p>
-              </div>
-            )}
+            <iframe
+              src={`/browser-games/${activeGame}/index.html`}
+              title={game.title}
+              className="game-iframe"
+              allow="autoplay"
+              sandbox="allow-scripts allow-same-origin"
+            />
           </div>
         </div>
       </div>
     );
   }
 
+  // === GRID VIEW ===
   return (
     <div className="game-room">
       <header className="gr-header">
-        <h1>🎮 Game Room</h1>
-        <p>Select a game to play</p>
+        <h1>🎮 Classic Arcade</h1>
+        <p>12 faithfully recreated retro games — no dependencies, just play</p>
       </header>
 
-      {/* Genre Filter */}
       <div className="gr-genre-filter">
         <div className="gr-genre-buttons">
           {ALL_GENRES.map(genre => (
@@ -345,38 +325,29 @@ const GameRoom: React.FC = () => {
         </div>
       </div>
 
-      {/* Results count */}
       <div className="gr-results-bar">
         <span>{filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''} found</span>
         {selectedGenre !== 'All' && <span className="gr-results-genre">{selectedGenre}</span>}
       </div>
 
-      {/* Game Grid */}
       <div className="gr-grid">
         {filteredGames.map(game => (
           <div
             key={game.id}
-            className={`gr-card ${hoveredGame === game.id ? 'hovered' : ''} ${!game.playable ? 'disabled' : ''}`}
-            onClick={() => handleCardClick(game.id, game.playable)}
-            onMouseEnter={() => setHoveredGame(game.id)}
-            onMouseLeave={() => setHoveredGame(null)}
+            className="gr-card"
+            onClick={() => handleCardClick(game.id)}
           >
             <div className="gr-card-icon">
-              {ICONS[game.icon]}
+              {ICONS[game.id]}
             </div>
             <h3 className="gr-card-title">{game.title}</h3>
             <div className="gr-card-meta">
               <span className="gr-card-genre">{game.genre}</span>
-              <span className={`gr-card-tag ${game.playable ? 'playable' : 'coming'}`}>
+              <span className="gr-card-year">{game.year}</span>
+              <span className="gr-card-tag playable">
                 {game.tag}
               </span>
             </div>
-
-            {hoveredGame === game.id && !game.playable && (
-              <div className="gr-tooltip">
-                🎮 In development — check back later!
-              </div>
-            )}
           </div>
         ))}
       </div>
@@ -390,8 +361,18 @@ const GameRoom: React.FC = () => {
       )}
 
       <footer className="gr-footer">
-        <p>🎮 Free & open-source · No license required</p>
-        <p className="gr-footer-hint">Click a PLAYABLE game to start</p>
+        <p>🎮 Classic arcade games recreated in vanilla JS + Canvas</p>
+        <p className="gr-footer-hint">
+          <a href="https://github.com/juliensimon/browser-games" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+            github.com/juliensimon/browser-games
+          </a>
+        </p>
+        <p className="gr-disclaimer" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.5 }}>
+          Fan recreations for educational purposes. All original games are trademarks of their respective owners.
+        </p>
+        <p className="gr-credits" style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, fontWeight: 700 }}>
+          Thanks to <a href="https://github.com/carlos-aguayo" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Carlos Aguayo</a> and <a href="https://github.com/juliensimon" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Julien Simon</a>
+        </p>
       </footer>
     </div>
   );
