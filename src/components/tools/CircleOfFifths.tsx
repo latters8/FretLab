@@ -1,6 +1,6 @@
 // src/components/harmony/CircleOfFifths.tsx
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
 
 const KEYS_MAJOR = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
@@ -12,6 +12,20 @@ const isEnharmonic = (n1: string, n2: string) => normalize(n1) === normalize(n2)
 
 const CircleOfFifths: React.FC = () => {
   const { keyNote, mode, setKeyNote, setMode } = useMusic();
+  const [size, setSize] = useState(300);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      if (w <= 400) setSize(170);
+      else if (w <= 480) setSize(220);
+      else if (w <= 768) setSize(250);
+      else setSize(300);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const isMinorMode = mode === 'minor';
   
@@ -24,15 +38,15 @@ const CircleOfFifths: React.FC = () => {
 
   const rotation = -activeIndex * 30;
 
-  const SIZE = 300;
+  const SIZE = size;
   const CENTER = SIZE / 2;
   const OUTER_RADIUS = SIZE * 0.38;
   const INNER_RADIUS = SIZE * 0.24;
-  const DOT_SIZE_OUTER = 44;
-  const DOT_SIZE_INNER = 38;
-  const FONT_SIZE_OUTER = 15;
-  const FONT_SIZE_INNER = 13;
-  const FONT_SIZE_CENTER = 32;
+  const DOT_SIZE_OUTER = Math.max(32, Math.min(44, SIZE * 0.15));
+  const DOT_SIZE_INNER = Math.max(28, Math.min(38, SIZE * 0.13));
+  const FONT_SIZE_OUTER = Math.max(11, Math.min(15, SIZE * 0.05));
+  const FONT_SIZE_INNER = Math.max(10, Math.min(13, SIZE * 0.045));
+  const FONT_SIZE_CENTER = Math.max(20, Math.min(32, SIZE * 0.11));
 
   return (
     <div style={{ 

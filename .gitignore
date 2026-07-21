@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Generated Project Tree & Dumps
+project-tree.txt
+project-tree*.txt
+tree.txt
+tree*.txt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

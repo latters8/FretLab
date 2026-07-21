@@ -1,382 +1,603 @@
-import React, { useState } from 'react';
-import './GameRoom.css';
+import React, { useState, useEffect } from 'react';
+import styles from './GameRoom.module.css';
 
-// === GAME CATALOG (12 classic arcade games from juliensimon/browser-games) ===
-const GAMES = [
+// ============================================================
+//  ICONS — pixel-art SVG (32×32 viewBox)
+// ============================================================
+
+const ShellShockersIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+    <rect x="4" y="12" width="12" height="8" fill="#e94560" rx="2"/>
+    <rect x="16" y="14" width="12" height="4" fill="#f9a825" rx="1"/>
+    <circle cx="8" cy="16" r="2" fill="#fff"/>
+    <rect x="22" y="10" width="6" height="12" fill="#333" rx="1"/>
+  </svg>
+);
+
+const KrunkerIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#2a1a1a"/>
+    <rect x="6" y="8" width="8" height="8" fill="#00FF9D" rx="1"/>
+    <rect x="18" y="8" width="8" height="8" fill="#e94560" rx="1"/>
+    <rect x="10" y="20" width="12" height="4" fill="#f9a825" rx="1"/>
+    <line x1="16" y1="4" x2="16" y2="28" stroke="#333" strokeWidth="1"/>
+  </svg>
+);
+
+const SmashKartsIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+    <rect x="6" y="18" width="20" height="8" fill="#e94560" rx="3"/>
+    <rect x="8" y="14" width="16" height="4" fill="#f9a825" rx="1"/>
+    <rect x="4" y="22" width="4" height="4" fill="#333" rx="1"/>
+    <rect x="24" y="22" width="4" height="4" fill="#333" rx="1"/>
+    <circle cx="26" cy="12" r="3" fill="#00FF9D"/>
+  </svg>
+);
+
+const ZombsRoyaleIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#0a1a0a"/>
+    <rect x="10" y="6" width="12" height="12" fill="#4e7c2f" rx="2"/>
+    <rect x="12" y="8" width="8" height="8" fill="#2a5a1a" rx="1"/>
+    <rect x="8" y="20" width="4" height="8" fill="#8B4513" rx="1"/>
+    <rect x="20" y="20" width="4" height="8" fill="#8B4513" rx="1"/>
+    <circle cx="16" cy="4" r="3" fill="#f9a825" opacity="0.6"/>
+  </svg>
+);
+
+const SlitherIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#0a1a2e"/>
+    <circle cx="8" cy="8" r="5" fill="#00FF9D"/>
+    <circle cx="16" cy="12" r="4" fill="#00cc7a"/>
+    <circle cx="22" cy="18" r="3" fill="#00995c"/>
+    <circle cx="26" cy="24" r="2" fill="#00663d"/>
+    <circle cx="6" cy="6" r="2" fill="#fff"/>
+  </svg>
+);
+
+const PaperIoIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+    <rect x="4" y="4" width="10" height="10" fill="#e94560" rx="1"/>
+    <rect x="16" y="4" width="10" height="10" fill="#00FF9D" rx="1"/>
+    <rect x="4" y="16" width="10" height="10" fill="#f9a825" rx="1"/>
+    <rect x="16" y="16" width="10" height="10" fill="#2196f3" rx="1"/>
+    <rect x="14" y="14" width="4" height="4" fill="#fff" rx="1"/>
+  </svg>
+);
+
+const DiepIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+    <circle cx="16" cy="16" r="8" fill="#00FF9D"/>
+    <rect x="16" y="8" width="12" height="4" fill="#f9a825" rx="1"/>
+    <circle cx="12" cy="13" r="2" fill="#fff"/>
+    <circle cx="20" cy="13" r="2" fill="#fff"/>
+    <rect x="10" y="22" width="12" height="3" fill="#333" rx="1"/>
+  </svg>
+);
+
+const BloxdIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#87CEEB"/>
+    <rect x="4" y="14" width="10" height="12" fill="#8B4513" rx="1"/>
+    <rect x="6" y="10" width="6" height="4" fill="#228B22" rx="1"/>
+    <rect x="18" y="10" width="10" height="16" fill="#A9A9A9" rx="1"/>
+    <rect x="20" y="12" width="3" height="3" fill="#87CEEB" rx="1"/>
+    <rect x="26" y="24" width="4" height="4" fill="#228B22" rx="1"/>
+  </svg>
+);
+
+const LolBeansIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#ff6b9d"/>
+    <circle cx="10" cy="12" r="5" fill="#f9a825"/>
+    <circle cx="22" cy="12" r="5" fill="#00FF9D"/>
+    <circle cx="8" cy="11" r="1.5" fill="#000"/>
+    <circle cx="20" cy="11" r="1.5" fill="#000"/>
+    <rect x="6" y="20" width="20" height="6" fill="#e94560" rx="3"/>
+    <circle cx="16" cy="23" r="2" fill="#fff"/>
+  </svg>
+);
+
+const SoccerIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#2a5a1a"/>
+    <circle cx="16" cy="16" r="8" fill="#fff"/>
+    <polygon points="16,10 20,14 18,19 14,19 12,14" fill="#333"/>
+    <rect x="2" y="14" width="4" height="4" fill="#fff" rx="1"/>
+    <rect x="26" y="14" width="4" height="4" fill="#fff" rx="1"/>
+  </svg>
+);
+
+const RockRacingIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a0a2e"/>
+    <rect x="0" y="24" width="32" height="8" fill="#333"/>
+    <rect x="4" y="16" width="10" height="6" fill="#e94560" rx="2"/>
+    <rect x="18" y="14" width="10" height="6" fill="#f9a825" rx="2"/>
+    <rect x="6" y="22" width="3" height="3" fill="#333" rx="1"/>
+    <rect x="10" y="22" width="3" height="3" fill="#333" rx="1"/>
+    <rect x="20" y="20" width="3" height="3" fill="#333" rx="1"/>
+    <rect x="24" y="20" width="3" height="3" fill="#333" rx="1"/>
+    <text x="6" y="12" fontSize="6" fill="#f9a825" fontFamily="monospace" fontWeight="bold">RNR</text>
+  </svg>
+);
+
+const TetrisIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
+    <rect x="8" y="4" width="6" height="6" fill="#e94560" rx="1"/>
+    <rect x="14" y="4" width="6" height="6" fill="#e94560" rx="1"/>
+    <rect x="8" y="10" width="6" height="6" fill="#e94560" rx="1"/>
+    <rect x="14" y="10" width="6" height="6" fill="#e94560" rx="1"/>
+    <rect x="20" y="10" width="6" height="6" fill="#00FF9D" rx="1"/>
+    <rect x="20" y="16" width="6" height="6" fill="#00FF9D" rx="1"/>
+    <rect x="4" y="20" width="6" height="6" fill="#f9a825" rx="1"/>
+  </svg>
+);
+
+const SkribblIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#f5f5dc"/>
+    <rect x="4" y="4" width="24" height="20" fill="#fff" rx="2" stroke="#333" strokeWidth="1"/>
+    <path d="M8 20 Q12 12 16 16 T24 10" fill="none" stroke="#e94560" strokeWidth="2" strokeLinecap="round"/>
+    <path d="M10 18 Q14 14 18 18" fill="none" stroke="#2196f3" strokeWidth="2" strokeLinecap="round"/>
+    <circle cx="24" cy="24" r="4" fill="#f9a825"/>
+    <text x="22" y="26" fontSize="5" fill="#fff" fontWeight="bold">?</text>
+  </svg>
+);
+
+const HoleIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#87CEEB"/>
+    <rect x="4" y="20" width="8" height="8" fill="#8B4513" rx="1"/>
+    <rect x="14" y="16" width="6" height="6" fill="#4e7c2f" rx="1"/>
+    <rect x="22" y="22" width="6" height="4" fill="#666" rx="1"/>
+    <circle cx="16" cy="18" r="6" fill="#1a1a2e"/>
+    <circle cx="14" cy="16" r="2" fill="#e94560"/>
+    <circle cx="18" cy="20" r="1.5" fill="#f9a825"/>
+  </svg>
+);
+
+const PoolIcon = () => (
+  <svg viewBox="0 0 32 32" className={styles.gameIcon}>
+    <rect x="0" y="0" width="32" height="32" fill="#1a5c1a"/>
+    <rect x="2" y="2" width="28" height="28" fill="#2a7c2a" rx="2"/>
+    <circle cx="16" cy="16" r="10" fill="#1a5c1a"/>
+    <circle cx="16" cy="16" r="9" fill="none" stroke="#3a9c3a" strokeWidth="0.5"/>
+    <circle cx="12" cy="12" r="2.5" fill="#fff"/>
+    <circle cx="12" cy="12" r="2.5" fill="none" stroke="#333" strokeWidth="0.5"/>
+    <circle cx="20" cy="12" r="2.5" fill="#e94560"/>
+    <circle cx="20" cy="12" r="2.5" fill="none" stroke="#333" strokeWidth="0.5"/>
+    <circle cx="16" cy="20" r="2.5" fill="#f9a825"/>
+    <circle cx="16" cy="20" r="2.5" fill="none" stroke="#333" strokeWidth="0.5"/>
+    <circle cx="16" cy="16" r="1.8" fill="#fff"/>
+    <circle cx="16" cy="16" r="1.8" fill="none" stroke="#333" strokeWidth="0.5"/>
+    <circle cx="4" cy="4" r="1.5" fill="#000"/>
+    <circle cx="28" cy="4" r="1.5" fill="#000"/>
+    <circle cx="4" cy="28" r="1.5" fill="#000"/>
+    <circle cx="28" cy="28" r="1.5" fill="#000"/>
+    <circle cx="16" cy="4" r="1.5" fill="#000"/>
+    <circle cx="16" cy="28" r="1.5" fill="#000"/>
+  </svg>
+);
+
+// ============================================================
+//  GAME DATA
+// ============================================================
+
+interface GameData {
+  id: string;
+  title: string;
+  genre: string;
+  section: 'shooter' | 'racing' | 'battle' | 'arcade' | 'puzzle' | 'sports' | 'retro'| 'party';
+  description: string;
+  url: string;
+  icon: React.ReactNode;
+  players: string;
+  mobile: boolean;
+}
+
+const GAMES: GameData[] = [
   {
-    id: 'computer-space',
-    title: 'COMPUTER SPACE',
-    year: 1971,
-    genre: 'Arcade',
-    description: 'The first commercially sold coin-operated video game. Players control a rocket ship battling two flying saucers in a space arena, with thrust-based movement and projectile shooting mechanics — a pioneering title that started the arcade revolution.',
-    tag: 'PLAYABLE',
+    id: 'shellshockers',
+    title: 'SHELL SHOCKERS',
+    genre: 'Shooter',
+    section: 'shooter',
+    description: 'FPS with egg characters. Shoot, crack, respawn.',
+    url: 'https://shellshock.io',
+    icon: <ShellShockersIcon />,
+    players: 'Multiplayer',
+    mobile: false,
   },
   {
-    id: 'pong',
-    title: 'PONG',
-    year: 1972,
+    id: 'krunker',
+    title: 'KRUNKER.IO',
+    genre: 'Shooter',
+    section: 'shooter',
+    description: 'Fast-paced FPS. Custom maps, skins, ranked.',
+    url: 'https://krunker.io',
+    icon: <KrunkerIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'smashkarts',
+    title: 'SMASH KARTS',
+    genre: 'Racing',
+    section: 'racing',
+    description: 'Kart racing with guns. Power-ups, chaos fun.',
+    url: 'https://smashkarts.io',
+    icon: <SmashKartsIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'zombsroyale',
+    title: 'ZOMBSROYALE',
+    genre: 'Battle Royale',
+    section: 'battle',
+    description: '100 players, last one standing. Build, loot, win.',
+    url: 'https://zombsroyale.io',
+    icon: <ZombsRoyaleIcon />,
+    players: '100 Players',
+    mobile: true,
+  },
+  {
+    id: 'slither',
+    title: 'SLITHER.IO',
+    genre: 'Arcade',
+    section: 'arcade',
+    description: 'Grow your snake. Eat or be eaten. Simple addicting.',
+    url: 'https://slither.io',
+    icon: <SlitherIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'paperio',
+    title: 'PAPER.IO 2',
+    genre: 'Arcade',
+    section: 'arcade',
+    description: 'Capture territory. Cut enemies. Expand your empire.',
+    url: 'https://paper-io.com',
+    icon: <PaperIoIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'diep',
+    title: 'DIEP.IO',
+    genre: 'Arcade',
+    section: 'arcade',
+    description: 'Tank battles. Destroy, upgrade, dominate.',
+    url: 'https://diep.io',
+    icon: <DiepIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'bloxd',
+    title: 'BLOXD.IO',
+    genre: 'Puzzle',
+    section: 'puzzle',
+    description: 'Minecraft-style sandbox. Parkour, build, explore.',
+    url: 'https://bloxd.io',
+    icon: <BloxdIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'lolbeans',
+    title: 'LOL BEANS',
+    genre: 'Quest',
+    section: 'puzzle',
+    description: 'Fall Guys in browser. Obstacles, races, fun.',
+    url: 'https://lolbeans.io',
+    icon: <LolBeansIcon />,
+    players: 'Multiplayer',
+    mobile: true,
+  },
+  {
+    id: 'soccer',
+    title: 'WORLD CUP 2026',
     genre: 'Sports',
-    description: 'The first commercially successful video game. A simple yet addictive table tennis simulation where two players control paddles to bounce a ball back and forth, with the goal of scoring points against each other — the game that put the arcade industry on the map.',
-    tag: 'PLAYABLE',
+    section: 'sports',
+    description: '1v1 soccer battles. Play as Ronaldo, Messi, Mbappe.',
+    url: 'https://html5.gamedistribution.com/ad37a85f16e246fabdc818f375a5eb45/',
+    icon: <SoccerIcon />,
+    players: '1v1 / CPU',
+    mobile: true,
   },
   {
-    id: 'gun-fight',
-    title: 'GUN FIGHT',
-    year: 1975,
-    genre: 'Shooter',
-    description: 'Two cowboys duel in a western shootout behind sagebrush cover. Players take aim at each other while dodging bullets in a classic wild west standoff, featuring one of the earliest uses of a microprocessor in arcade gaming.',
-    tag: 'PLAYABLE',
+    id: 'rockracing',
+    title: 'ROCK N ROLL RACING',
+    genre: 'Racing',
+    section: 'retro',
+    description: 'SNES classic. Weapons, boosts, heavy metal soundtrack.',
+    url: 'https://www.retrogames.cc/embed/24053-rock-n-roll-racing-usa.html',
+    icon: <RockRacingIcon />,
+    players: 'Single',
+    mobile: false,
   },
   {
-    id: 'breakout',
-    title: 'BREAKOUT',
-    year: 1976,
+    id: 'tetris',
+    title: 'TETRIS',
+    genre: 'Puzzle',
+    section: 'puzzle',
+    description: 'Classic block puzzle. Clear lines, survive.',
+    url: 'https://tetris.com/play-tetris',
+    icon: <TetrisIcon />,
+    players: 'Single',
+    mobile: true,
+  },
+  {
+    id: 'skribbl',
+    title: 'SKRIBBL.IO',
+    genre: 'Party',
+    section: 'party',
+    description: 'Pictionary in browser. Draw, guess, laugh with friends.',
+    url: 'https://skribbl.io',
+    icon: <SkribblIcon />,
+    players: '2-8 Players',
+    mobile: true,
+  },
+  {
+    id: 'hole',
+    title: 'HOLE.IO',
     genre: 'Arcade',
-    description: 'Smash through rows of colored bricks at the top of the screen using a paddle and ball. A timeless arcade classic that challenges players to clear all bricks while managing ball speed and paddle positioning — created by Atari and inspired by Pong.',
-    tag: 'PLAYABLE',
+    section: 'arcade',
+    description: 'Control a black hole. Devour everything — cars, buildings, the whole city!',
+    url: 'https://holeonline.io',
+    icon: <HoleIcon />,
+    players: 'Multiplayer',
+    mobile: true,
   },
   {
-    id: 'space-invaders',
-    title: 'SPACE INVADERS',
-    year: 1978,
-    genre: 'Shooter',
-    description: 'Defend Earth from descending alien formations. Players control a laser cannon moving horizontally, shooting rows of iconic pixel aliens that gradually speed up and march closer to the ground as they are eliminated — a global phenomenon that defined the shoot-\'em-up genre.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'galaxian',
-    title: 'GALAXIAN',
-    year: 1979,
-    genre: 'Shooter',
-    description: 'Dive-bombing aliens with vibrant RGB color. An evolution of Space Invaders where enemy squadrons break formation to perform kamikaze-style dive attacks, introducing colorful graphics and more dynamic enemy behavior that raised the bar for arcade shooters.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'asteroids',
-    title: 'ASTEROIDS',
-    year: 1979,
-    genre: 'Shooter',
-    description: 'Blast asteroids into fragments in deep space. Players pilot a spaceship through an asteroid field, shooting and splitting larger rocks into smaller, faster pieces while avoiding collision and enemy UFOs — renowned for its vector graphics and physics-based gameplay.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'lunar-lander',
-    title: 'LUNAR LANDER',
-    year: 1979,
-    genre: 'Simulation',
-    description: 'Guide your lunar module to a safe landing on the moon. A physics-based simulation where players manage thrust, rotation, and fuel consumption to gently land the spacecraft on designated landing pads across the cratered surface — an early triumph of realistic simulation in gaming.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'pac-man',
-    title: 'PAC-MAN',
-    year: 1980,
-    genre: 'Arcade',
-    description: 'Navigate the maze, eat dots, and avoid four colorful ghosts. The iconic yellow character must clear every level of all pellets while dodging Blinky, Pinky, Inky, and Clyde — with power pellets granting temporary invincibility — becoming a cultural icon of the 1980s.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'centipede',
-    title: 'CENTIPEDE',
-    year: 1980,
-    genre: 'Shooter',
-    description: 'Blast the centipede through a mushroom field. Players defend against a descending centipede that winds through a forest of mushrooms, with bonus enemies like spiders and fleas adding to the frantic action — celebrated for its trackball controls and vibrant psychedelic visuals.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'missile-command',
-    title: 'MISSILE COMMAND',
-    year: 1980,
-    genre: 'Shooter',
-    description: 'Defend six cities from nuclear missiles. Players use a trackball to aim and launch counter-missiles from three bases, intercepting incoming ballistic missiles before they destroy Earth\'s last strongholds — a tense, strategic classic with an unforgettable cinematic feel.',
-    tag: 'PLAYABLE',
-  },
-  {
-    id: 'defender',
-    title: 'DEFENDER',
-    year: 1981,
-    genre: 'Shooter',
-    description: 'Defend humanoids from alien abduction in a side-scrolling shooter. Players fly over a landscape to rescue humans from alien kidnappers, with smart bombs and a radar scanner to track threats — pushing the hardware to its limits with fast-paced action and complex controls.',
-    tag: 'PLAYABLE',
+    id: 'pool',
+    title: '8 BALL POOL',
+    genre: 'Sports',
+    section: 'sports',
+    description: 'Classic 8-ball billiards. Aim, power, spin — pocket them all.',
+    url: 'https://www.coolmathgames.com/0-8-ball-pool',
+    icon: <PoolIcon />,
+    players: '1v1 / CPU',
+    mobile: true,
   },
 ];
 
-const ALL_GENRES = ['All', ...Array.from(new Set(GAMES.map(g => g.genre))).sort()];
+// ============================================================
+//  SECTIONS & FILTERS
+// ============================================================
 
-// === Pixel-art SVG icons for each game ===
-const ICONS: Record<string, React.ReactNode> = {
-  'computer-space': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#0a0a1a"/>
-      <polygon points="16,4 6,28 26,28" fill="none" stroke="#45f3ff" strokeWidth="1"/>
-      <circle cx="12" cy="18" r="1.5" fill="#e94560"/>
-      <circle cx="20" cy="14" r="1" fill="#f9a825"/>
-      <rect x="4" y="24" width="24" height="2" fill="#45f3ff" opacity="0.3"/>
-    </svg>
-  ),
-  pong: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="2" y="10" width="3" height="10" fill="#fff" rx="1"/>
-      <rect x="27" y="12" width="3" height="10" fill="#fff" rx="1"/>
-      <circle cx="16" cy="16" r="2" fill="#fff"/>
-      <line x1="16" y1="0" x2="16" y2="32" stroke="#333" strokeWidth="1" strokeDasharray="3"/>
-    </svg>
-  ),
-  'gun-fight': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#4a2c0a"/>
-      <rect x="0" y="26" width="32" height="6" fill="#6b4423"/>
-      <rect x="4" y="14" width="4" height="12" fill="#8B4513"/>
-      <rect x="4" y="12" width="6" height="3" fill="#f5d0a9"/>
-      <rect x="22" y="14" width="4" height="12" fill="#8B4513"/>
-      <rect x="22" y="12" width="6" height="3" fill="#f5d0a9"/>
-      <rect x="8" y="20" width="6" height="2" fill="#666"/>
-      <rect x="18" y="20" width="6" height="2" fill="#666"/>
-      <circle cx="7" cy="13" r="2" fill="#f9a825"/>
-    </svg>
-  ),
-  breakout: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#1a1a2e"/>
-      <rect x="2" y="2" width="28" height="4" fill="#e94560" rx="1"/>
-      <rect x="2" y="7" width="28" height="4" fill="#f9a825" rx="1"/>
-      <rect x="2" y="12" width="28" height="4" fill="#45f3ff" rx="1"/>
-      <rect x="2" y="17" width="28" height="4" fill="#00FF9D" rx="1"/>
-      <rect x="10" y="24" width="12" height="3" fill="#fff" rx="1"/>
-      <circle cx="16" cy="23" r="1.5" fill="#fff"/>
-    </svg>
-  ),
-  'space-invaders': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="6" y="4" width="4" height="4" fill="#45f3ff"/>
-      <rect x="14" y="4" width="4" height="4" fill="#45f3ff"/>
-      <rect x="22" y="4" width="4" height="4" fill="#45f3ff"/>
-      <rect x="4" y="10" width="6" height="4" fill="#e94560"/>
-      <rect x="14" y="10" width="4" height="4" fill="#e94560"/>
-      <rect x="22" y="10" width="6" height="4" fill="#e94560"/>
-      <rect x="10" y="16" width="4" height="4" fill="#f9a825"/>
-      <rect x="18" y="16" width="4" height="4" fill="#f9a825"/>
-      <rect x="12" y="24" width="8" height="4" fill="#00FF9D"/>
-    </svg>
-  ),
-  galaxian: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#0a0a2e"/>
-      <rect x="8" y="4" width="16" height="6" fill="#e94560" rx="1"/>
-      <rect x="6" y="10" width="4" height="4" fill="#f9a825"/>
-      <rect x="22" y="10" width="4" height="4" fill="#f9a825"/>
-      <rect x="12" y="14" width="8" height="4" fill="#45f3ff"/>
-      <rect x="14" y="18" width="4" height="4" fill="#fff"/>
-      <circle cx="8" cy="8" r="1" fill="#fff" opacity="0.5"/>
-      <circle cx="24" cy="6" r="1" fill="#fff" opacity="0.5"/>
-      <circle cx="16" cy="2" r="1" fill="#fff" opacity="0.5"/>
-    </svg>
-  ),
-  asteroids: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <polygon points="16,4 12,12 20,12" fill="none" stroke="#fff" strokeWidth="1"/>
-      <polygon points="12,12 8,20 16,24 20,20 20,12" fill="none" stroke="#45f3ff" strokeWidth="1"/>
-      <circle cx="6" cy="8" r="3" fill="none" stroke="#666" strokeWidth="1"/>
-      <circle cx="26" cy="22" r="4" fill="none" stroke="#666" strokeWidth="1"/>
-      <circle cx="26" cy="22" r="1" fill="#666"/>
-      <circle cx="10" cy="26" r="2" fill="none" stroke="#666" strokeWidth="1"/>
-    </svg>
-  ),
-  'lunar-lander': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="0" y="26" width="32" height="6" fill="#444"/>
-      <polygon points="14,16 12,26 20,26 18,16" fill="#666"/>
-      <rect x="15" y="12" width="2" height="5" fill="#fff"/>
-      <polygon points="12,26 10,28 14,28" fill="#e94560"/>
-      <polygon points="20,26 18,28 22,28" fill="#e94560"/>
-      <rect x="14" y="20" width="4" height="2" fill="#f9a825"/>
-      <circle cx="16" cy="18" r="1" fill="#45f3ff"/>
-    </svg>
-  ),
-  'pac-man': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="4" y="4" width="24" height="24" fill="#1a1a4e" rx="2"/>
-      <circle cx="16" cy="16" r="6" fill="#f9a825"/>
-      <polygon points="16,16 22,11 22,21" fill="#000"/>
-      <circle cx="12" cy="10" r="1" fill="#fff"/>
-      <circle cx="20" cy="10" r="1" fill="#fff"/>
-      <circle cx="8" cy="14" r="2" fill="#e94560"/>
-      <circle cx="24" cy="14" r="2" fill="#45f3ff"/>
-    </svg>
-  ),
-  centipede: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#0a1a0a"/>
-      <circle cx="4" cy="6" r="2" fill="#e94560"/>
-      <circle cx="8" cy="6" r="2" fill="#e94560"/>
-      <circle cx="12" cy="6" r="2" fill="#e94560"/>
-      <circle cx="16" cy="8" r="2" fill="#e94560"/>
-      <circle cx="20" cy="10" r="2" fill="#e94560"/>
-      <circle cx="24" cy="12" r="2" fill="#e94560"/>
-      <circle cx="26" cy="16" r="2" fill="#e94560"/>
-      <rect x="2" y="16" width="3" height="3" fill="#45f3ff"/>
-      <rect x="8" y="20" width="3" height="3" fill="#45f3ff"/>
-      <rect x="14" y="24" width="3" height="3" fill="#45f3ff"/>
-      <rect x="20" y="22" width="3" height="3" fill="#45f3ff"/>
-      <rect x="4" y="28" width="24" height="4" fill="#4a2c0a"/>
-    </svg>
-  ),
-  'missile-command': (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="2" y="24" width="6" height="8" fill="#444"/>
-      <rect x="13" y="24" width="6" height="8" fill="#444"/>
-      <rect x="24" y="24" width="6" height="8" fill="#444"/>
-      <circle cx="10" cy="6" r="2" fill="#e94560"/>
-      <circle cx="22" cy="10" r="2" fill="#f9a825"/>
-      <circle cx="16" cy="4" r="2" fill="#45f3ff"/>
-      <line x1="5" y1="24" x2="10" y2="6" stroke="#f9a825" strokeWidth="1"/>
-      <line x1="16" y1="24" x2="16" y2="4" stroke="#45f3ff" strokeWidth="1"/>
-      <line x1="27" y1="24" x2="22" y2="10" stroke="#e94560" strokeWidth="1"/>
-    </svg>
-  ),
-  defender: (
-    <svg viewBox="0 0 32 32" className="game-icon">
-      <rect x="0" y="0" width="32" height="32" fill="#000"/>
-      <rect x="0" y="2" width="32" height="6" fill="#0a2a0a"/>
-      <polygon points="16,8 10,24 22,24" fill="#45f3ff"/>
-      <rect x="6" y="24" width="4" height="4" fill="#f9a825"/>
-      <rect x="22" y="24" width="4" height="4" fill="#e94560"/>
-      <rect x="14" y="20" width="4" height="8" fill="#45f3ff"/>
-      <circle cx="8" cy="12" r="2" fill="#e94560"/>
-      <circle cx="24" cy="14" r="2" fill="#f9a825"/>
-      <rect x="2" y="28" width="28" height="4" fill="#333"/>
-      <rect x="0" y="2" width="32" height="1" fill="#00FF9D" opacity="0.5"/>
-      <rect x="0" y="6" width="32" height="1" fill="#00FF9D" opacity="0.5"/>
-    </svg>
-  ),
-};
+interface SectionDef {
+  key: string;
+  label: string;
+  emoji: string;
+}
+
+const SECTIONS: SectionDef[] = [
+  { key: 'all', label: 'ALL', emoji: '🎮' },
+  { key: 'shooter', label: 'SHOOTER', emoji: '🔫' },
+  { key: 'racing', label: 'RACING', emoji: '🏎️' },
+  { key: 'battle', label: 'BATTLE', emoji: '⚔️' },
+  { key: 'arcade', label: 'ARCADE', emoji: '🎯' },
+  { key: 'puzzle', label: 'PUZZLE', emoji: '🧩' },
+  { key: 'party', label: 'PARTY', emoji: '🎉' },
+  { key: 'sports', label: 'SPORTS', emoji: '⚽' },
+  { key: 'retro', label: 'RETRO', emoji: '🕹️' },
+];
+
+// ============================================================
+//  COMPONENT
+// ============================================================
 
 const GameRoom: React.FC = () => {
-  const [selectedGenre, setSelectedGenre] = useState('All');
+  const [activeSection, setActiveSection] = useState('all');
   const [activeGame, setActiveGame] = useState<string | null>(null);
+  const [hoveredGame, setHoveredGame] = useState<string | null>(null);
 
-  const filteredGames = selectedGenre === 'All'
+  const activeGameData = activeGame ? GAMES.find(g => g.id === activeGame) : null;
+
+  const filteredGames = activeSection === 'all'
     ? GAMES
-    : GAMES.filter(g => g.genre === selectedGenre);
+    : GAMES.filter(g => g.section === activeSection);
 
-  const handleCardClick = (gameId: string) => {
+  const openGame = (gameId: string) => {
     setActiveGame(gameId);
   };
 
-  const handleBack = () => setActiveGame(null);
+  const closeGame = () => {
+    setActiveGame(null);
+  };
 
-  // === GAME VIEW (iframe) ===
-  if (activeGame) {
-    const game = GAMES.find(g => g.id === activeGame)!;
-    return (
-      <div className="game-room">
-        <div className="game-view">
-          <button className="back-btn" onClick={handleBack}>
-            ← Back to Game Room
-          </button>
-          <h2 className="game-view-title">
-            {game.title} ({game.year})
-          </h2>
-          <p style={{ color: 'var(--text-muted)', marginBottom: 16, fontSize: 13 }}>
-            {game.description}
-          </p>
-          <div className="game-canvas-wrapper">
-            <iframe
-              src={`/browser-games/${activeGame}/index.html`}
-              title={game.title}
-              className="game-iframe"
-              allow="autoplay"
-              sandbox="allow-scripts allow-same-origin"
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const openFullscreen = () => {
+    if (activeGameData) {
+      window.open(activeGameData.url, '_blank', 'noopener,noreferrer');
+    }
+  };
 
-  // === GRID VIEW ===
+  // Keyboard: Escape closes modal
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && activeGame) {
+        closeGame();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [activeGame]);
+
+  // Prevent body scroll when modal open
+  useEffect(() => {
+    if (activeGame) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [activeGame]);
+
   return (
-    <div className="game-room">
-      <header className="gr-header">
-        <h1>🎮 Classic Arcade</h1>
-        <p>12 faithfully recreated retro games — no dependencies, just play</p>
+    <div className={styles.gameRoom}>
+      {/* ===== HEADER ===== */}
+      <header className={styles.grHeader}>
+        <h1>🎮 Game Room</h1>
+        <p>Free no-install browser games to relax 😄</p>
       </header>
 
-      <div className="gr-genre-filter">
-        <div className="gr-genre-buttons">
-          {ALL_GENRES.map(genre => (
+      {/* ===== SECTION TABS ===== */}
+      <div className={styles.grSectionTabs}>
+        {SECTIONS.map(sec => {
+          const count = sec.key === 'all'
+            ? GAMES.length
+            : GAMES.filter(g => g.section === sec.key).length;
+          return (
             <button
-              key={genre}
-              className={`gr-genre-btn ${selectedGenre === genre ? 'active' : ''}`}
-              onClick={() => setSelectedGenre(genre)}
+              key={sec.key}
+              className={`${styles.grSectionBtn} ${activeSection === sec.key ? styles.active : ''}`}
+              onClick={() => setActiveSection(sec.key)}
             >
-              {genre}
-              <span className="gr-genre-count">
-                {genre === 'All' ? GAMES.length : GAMES.filter(g => g.genre === genre).length}
-              </span>
+              <span>{sec.emoji}</span>
+              <span>{sec.label}</span>
+              <span className={styles.grSectionCount}>{count}</span>
             </button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      <div className="gr-results-bar">
-        <span>{filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''} found</span>
-        {selectedGenre !== 'All' && <span className="gr-results-genre">{selectedGenre}</span>}
+      {/* ===== RESULTS BAR ===== */}
+      <div className={styles.grResultsBar}>
+        <span>{filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}</span>
+        {activeSection !== 'all' && (
+          <span className={styles.grResultsSection}>
+            {SECTIONS.find(s => s.key === activeSection)?.emoji} {SECTIONS.find(s => s.key === activeSection)?.label}
+          </span>
+        )}
       </div>
 
-      <div className="gr-grid">
+      {/* ===== GAMES GRID ===== */}
+      <div className={styles.grGrid}>
         {filteredGames.map(game => (
           <div
             key={game.id}
-            className="gr-card"
-            onClick={() => handleCardClick(game.id)}
+            className={`${styles.grCard} ${hoveredGame === game.id ? styles.hovered : ''}`}
+            onClick={() => openGame(game.id)}
+            onMouseEnter={() => setHoveredGame(game.id)}
+            onMouseLeave={() => setHoveredGame(null)}
           >
-            <div className="gr-card-icon">
-              {ICONS[game.id]}
+            <div className={styles.grCardIcon}>
+              {game.icon}
             </div>
-            <h3 className="gr-card-title">{game.title}</h3>
-            <div className="gr-card-meta">
-              <span className="gr-card-genre">{game.genre}</span>
-              <span className="gr-card-year">{game.year}</span>
-              <span className="gr-card-tag playable">
-                {game.tag}
+            <h3 className={styles.grCardTitle}>{game.title}</h3>
+            <div className={styles.grCardMeta}>
+              <span className={styles.grCardGenre}>{game.genre}</span>
+              <span className={`${styles.grCardTag} ${styles[game.section]}`}>
+                {game.section.toUpperCase()}
               </span>
             </div>
+            <div className={styles.grCardFooter}>
+              <span className={styles.grCardPlayers}>👤 {game.players}</span>
+              {game.mobile && <span className={styles.grCardMobile}>📱</span>}
+            </div>
+
+            {hoveredGame === game.id && (
+              <div className={styles.grTooltip}>
+                <p>{game.description}</p>
+                <span className={styles.grTooltipHint}>Click to preview</span>
+              </div>
+            )}
           </div>
         ))}
       </div>
 
+      {/* ===== EMPTY STATE ===== */}
       {filteredGames.length === 0 && (
-        <div className="gr-no-games">
-          <div className="gr-no-games-icon">📭</div>
+        <div className={styles.grNoGames}>
+          <div className={styles.grNoGamesIcon}>📭</div>
           <h3>No games found</h3>
-          <p>Try selecting a different genre</p>
+          <p>Try a different section</p>
         </div>
       )}
 
-      <footer className="gr-footer">
-        <p>🎮 Classic arcade games recreated in vanilla JS + Canvas</p>
-        <p className="gr-footer-hint">
-          <a href="https://github.com/juliensimon/browser-games" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-            github.com/juliensimon/browser-games
-          </a>
-        </p>
-        <p className="gr-disclaimer" style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 12, lineHeight: 1.5 }}>
-          Fan recreations for educational purposes. All original games are trademarks of their respective owners.
-        </p>
-        <p className="gr-credits" style={{ fontSize: 11, color: 'var(--accent)', marginTop: 4, fontWeight: 700 }}>
-          Thanks to <a href="https://github.com/carlos-aguayo" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Carlos Aguayo</a> and <a href="https://github.com/juliensimon" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'underline' }}>Julien Simon</a>
-        </p>
+      {/* ===== FOOTER ===== */}
+      <footer className={styles.grFooter}>
+        <p>🎮 Free browser games · No install required</p>
+        <p className={styles.grFooterHint}>Click any game for preview · Fullscreen for best controls</p>
       </footer>
+
+      {/* ===== GAME MODAL ===== */}
+      {activeGame && activeGameData && (
+        <div className={styles.grModalOverlay} onClick={closeGame}>
+          <div className={styles.grModalContent} onClick={e => e.stopPropagation()}>
+            {/* Modal header */}
+            <div className={styles.grModalHeader}>
+              <div className={styles.grModalTitleRow}>
+                <div className={styles.grModalIcon}>{activeGameData.icon}</div>
+                <div>
+                  <h2>{activeGameData.title}</h2>
+                  <div className={styles.grModalMeta}>
+                    <span className={styles.grModalGenre}>{activeGameData.genre}</span>
+                    <span className={styles.grModalPlayers}>👤 {activeGameData.players}</span>
+                    {activeGameData.mobile && <span className={styles.grModalMobile}>📱 Mobile</span>}
+                  </div>
+                </div>
+              </div>
+              <div className={styles.grModalActions}>
+                <button
+                  className={styles.grModalBtnFullscreen}
+                  onClick={openFullscreen}
+                  title="Open in new tab for best controls"
+                >
+                  ⛶ Fullscreen
+                </button>
+                <button
+                  className={styles.grModalBtnClose}
+                  onClick={closeGame}
+                  title="Close (Esc)"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Iframe */}
+            <div className={styles.grIframeWrapper}>
+              <iframe
+                src={activeGameData.url}
+                title={activeGameData.title}
+                className={styles.grIframe}
+                allow="fullscreen; autoplay; clipboard-write"
+                sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-pointer-lock"
+                loading="eager"
+              />
+              {/* Overlay hint for shooters */}
+              {(activeGameData.section === 'shooter' || activeGameData.section === 'battle') && (
+                <div className={styles.grIframeHint}>
+                  <p>🖱️ Mouse controls may be limited in preview</p>
+                  <button onClick={openFullscreen} className={styles.grIframeHintBtn}>
+                    ⛶ Open Fullscreen
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Modal footer */}
+            <div className={styles.grModalFooter}>
+              <p>{activeGameData.description}</p>
+              <button onClick={openFullscreen} className={styles.grModalFooterBtn}>
+                ▶ Play in Fullscreen
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
 export default GameRoom;
-

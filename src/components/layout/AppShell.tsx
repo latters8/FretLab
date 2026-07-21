@@ -28,14 +28,14 @@ const AppShell: React.FC = () => {
   const [activeModule, setActiveModule] = useState<ModuleType>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  
+
   const { setBpm } = useMusic();
 
   const handleAIAction = useCallback((action: any) => {
     if (!action) return;
-    
+
     console.log('🔊 AppShell received action:', action);
-    
+
     const switchModule = (module: ModuleType) => {
       setIsTransitioning(true);
       setTimeout(() => {
@@ -43,7 +43,7 @@ const AppShell: React.FC = () => {
         setTimeout(() => setIsTransitioning(false), 300);
       }, 200);
     };
-    
+
     switch (action.type) {
       case 'SET_BPM':
         if (action.payload?.bpm) {
@@ -51,46 +51,46 @@ const AppShell: React.FC = () => {
           console.log('🎵 BPM set to:', action.payload.bpm);
         }
         break;
-      
+
       case 'OPEN_CHORD':
         setAiTargetChord(action.payload?.chord || null);
         switchModule('dictionary');
         break;
-      
+
       case 'OPEN_TAB_GEN':
       case 'OPEN_AUTOTAB':
         switchModule('autotab');
         break;
-      
+
       case 'OPEN_ENGINE':
         switchModule('engine');
         break;
-      
+
       case 'OPEN_PRACTICE':
         switchModule('practice');
         break;
-      
+
       case 'SEARCH_BACKING':
       case 'SEARCH_YOUTUBE':
         switchModule('engine');
         const ytQuery = encodeURIComponent(action.payload?.query || 'guitar backing track');
         window.open(`https://www.youtube.com/results?search_query=${ytQuery}`, '_blank', 'noopener,noreferrer');
         break;
-      
+
       case 'SEARCH_VK':
         const vkQuery = encodeURIComponent(action.payload?.query || '');
         window.open(`https://vk.com/video?q=${vkQuery}`, '_blank', 'noopener,noreferrer');
         break;
-      
+
       case 'SEARCH_RUTUBE':
         const ruQuery = encodeURIComponent(action.payload?.query || '');
         window.open(`https://rutube.ru/search/?query=${ruQuery}`, '_blank', 'noopener,noreferrer');
         break;
-      
+
       case 'SET_CONTEXT':
         console.log('🎯 Setting context:', action.payload);
         break;
-      
+
       default:
         console.warn('⚠️ Unknown action type:', action.type);
     }
@@ -122,69 +122,25 @@ const AppShell: React.FC = () => {
   const renderNavIcon = (module: ModuleType) => {
     const isActive = activeModule === module;
     const config = MODULES[module];
-    
+
     return (
       <div 
         onClick={() => handleModuleClick(module)}
-        style={{ 
-          padding: '12px', 
-          background: isActive ? 'var(--bg-hover)' : 'transparent', 
-          color: isActive ? 'var(--accent)' : 'var(--text-muted)', 
-          borderRadius: '12px', 
-          cursor: 'pointer', 
-          fontSize: '24px', 
-          transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-          position: 'relative',
-          transform: isActive ? 'scale(1.1)' : 'scale(1)',
-          boxShadow: isActive ? 'inset 0 0 30px rgba(0,255,157,0.05)' : 'none',
-        }}
+        className={`nav-icon ${isActive ? 'nav-icon-active' : ''}`}
         title={config.title}
-        onMouseEnter={(e) => {
-          if (!isActive) {
-            e.currentTarget.style.color = 'var(--text-primary)';
-            e.currentTarget.style.transform = 'scale(1.05)';
-          }
-        }}
-        onMouseLeave={(e) => {
-          if (!isActive) {
-            e.currentTarget.style.color = 'var(--text-muted)';
-            e.currentTarget.style.transform = 'scale(1)';
-          }
-        }}
       >
         {config.icon}
         {isActive && (
           <>
-            <div style={{
-              position: 'absolute',
-              bottom: '-4px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: 'var(--accent)',
-              boxShadow: '0 0 20px var(--accent)',
-              animation: 'pulse-dot 2s infinite'
-            }} />
-            <div style={{
-              position: 'absolute',
-              top: '-2px',
-              right: '-2px',
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: 'var(--accent)',
-              boxShadow: '0 0 10px var(--accent)',
-              animation: 'pulse-dot 1.5s infinite'
-            }} />
+            <div className="nav-dot nav-dot-bottom" />
+            <div className="nav-dot nav-dot-top" />
           </>
         )}
       </div>
     );
   };
 
-const renderContent = () => {
+  const renderContent = () => {
     switch (activeModule) {
       case 'engine':
         return (
@@ -196,15 +152,8 @@ const renderContent = () => {
               </div>
               <Tablature />
             </main>
-            
-            <aside className="right-column mobile-order-after" style={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              gap: '24px', 
-              overflowY: 'auto', 
-              height: '100%',
-              padding: '8px 0'
-            }}>
+
+            <aside className="right-column mobile-order-after">
               <CircleOfFifths />
               <DiatonicChords />
               <ToolBox />
@@ -248,62 +197,23 @@ const renderContent = () => {
   return (
     <div className="app-container">
       <Header onAIAction={handleAIAction} />
-      
-      <div style={{ 
-        display: 'flex', 
-        flexDirection: 'column', 
-        flex: 1, 
-        overflow: 'hidden',
-        position: 'relative'
-      }}>
+
+      <div className="app-main">
         <div className="app-layout">
-          <aside className="left-sidebar" style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            gap: '8px',
-            paddingTop: '12px'
-          }}>
+          <aside className="left-sidebar">
             {renderNavIcon('engine')}
             {renderNavIcon('dictionary')}
             {renderNavIcon('autotab')}
             {renderNavIcon('practice')}
             {renderNavIcon('gameroom')}
-            
-            <div style={{
-              marginTop: 'auto',
-              paddingTop: '16px',
-              borderTop: '1px solid var(--border-color)',
-              width: '80%',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <span style={{ 
-                fontSize: '10px', 
-                color: 'var(--text-muted)',
-                opacity: 0.5,
-                textAlign: 'center'
-              }}>
-                v2.0.0
-              </span>
-              <span style={{ 
-                fontSize: '8px', 
-                color: 'var(--text-muted)',
-                opacity: 0.3,
-                textAlign: 'center'
-              }}>
-                Ctrl+1-5
-              </span>
+
+            <div className="sidebar-footer desktop-only">
+              <span className="version-text">v2.0.0</span>
+              <span className="shortcut-text">Ctrl+1-5</span>
             </div>
           </aside>
 
-          <div className="main-workspace" style={{
-            position: 'relative',
-            opacity: isTransitioning ? 0.8 : 1,
-            transition: 'opacity 0.3s ease'
-          }}>
+          <div className={`main-workspace ${isTransitioning ? 'transitioning' : ''}`}>
             {renderContent()}
           </div>
         </div>
@@ -320,7 +230,7 @@ const renderContent = () => {
             transform: translateX(-50%) scale(1.5);
           }
         }
-        
+
         @keyframes fadeIn {
           from {
             opacity: 0;
@@ -331,27 +241,118 @@ const renderContent = () => {
             transform: translateY(0);
           }
         }
-        
+
         .center-column {
           animation: fadeIn 0.3s ease;
         }
-        
+
+        .nav-icon {
+          padding: 12px;
+          background: transparent;
+          color: var(--text-muted);
+          border-radius: 12px;
+          cursor: pointer;
+          font-size: 24px;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          position: relative;
+          transform: scale(1);
+        }
+
+        .nav-icon:hover {
+          color: var(--text-primary);
+          transform: scale(1.05);
+        }
+
+        .nav-icon-active {
+          background: var(--bg-hover);
+          color: var(--accent);
+          transform: scale(1.1);
+          box-shadow: inset 0 0 30px rgba(0,255,157,0.05);
+        }
+
+        .nav-dot {
+          position: absolute;
+          border-radius: 50%;
+          background: var(--accent);
+          box-shadow: 0 0 20px var(--accent);
+          animation: pulse-dot 2s infinite;
+        }
+
+        .nav-dot-bottom {
+          bottom: -4px;
+          left: 50%;
+          transform: translateX(-50%);
+          width: 6px;
+          height: 6px;
+        }
+
+        .nav-dot-top {
+          top: -2px;
+          right: -2px;
+          width: 8px;
+          height: 8px;
+          animation-duration: 1.5s;
+        }
+
+        .sidebar-footer {
+          margin-top: auto;
+          padding-top: 16px;
+          border-top: 1px solid var(--border-color);
+          width: 80%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .version-text {
+          font-size: 10px;
+          color: var(--text-muted);
+          opacity: 0.5;
+          text-align: center;
+        }
+
+        .shortcut-text {
+          font-size: 8px;
+          color: var(--text-muted);
+          opacity: 0.3;
+          text-align: center;
+        }
+
+        .app-main {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .main-workspace {
+          position: relative;
+          opacity: 1;
+          transition: opacity 0.3s ease;
+        }
+
+        .main-workspace.transitioning {
+          opacity: 0.8;
+        }
+
         .right-column::-webkit-scrollbar,
         .center-column::-webkit-scrollbar {
           width: 4px;
         }
-        
+
         .right-column::-webkit-scrollbar-track,
         .center-column::-webkit-scrollbar-track {
           background: transparent;
         }
-        
+
         .right-column::-webkit-scrollbar-thumb,
         .center-column::-webkit-scrollbar-thumb {
           background: var(--border-color);
           border-radius: 2px;
         }
-        
+
         .right-column::-webkit-scrollbar-thumb:hover,
         .center-column::-webkit-scrollbar-thumb:hover {
           background: var(--text-muted);

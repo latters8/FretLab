@@ -19,22 +19,67 @@ class AudioManager {
   private _drumRide: Tone.MetalSynth | null = null;
   private _drumTom: Tone.MembraneSynth | null = null;
 
-  // 🥁 Сэмплер барабанов (ленивая инициализация)
+  // 🥁 Сэмплеры (ленивая инициализация)
   public drumSampler: Tone.Sampler | null = null;
+  public guitarSampler: Tone.Sampler | null = null;
+  public bassSampler: Tone.Sampler | null = null;
+  
   private drumSamplerPromise: Promise<Tone.Sampler> | null = null;
+  private guitarSamplerPromise: Promise<void> | null = null;
+
+  // 🎚️ Микшерные каналы
+  private channels: Record<string, Tone.Volume> = {};
 
   // 📊 Ссылки на осцилляторы для Web Audio API
   private oscillators: OscillatorNode[] = [];
   private timeouts: number[] = [];
 
-  // 🎹 Ленивые геттеры для синтезаторов
+  private constructor() {
+    // 🎛️ Инициализация микшера
+    this.channels = {
+      master: new Tone.Volume(0).toDestination(),
+      guitar: new Tone.Volume(0),
+      bass: new Tone.Volume(0),
+      drums: new Tone.Volume(0),
+      chords: new Tone.Volume(-6), // Дефолтно приглушаем аккорды
+    };
+
+    // Подключаем все каналы в мастер-шину
+    this.channels.guitar.connect(this.channels.master);
+    this.channels.bass.connect(this.channels.master);
+    this.channels.drums.connect(this.channels.master);
+    this.channels.chords.connect(this.channels.master);
+  }
+
+  public static getInstance(): AudioManager {
+    if (!AudioManager.instance) AudioManager.instance = new AudioManager();
+    return AudioManager.instance;
+  }
+
+  // ============================================
+  // 🎚️ УПРАВЛЕНИЕ МИКШЕРОМ (Volume & Mute)
+  // ============================================
+  public setVolume(channel: 'master' | 'guitar' | 'bass' | 'drums' | 'chords', db: number) {
+    if (this.channels[channel]) {
+      this.channels[channel].volume.rampTo(db, 0.05);
+    }
+  }
+
+  public setMute(channel: 'master' | 'guitar' | 'bass' | 'drums' | 'chords', muted: boolean) {
+    if (this.channels[channel]) {
+      this.channels[channel].mute = muted;
+    }
+  }
+
+  // ============================================
+  // 🎹 ЛЕНИВЫЕ ГЕТТЕРЫ ДЛЯ СИНТЕЗАТОРОВ (Fallback)
+  // ============================================
   get chordSynth(): Tone.PolySynth {
     if (!this._chordSynth) {
       this._chordSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'triangle' as any },
         envelope: { attack: 0.1, decay: 0.2, sustain: 0.7, release: 1.5 }
-      } as any).toDestination();
-      this._chordSynth.volume.value = -10;
+      } as any).connect(this.channels.chords);
     }
     return this._chordSynth;
   }
@@ -57,8 +102,7 @@ class AudioManager {
       this._guitarSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'square' as any },
         envelope: { attack: 0.01, decay: 0.2, sustain: 0.2, release: 1 }
-      } as any).toDestination();
-      this._guitarSynth.volume.value = -8;
+      } as any).connect(this.channels.guitar);
     }
     return this._guitarSynth;
   }
@@ -70,8 +114,7 @@ class AudioManager {
         filter: { Q: 1, type: 'lowpass', rolloff: -24 },
         envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1 },
         filterEnvelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 1, baseFrequency: 100, octaves: 3 }
-      } as any).toDestination();
-      this._bassSynth.volume.value = -6;
+      } as any).connect(this.channels.bass);
     }
     return this._bassSynth;
   }
@@ -81,8 +124,7 @@ class AudioManager {
       this._stringsSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'sawtooth' as any },
         envelope: { attack: 1, decay: 0.5, sustain: 0.8, release: 2 }
-      } as any).toDestination();
-      this._stringsSynth.volume.value = -12;
+      } as any).connect(this.channels.chords);
     }
     return this._stringsSynth;
   }
@@ -92,13 +134,11 @@ class AudioManager {
       this._pianoSynth = new Tone.PolySynth(Tone.Synth, {
         oscillator: { type: 'square' as any },
         envelope: { attack: 0.01, decay: 0.5, sustain: 0.5, release: 1.5 }
-      } as any).toDestination();
-      this._pianoSynth.volume.value = -8;
+      } as any).connect(this.channels.chords);
     }
     return this._pianoSynth;
   }
 
-  // 🥁 Барабаны — ленивые геттеры
   get drumKick(): Tone.MembraneSynth {
     if (!this._drumKick) {
       this._drumKick = new Tone.MembraneSynth({
@@ -106,8 +146,7 @@ class AudioManager {
         octaves: 5,
         oscillator: { type: 'sine' as any },
         envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4, attackCurve: 'exponential' }
-      } as any).toDestination();
-      this._drumKick.volume.value = 0;
+      } as any).connect(this.channels.drums);
     }
     return this._drumKick;
   }
@@ -117,8 +156,7 @@ class AudioManager {
       this._drumSnare = new Tone.NoiseSynth({
         noise: { type: 'white' },
         envelope: { attack: 0.001, decay: 0.2, sustain: 0, release: 0.2 }
-      } as any).toDestination();
-      this._drumSnare.volume.value = -8;
+      } as any).connect(this.channels.drums);
     }
     return this._drumSnare;
   }
@@ -128,8 +166,7 @@ class AudioManager {
       this._drumHihat = new Tone.NoiseSynth({
         noise: { type: 'pink' },
         envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.05 }
-      } as any).toDestination();
-      this._drumHihat.volume.value = -14;
+      } as any).connect(this.channels.drums);
     }
     return this._drumHihat;
   }
@@ -139,8 +176,7 @@ class AudioManager {
       this._drumCrash = new Tone.NoiseSynth({
         noise: { type: 'white' },
         envelope: { attack: 0.01, decay: 1.5, sustain: 0, release: 1.5 }
-      } as any).toDestination();
-      this._drumCrash.volume.value = -12;
+      } as any).connect(this.channels.drums);
     }
     return this._drumCrash;
   }
@@ -153,8 +189,7 @@ class AudioManager {
         modulationIndex: 32,
         resonance: 4000,
         octaves: 1.5
-      } as any).toDestination();
-      this._drumRide.volume.value = -16;
+      } as any).connect(this.channels.drums);
     }
     return this._drumRide;
   }
@@ -166,70 +201,102 @@ class AudioManager {
         octaves: 4,
         oscillator: { type: 'sine' as any },
         envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 1.4 }
-      } as any).toDestination();
-      this._drumTom.volume.value = -10;
+      } as any).connect(this.channels.drums);
     }
     return this._drumTom;
   }
 
-  private constructor() {
-    // Ленивая инициализация — синтезаторы создаются при первом обращении
-  }
-
-  public static getInstance(): AudioManager {
-    if (!AudioManager.instance) AudioManager.instance = new AudioManager();
-    return AudioManager.instance;
-  }
-
-  // ============================================
-  // 🎵 AUDIO CONTEXT (единый с Tone.js)
-  // ============================================
-  public async initAudioContext(): Promise<AudioContext> {
-    const ctx = Tone.getContext().rawContext as AudioContext;
-
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-
-    return ctx;
-  }
-
+  // ✅ FIX: Не создаём отдельный AudioContext, используем Tone.js контекст
   private getAudioContext(): AudioContext {
     return Tone.getContext().rawContext as AudioContext;
   }
 
   // ============================================
-  // 🥁 ЛЕНИВАЯ ИНИЦИАЛИЗАЦИЯ СЭМПЛЕРА
+  // 📦 ЛЕНИВАЯ ИНИЦИАЛИЗАЦИЯ СЭМПЛЕРОВ (ИСПРАВЛЕНО)
   // ============================================
   private async ensureDrumSampler(): Promise<Tone.Sampler> {
     if (this.drumSampler) return this.drumSampler;
     if (this.drumSamplerPromise) return this.drumSamplerPromise;
 
     this.drumSamplerPromise = new Promise((resolve) => {
-      const sampler = new Tone.Sampler(
-        {
-          C1: 'samples/drums/kick.mp3',
-          D1: 'samples/drums/snare.mp3',
-          'F#1': 'samples/drums/hihat.mp3',
-          A1: 'samples/drums/crash.mp3',
-          E1: 'samples/drums/ride.wav',
-          G1: 'samples/drums/tom.mp3',
+      // ИСПРАВЛЕНИЕ: Передаем единый объект настроек
+      const sampler = new Tone.Sampler({
+        urls: {
+          C1: 'kick.mp3',
+          D1: 'snare.mp3',
+          'F#1': 'hihat.mp3',
+          A1: 'crash.mp3',
+          E1: 'ride.wav',
+          G1: 'tom.mp3',
         },
-        () => {
-          console.log('✅ Drum sampler loaded');
+        baseUrl: './samples/drums/',
+        onload: () => {
+          console.log('✅ Drum sampler loaded into mixer');
           resolve(sampler);
         }
-      ).toDestination();
-      sampler.volume.value = 0;
+      }).connect(this.channels.drums);
+      
       this.drumSampler = sampler;
     });
 
     return this.drumSamplerPromise;
   }
 
+  private async ensureGuitarAndBassSamplers(): Promise<void> {
+    if (this.guitarSampler && this.bassSampler) return;
+    if (this.guitarSamplerPromise) return;
+
+    this.guitarSamplerPromise = new Promise((resolve) => {
+      let loadedCount = 0;
+      const checkDone = () => {
+        loadedCount++;
+        if (loadedCount >= 2) resolve();
+      };
+
+      // 🎸 Гитарные сэмплы
+      this.guitarSampler = new Tone.Sampler({
+        urls: { "E2": "E2.mp3", "A2": "A2.mp3", "D3": "D3.mp3", "G3": "G3.mp3", "B3": "B3.mp3", "E4": "E4.mp3" },
+        baseUrl: "./samples/guitar/",
+        onload: () => {
+          console.log("🎸 Реальные гитарные сэмплы подключены!");
+          checkDone();
+        }
+      }).connect(this.channels.guitar);
+
+      // 🎸 Басовые сэмплы (исправлен путь на ./samples/bass/ + корректные имена файлов)
+      this.bassSampler = new Tone.Sampler({
+        urls: { "E1": "E1.mp3", "A1": "A1.mp3", "D2": "D1.mp3", "G1": "G1.mp3" },
+        baseUrl: "./samples/bass/",
+        onload: () => {
+          console.log("🎛️ Басовые сэмплы подключены!");
+          checkDone();
+        }
+      }).connect(this.channels.bass);
+    });
+  }
+
   // ============================================
-  // 🎸 WEB AUDIO API — ГИТАРНАЯ НОТА (с гармониками)
+  // 🎸 ВОСПРОИЗВЕДЕНИЕ ГИТАРЫ (ИСПРАВЛЕНО)
   // ============================================
+  public playGuitarNote(noteOrFreq: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity: number = 0.7) {
+    const t = time || Tone.now();
+    
+    // Если сэмплер загружен
+    if (this.guitarSampler && this.guitarSampler.loaded) {
+      // ИСПРАВЛЕНИЕ: Конвертируем частоту (number) в строку-ноту, чтобы Sampler мог её проиграть
+      const noteName = typeof noteOrFreq === 'number' ? Tone.Frequency(noteOrFreq).toNote() : noteOrFreq;
+      this.guitarSampler.triggerAttackRelease(noteName, duration, t, velocity);
+      return;
+    }
+
+    // Fallback на синтезаторы
+    if (typeof noteOrFreq === 'number') {
+      this.playWebAudioGuitarNote(noteOrFreq, Tone.Time(duration).toSeconds(), t as number, velocity);
+    } else {
+      this.guitarSynth.triggerAttackRelease(noteOrFreq, duration, t, velocity);
+    }
+  }
+
   public playWebAudioGuitarNote(
     freq: number,
     duration: number,
@@ -237,11 +304,13 @@ class AudioManager {
     velocity: number = 0.7
   ): void {
     const ctx = this.getAudioContext();
-
-    const time = startTime ?? ctx.currentTime + 0.05;
+    // ✅ FIX: Используем Tone.now() вместо ctx.currentTime (рассинхрон!)
+    const time = startTime ?? Tone.now() + 0.05;
 
     try {
-      // Основной тон
+      const destinationNode = Tone.getContext().rawContext.createGain();
+      Tone.connect(destinationNode as any, this.channels.guitar);
+      
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'triangle';
@@ -250,12 +319,11 @@ class AudioManager {
       gain1.gain.linearRampToValueAtTime(velocity * 0.6, time + 0.01);
       gain1.gain.exponentialRampToValueAtTime(0.001, time + duration);
       osc1.connect(gain1);
-      gain1.connect(ctx.destination);
+      gain1.connect(destinationNode);
       osc1.start(time);
       osc1.stop(time + duration + 0.05);
       this.oscillators.push(osc1);
 
-      // Гармоника 1 (октава)
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
       osc2.type = 'sawtooth';
@@ -264,12 +332,11 @@ class AudioManager {
       gain2.gain.linearRampToValueAtTime(velocity * 0.15, time + 0.01);
       gain2.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.8);
       osc2.connect(gain2);
-      gain2.connect(ctx.destination);
+      gain2.connect(destinationNode);
       osc2.start(time);
       osc2.stop(time + duration * 0.8 + 0.05);
       this.oscillators.push(osc2);
 
-      // Гармоника 2 (терция)
       const osc3 = ctx.createOscillator();
       const gain3 = ctx.createGain();
       osc3.type = 'sine';
@@ -278,7 +345,7 @@ class AudioManager {
       gain3.gain.linearRampToValueAtTime(velocity * 0.1, time + 0.01);
       gain3.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.6);
       osc3.connect(gain3);
-      gain3.connect(ctx.destination);
+      gain3.connect(destinationNode);
       osc3.start(time);
       osc3.stop(time + duration * 0.6 + 0.05);
       this.oscillators.push(osc3);
@@ -288,54 +355,31 @@ class AudioManager {
   }
 
   // ============================================
-  // ⏹️ ОСТАНОВКА ВСЕГО
+  // 🎻 ВОСПРОИЗВЕДЕНИЕ БАСА
   // ============================================
-  public stopAll() {
-    Tone.Transport.stop();
-    Tone.Transport.cancel(0);
-
-    try { this.chordSynth.releaseAll(); } catch(_) {}
-    try { this.guitarSynth.releaseAll(); } catch(_) {}
-    try { this.bassSynth.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.stringsSynth.releaseAll(); } catch(_) {}
-    try { this.pianoSynth.releaseAll(); } catch(_) {}
-    try { this.drumSampler?.releaseAll(); } catch(_) {}
-    try { this.drumKick.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.drumSnare.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.drumHihat.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.drumCrash.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.drumRide.triggerRelease(Tone.now()); } catch(_) {}
-    try { this.drumTom.triggerRelease(Tone.now()); } catch(_) {}
-
-    this.oscillators.forEach(osc => {
-      try { osc.stop(); osc.disconnect(); } catch(_) {}
-    });
-    this.oscillators = [];
-
-    this.timeouts.forEach(clearTimeout);
-    this.timeouts = [];
+  public playBassNote(note: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity: number = 0.9) {
+    const t = time || Tone.now();
+    if (this.bassSampler && this.bassSampler.loaded) {
+      this.bassSampler.triggerAttackRelease(note, duration, t, velocity);
+    } else {
+      this.bassSynth.triggerAttackRelease(note, duration, t, velocity);
+    }
   }
 
   // ============================================
-  // 🥁 МЕТОДЫ ДЛЯ БАРАБАНОВ
+  // 🥁 ВОСПРОИЗВЕДЕНИЕ БАРАБАНОВ
   // ============================================
   public playDrumHit(type: 'kick' | 'snare' | 'hihat' | 'crash' | 'ride' | 'tom', time?: Tone.Unit.Time, velocity?: number) {
     const vel = velocity || 0.8;
-
     const t = (time ?? Tone.now()) as number;
     const defaultTime = Math.max(t, Tone.now() + 0.0001);
 
     const noteMap: Record<string, string> = {
-      kick: 'C1',
-      snare: 'D1',
-      hihat: 'F#1',
-      crash: 'A1',
-      ride: 'E1',
-      tom: 'G1'
+      kick: 'C1', snare: 'D1', hihat: 'F#1', crash: 'A1', ride: 'E1', tom: 'G1'
     };
 
     // Если сэмплер загружен — используем его
-    if (this.drumSampler && (this.drumSampler as any).loaded) {
+    if (this.drumSampler && this.drumSampler.loaded) {
       const note = noteMap[type];
       if (note) {
         this.drumSampler.triggerAttackRelease(note, 0.2, defaultTime, vel);
@@ -354,30 +398,54 @@ class AudioManager {
     }
   }
 
-  // ============================================
-  // 🎵 МЕТРОНОМ
-  // ============================================
   public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
     const freq = isAccent ? 1000 : 800;
     this.metronomeSynth.triggerAttackRelease(freq, 0.05, time, 0.5);
   }
 
-  // ============================================
-  // 🎸 МЕТОДЫ ДЛЯ ГИТАРЫ
-  // ============================================
-  public playGuitarNote(note: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity?: number) {
-    const defaultTime = time || Tone.now();
-    this.guitarSynth.triggerAttackRelease(note, duration, defaultTime, velocity);
+  public stopAll() {
+    Tone.Transport.stop();
+    Tone.Transport.cancel(0);
+
+    try { this.chordSynth.releaseAll(); } catch(_) {}
+    try { this.guitarSynth.releaseAll(); } catch(_) {}
+    try { this.bassSynth.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.stringsSynth.releaseAll(); } catch(_) {}
+    try { this.pianoSynth.releaseAll(); } catch(_) {}
+    try { this.drumSampler?.releaseAll(); } catch(_) {}
+    try { this.guitarSampler?.releaseAll(); } catch(_) {}
+    try { this.bassSampler?.releaseAll(); } catch(_) {}
+    try { this.drumKick.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.drumSnare.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.drumHihat.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.drumCrash.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.drumRide.triggerRelease(Tone.now()); } catch(_) {}
+    try { this.drumTom.triggerRelease(Tone.now()); } catch(_) {}
+
+    this.oscillators.forEach(osc => {
+      try { osc.stop(); osc.disconnect(); } catch(_) {}
+    });
+    this.oscillators = [];
+
+    this.timeouts.forEach(clearTimeout);
+    this.timeouts = [];
   }
 
   public async init() {
-    await this.initAudioContext();
     await Tone.start();
-    // Лениво загружаем сэмплы барабанов
-    this.ensureDrumSampler().catch(err => {
-      console.warn('⚠️ Не удалось загрузить drum sampler, используем fallback:', err);
-    });
-    console.log('✅ AudioManager инициализирован');
+    
+    // ⏳ Ждём загрузки сэмплов, чтобы гитара играла сэмплами, а не синтезатором
+    try {
+      await Promise.all([
+        this.ensureDrumSampler(),
+        this.ensureGuitarAndBassSamplers()
+      ]);
+      console.log('✅ Все сэмплы загружены (гитара, бас, барабаны)');
+    } catch (err) {
+      console.warn('⚠️ Некоторые сэмплы не загрузились, используем фоллбек:', err);
+    }
+    
+    console.log('✅ AudioManager инициализирован и подключен к микшеру');
   }
 }
 

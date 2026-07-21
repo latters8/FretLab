@@ -25,7 +25,7 @@ const SoloGenerator: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoopOn, setIsLoopOn] = useState(false);
-  const [isChordsOn, setIsChordsOn] = useState(true);
+  const [isChordsOn, setIsChordsOn] = useState(false); // ✅ Аккорды выключены по умолчанию — только соло
   const [isSoloOn, setIsSoloOn] = useState(true);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const [tips, setTips] = useState<Tip[]>([]);
@@ -55,11 +55,29 @@ const SoloGenerator: React.FC = () => {
   const [currentPlayBar, setCurrentPlayBar] = useState<number>(-1);
   const tabContainerRef = useRef<HTMLDivElement | null>(null);
 
+  // 🎚️ СОСТОЯНИЯ ДЛЯ МИКШЕРА
+  const [vols, setVols] = useState({ master: 0, guitar: 6, bass: 0, drums: -4, chords: -14 });
+  const [mutes, setMutes] = useState({ guitar: false, bass: false, drums: false, chords: false });
 
   const sequencePartRef = useRef<Tone.Part | null>(null);
   const playheadAnimRef = useRef<number>(0);
   const startTimeRef = useRef<number>(0);
   const menuRef = useRef<HTMLDivElement | null>(null);
+  // 🎸 Dedicated solo synth — отдельный от аккордов
+  const soloSynthRef = useRef<Tone.MonoSynth | null>(null);
+
+  // Синхронизация микшера со звуковым ядром
+  useEffect(() => {
+    Object.keys(vols).forEach((key) => {
+      if ((audioManager as any).setVolume) (audioManager as any).setVolume(key, vols[key as keyof typeof vols]);
+    });
+  }, [vols]);
+
+  useEffect(() => {
+    Object.keys(mutes).forEach((key) => {
+      if ((audioManager as any).setMute) (audioManager as any).setMute(key, mutes[key as keyof typeof mutes]);
+    });
+  }, [mutes]);
 
   const getChordNotesLocal = (chordName: string, key: string): string[] => {
     let normalizedName = chordName;
@@ -121,9 +139,6 @@ const SoloGenerator: React.FC = () => {
     return intervals.map(i => ALL_NOTES[(rootIdx + i) % 12]);
   };
 
-  // ============================================
-  // 📊 НОВАЯ ФУНКЦИЯ - ПОЛУЧЕНИЕ НОТ ДЛЯ ТАКТА
-  // ============================================
   const getNotesForBar = (barIndex: number) => {
     if (!soloData || !soloData.notes) return [];
     const beatsPerBar = timeSignature?.beats || 4;
@@ -134,15 +149,10 @@ const SoloGenerator: React.FC = () => {
     );
   };
 
-  // ============================================
-  // ГЕНЕРАЦИЯ ПРОГРЕССИИ С ПОДДЕРЖКОЙ АРПЕДЖИО
-  // ============================================
   const generateProgression = () => {
     const chords = getDiatonicChords();
     setDiatonicChords(chords);
 
-    // 🔥 Fallback: для arpeggio/altered getDiatonicChords() может вернуть [] (scale.length < 7)
-    // В этом случае всё равно нужно построить progression и запустить генерацию.
     const isArpOrAltered = [
       'maj7_arp',
       'min7_arp',
@@ -153,10 +163,8 @@ const SoloGenerator: React.FC = () => {
 
     const root = keyNote || 'C';
     const fallbackTriadRoots: string[] = (() => {
-      // Берём triads из scale, если есть хотя бы 1 нота, иначе используем хардкод C major.
       const scaleNotes = getScaleNotes();
       const scaleRoot = scaleNotes.length > 0 ? scaleNotes : ['C','D','E','G','A'];
-      // Для генерации достаточно 4 “опорных” ступеней.
       return [scaleRoot[0], scaleRoot[3] || scaleRoot[1], scaleRoot[4] || scaleRoot[2], scaleRoot[0]];
     })();
 
@@ -165,7 +173,6 @@ const SoloGenerator: React.FC = () => {
       : (isArpOrAltered ? fallbackTriadRoots.map((r, i) => ({ baseRoman: String(i), triad: r + '', seventhChord: r + '', ninthChord: r + '', eleventhChord: r + '' })) : []);
 
     if (effectiveChords.length > 0) {
-      
       let chordSuffix = '';
       let useChordType: 'triad' | 'seventh' | 'ninth' | 'altered' = 'triad';
       
@@ -229,12 +236,8 @@ const SoloGenerator: React.FC = () => {
     generateProgression();
   }, [keyNote, mode]);
 
-  // ============================================
-  // 🎲 ГЕНЕРАЦИЯ СЛУЧАЙНОГО ПАТТЕРНА
-  // ============================================
   const generateRandomPattern = () => {
     setIsRandomizing(true);
-    
     try {
       const styles: ('rock' | 'funk' | 'jazz' | 'electronic' | 'experimental')[] = 
         ['rock', 'funk', 'jazz', 'electronic', 'experimental'];
@@ -249,7 +252,6 @@ const SoloGenerator: React.FC = () => {
       };
 
       const newPattern = getRandomPattern(options);
-      
       setRandomHistory(prev => [...prev, newPattern].slice(-10));
       
       const randomName = `RANDOM_${Date.now()}`;
@@ -257,7 +259,6 @@ const SoloGenerator: React.FC = () => {
       
       const newNames = Object.keys(DrumPatterns);
       setDrumPatternNames(newNames);
-      
       setDrumPatternName(randomName);
       setDrumPattern(newPattern);
       
@@ -268,12 +269,8 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  // ============================================
-  // 🔄 МУТАЦИЯ ТЕКУЩЕГО ПАТТЕРНА
-  // ============================================
   const mutateCurrentPattern = () => {
     if (!drumPattern) return;
-    
     try {
       const mutated = mutatePattern(drumPattern, 0.15);
       const randomName = `MUTATED_${Date.now()}`;
@@ -281,10 +278,8 @@ const SoloGenerator: React.FC = () => {
       
       const newNames = Object.keys(DrumPatterns);
       setDrumPatternNames(newNames);
-      
       setDrumPatternName(randomName);
       setDrumPattern(mutated);
-      
       setRandomHistory(prev => [...prev, mutated].slice(-10));
       
     } catch (error) {
@@ -292,15 +287,10 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  // ============================================
-  // 🎲 ГЕНЕРАЦИЯ НЕСКОЛЬКИХ ПАТТЕРНОВ
-  // ============================================
   const generateMultiplePatterns = (count: number = 5) => {
     setIsRandomizing(true);
-    
     try {
       const patterns: DrumPattern[] = PatternGenerator.generateMultiple(count);
-      
       setRandomHistory(prev => [...prev, ...patterns].slice(-20));
       
       patterns.forEach((pattern, index) => {
@@ -328,9 +318,6 @@ const SoloGenerator: React.FC = () => {
     }
   };
 
-  // ============================================
-  // ↩️ ВОССТАНОВЛЕНИЕ ИЗ ИСТОРИИ
-  // ============================================
   const restoreFromHistory = (index: number) => {
     if (index >= randomHistory.length) return;
     const pattern = randomHistory[index];
@@ -339,7 +326,6 @@ const SoloGenerator: React.FC = () => {
     
     const newNames = Object.keys(DrumPatterns);
     setDrumPatternNames(newNames);
-    
     setDrumPatternName(name);
     setDrumPattern(pattern);
   };
@@ -365,7 +351,7 @@ const SoloGenerator: React.FC = () => {
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [soloData, isChordsOn, isSoloOn, bpm, isLoopOn, isDrumOn, drumPattern]);
+  }, [soloData, isChordsOn, isSoloOn, bpm, isLoopOn, isDrumOn, drumPattern, mutes]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -387,12 +373,18 @@ const SoloGenerator: React.FC = () => {
     Tone.Transport.stop();
     Tone.Transport.cancel(0);
     
-    audioManager.stopAll();
+    // 🎸 Очищаем соло-синтезатор
+    if (soloSynthRef.current) {
+      soloSynthRef.current.dispose();
+      soloSynthRef.current = null;
+    }
+
+    audioManager.stopAll && audioManager.stopAll();
 
     cancelAnimationFrame(playheadAnimRef.current);
     setIsPlaying(false);
     setPlaybackProgress(0);
-    setCurrentPlayBar(-1); // 🔥 ДОБАВЛЕНО
+    setCurrentPlayBar(-1);
   };
 
   const executeGeneration = (targetProgression: { name: string; notes: string[] }[]) => {
@@ -400,7 +392,7 @@ const SoloGenerator: React.FC = () => {
     setSoloData(null);
     setPlaybackProgress(0);
     setTips([]);
-    setCurrentPlayBar(-1); // 🔥 ДОБАВЛЕНО
+    setCurrentPlayBar(-1);
 
     const scale = getScaleNotes();
     const safeScale = scale && scale.length > 0 ? scale : ['C', 'D', 'E', 'G', 'A'];
@@ -436,6 +428,7 @@ const SoloGenerator: React.FC = () => {
     executeGeneration(progression);
   };
 
+  // 🔥 ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ФУНКЦИЯ ВОСПРОИЗВЕДЕНИЯ
   const playScore = async (data: SyncSoloData) => {
     if (!data.notes || data.notes.length === 0) {
       console.warn('⚠️ Нет нот для воспроизведения!');
@@ -445,156 +438,168 @@ const SoloGenerator: React.FC = () => {
     await audioManager.init();
     await Tone.start();
     
-    Tone.Transport.bpm.value = bpm;
+    // ✅ FIX: Убеждаемся что BPM число и сбрасываем транспорт перед установкой
+    const bpmValue = typeof bpm === 'number' ? bpm : Number(bpm) || 120;
+    Tone.Transport.bpm.value = bpmValue;
+    Tone.Transport.bpm.cancelScheduledValues(0);
     
-    const quarterDuration = 60 / bpm;
-    const totalDurationSec = data.totalBeats * quarterDuration;
+    // ⏱ ИСПРАВЛЕНИЕ: Конвертируем все биты в точные секунды для Tone.Part
+    // ✅ Всё время в beats — Tone.Part ожидает beats
     
     const events: any[] = [];
     const beatsPerBar = timeSignature?.beats || 4;
 
     if (isChordsOn) {
       data.chords.forEach(chord => {
-        const time = chord.beatStart;
+        // ✅ время в beats
         const notes = (chord.notes && chord.notes.length > 0 ? chord.notes : [keyNote])
           .map(n => `${n.replace(/[0-9]/g, '')}3`);
+          
         events.push({ 
-          time, 
+          time: chord.beatStart, // ✅ в beats (исправлено note → chord)
           type: 'chord', 
           notes, 
-          duration: chord.durationBeats * 0.95,
+          duration: chord.durationBeats * 0.95, // ✅ в beats
           barIndex: Math.floor(chord.beatStart / beatsPerBar)
         });
+
+        // 🎸 ГЕНЕРАЦИЯ БАСОВОЙ ЛИНИИ
+        const rootNote = chord.name.match(/^[A-G][b#]?/)?.[0] || keyNote;
+        events.push({
+          time: chord.beatStart, // ✅ в beats
+          type: 'bass',
+          note: rootNote + "1", // Бас играет в первой октаве
+          duration: 1.5, // ✅ в beats (1.5 quarter notes)
+          barIndex: Math.floor(chord.beatStart / beatsPerBar)
+        });
+        
+        // Добавляем пульсацию баса на 3-ю долю (если размер 4/4)
+        if (chord.durationBeats >= 4) {
+           events.push({
+             time: chord.beatStart + 2, // ✅ в beats (3-я доля)
+             type: 'bass',
+             note: rootNote + "1",
+             duration: 1.0, // ✅ в beats (1 quarter note)
+             barIndex: Math.floor((chord.beatStart + 2) / beatsPerBar)
+           });
+        }
       });
     }
 
     if (isSoloOn) {
       const stringToFreq = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
       
-      // Дебаг статистика: проверим, что именно попадает в события и какие длительности.
-      const stats = {
-        total: data.notes.length,
-        rest: 0,
-        nullFret: 0,
-        pushed: 0,
-        durations: {} as Record<string, number>,
-      };
-
       data.notes.forEach(note => {
-        if (note.isRest) {
-          stats.rest++;
-          return;
-        }
-        if (note.fret === null) {
-          stats.nullFret++;
-          return;
-        }
+        if (note.isRest || note.fret === null) return;
 
-        const time = note.beatStart;
+        // ✅ время в beats
         const freq = stringToFreq[note.string] * Math.pow(2, note.fret / 12);
-        const duration = note.beatDuration;
+        // ✅ длительность в beats
         const velocity = note.accent ? 0.9 : 0.6;
 
         events.push({ 
-          time, 
+          time: note.beatStart, // ✅ в beats
           type: 'solo_web_audio',
           freq,
-          duration,
+          stringIdx: note.string,
+          fret: note.fret,
+          duration: note.beatDuration, // ✅ в beats
           velocity,
-          barIndex: Math.floor(note.beatStart / beatsPerBar) // 🔥 ДОБАВЛЕНО
+          barIndex: Math.floor(note.beatStart / beatsPerBar)
         });
-
-        stats.pushed++;
-        const durKey = `${note.duration ?? 'unknown'}:${duration.toFixed(3)}`;
-        stats.durations[durKey] = (stats.durations[durKey] || 0) + 1;
       });
-
-      // В консоль: сколько нот и какие длительности чаще всего попадают в Audio.
-      console.log('[SoloGenerator] stats', stats);
-      // Покажем top-10 длительностей
-      console.log('[SoloGenerator] durationsTop', Object.entries(stats.durations).sort((a,b)=>b[1]-a[1]).slice(0,10));
     }
 
     if (isDrumOn && drumPattern) {
       const pattern = drumPattern;
       const patternLength = pattern.kick.length;
-      const subdivision = quarterDuration / (patternLength / 4);
-      const totalSteps = Math.ceil(data.totalBeats * (patternLength / 4));
+      const stepBeats = 4 / patternLength; // ✅ в beats
+      const totalSteps = Math.ceil(data.totalBeats / stepBeats);
       
       for (let i = 0; i < totalSteps; i++) {
-        const time = i * subdivision;
+        const timeBeats = i * stepBeats; // ✅ в beats
         const patternIndex = i % patternLength;
         const humanize = () => 0.85 + Math.random() * 0.3;
         
         if (pattern.kick[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'kick', velocity: drumVelocity * 0.9 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'kick', velocity: drumVelocity * 0.9 * humanize() });
         }
         if (pattern.snare[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'snare', velocity: drumVelocity * 0.95 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'snare', velocity: drumVelocity * 0.95 * humanize() });
         }
         if (pattern.hihat[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'hihat', velocity: drumVelocity * 0.6 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'hihat', velocity: drumVelocity * 0.6 * humanize() });
         }
         if (pattern.ride && pattern.ride[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'ride', velocity: drumVelocity * 0.7 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'ride', velocity: drumVelocity * 0.7 * humanize() });
         }
         if (pattern.crash && pattern.crash[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'crash', velocity: drumVelocity * 0.8 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'crash', velocity: drumVelocity * 0.8 * humanize() });
         }
         if (pattern.tom && pattern.tom[patternIndex]) {
-          events.push({ time, type: 'drum', drum: 'tom', velocity: drumVelocity * 0.75 * humanize() });
+          events.push({ time: timeBeats, type: 'drum', drum: 'tom', velocity: drumVelocity * 0.75 * humanize() });
         }
       }
     }
 
     sequencePartRef.current = new Tone.Part((time, value) => {
+      // Игнорируем запуск, если канал замутирован
       if (value.type === 'chord') {
-        audioManager.chordSynth.triggerAttackRelease(value.notes, value.duration, time);
+        if (!mutes.chords) (audioManager as any).chordSynth?.triggerAttackRelease(value.notes, value.duration, time);
       } else if (value.type === 'solo_web_audio') {
-        audioManager.playWebAudioGuitarNote(
-          value.freq,
-          value.duration,
-          time + 0.05,
-          value.velocity
-        );
+        if (!mutes.guitar) {
+          // Вызываем метод audioManager (он сам решит, играть сэмплом или синтезатором)
+          if ((audioManager as any).playGuitarNote) {
+            (audioManager as any).playGuitarNote(value.freq, value.duration, time + 0.05, value.velocity);
+          } else if ((audioManager as any).playWebAudioGuitarNote) {
+            (audioManager as any).playWebAudioGuitarNote(value.freq, value.duration, time + 0.05, value.velocity);
+          }
+        }
+      } else if (value.type === 'bass') {
+        if (!mutes.bass && (audioManager as any).playBassNote) {
+          (audioManager as any).playBassNote(value.note, value.duration, time + 0.05, 0.9);
+        }
       } else if (value.type === 'drum') {
-        audioManager.playDrumHit(value.drum, time, value.velocity);
+        if (!mutes.drums && (audioManager as any).playDrumHit) {
+           (audioManager as any).playDrumHit(value.drum, time, value.velocity);
+        }
       }
       
-      // 🔥 ДОБАВЛЕНО: обновление текущего такта
       if (value.barIndex !== undefined && value.barIndex !== currentPlayBar) {
         setCurrentPlayBar(value.barIndex);
       }
     }, events).start(0);
 
     sequencePartRef.current.loop = isLoopOn;
-    sequencePartRef.current.loopEnd = data.totalBeats;
+    // ⏱ ИСПРАВЛЕНИЕ: LoopEnd задается в секундах, а не в абстрактных цифрах
+    sequencePartRef.current.loopEnd = data.totalBeats; // ✅ в beats
 
     Tone.Transport.start();
     startTimeRef.current = Tone.now();
 
     const drawPlayhead = () => {
-      // DAW-like автоскролл по вертикали за подсвеченной нотой
       try {
         if (tabContainerRef.current && isPlaying && isSoloOn && soloData) {
           const activeIndex = Math.floor(playbackProgress * soloData.notes.length);
           const activeNote = soloData.notes[activeIndex];
           if (activeNote && !activeNote.isRest) {
-            // В TablatureDisplay координата Y: startY + string * stringSpacing
-            // В SoloGenerator мы передаем height=280 и noteSpacing=dynamic; по факту stringSpacing=compact? 26/45 не прокидывается,
-            // поэтому используем эмпирическую привязку к высоте контента через note.string.
-            const stringY = activeNote.string; // 0..5
-            const target = stringY * 26; // базовый шаг на строку внутри TablatureDisplay
+            const stringY = activeNote.string; 
+            const target = stringY * 26; 
             tabContainerRef.current.scrollTop = Math.max(0, target - 80);
           }
         }
-      } catch (e) {
-        // ignore
-      }
+      } catch (e) {}
+      
       if (Tone.Transport.state !== 'started') return;
       
-      const elapsed = Tone.now() - startTimeRef.current;
-      let progress = elapsed / totalDurationSec;
+      // ✅ Расчёт прогресса в beats из Tone.Transport.position (формат "bars:beats:sixteenths")
+      const posStr = Tone.Transport.position as unknown as string;
+      const parts = posStr.split(':').map(Number);
+      const beatsPerBar = timeSignature?.beats || 4;
+      const currentBeats = parts[0] * beatsPerBar + parts[1] + parts[2] / 4;
+      const totalBeats = soloData?.totalBeats || 16;
+      
+      let progress = totalBeats > 0 ? currentBeats / totalBeats : 0;
       
       if (isLoopOn) {
         progress = progress % 1;
@@ -610,7 +615,7 @@ const SoloGenerator: React.FC = () => {
     playheadAnimRef.current = requestAnimationFrame(drawPlayhead);
   };
 
-const togglePlayBtn = async (e: React.MouseEvent) => {
+  const togglePlayBtn = async (e: React.MouseEvent) => {
     (e.currentTarget as HTMLButtonElement).blur();
     if (!soloData) return;
     
@@ -623,15 +628,14 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
     }
   };
 
-  // 🔥 ИЗМЕНЕНО: SVG_HEIGHT увеличено, добавлены SOLO_Y, адаптивная ширина
   const SVG_WIDTH = isMobile ? window.innerWidth - 20 : 1200;
-  const SVG_HEIGHT = 520; // было 460
+  const SVG_HEIGHT = 520; 
   const TRACK_MARGIN_X = 20;
   const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;
-  const SOLO_Y = 90;  // НОВОЕ
-  const TAB_Y = 160;  // было 140
+  const SOLO_Y = 90;  
+  const TAB_Y = 160;  
 
   const getNoteSpacing = () => {
     if (!soloData) return 85;
@@ -677,7 +681,7 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
         <div>
-<h2 style={{ margin: '0 0 6px 0', fontSize: isMobile ? '14px' : '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio</h2>
+          <h2 style={{ margin: '0 0 6px 0', fontSize: isMobile ? '14px' : '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio</h2>
           <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', fontSize: isMobile ? '10px' : '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
             <span>Key: <strong style={{ color: 'var(--accent)' }}>{keyNote} {mode.replace(/_/g, ' ')}</strong></span>
             <span>Time: <strong>{timeSignature.beats}/{timeSignature.noteValue}</strong></span>
@@ -728,7 +732,6 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
           <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
         </div>
 
-        {/* Дублируем выбор размера (takt/timeSignature) прямо в секции TEMPO */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>Takt</span>
           <select
@@ -775,17 +778,9 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
         </label>
       </div>
 
-      {/* 🔥 Секция барабанов с кнопками Random */}
       <div style={{ 
-        display: 'flex', 
-        gap: '12px', 
-        alignItems: 'center', 
-        background: 'var(--bg-root)', 
-        padding: '8px 16px', 
-        borderRadius: '8px', 
-        flexWrap: 'wrap', 
-        width: '100%',
-        border: '1px solid var(--border-color)'
+        display: 'flex', gap: '12px', alignItems: 'center', background: 'var(--bg-root)', 
+        padding: '8px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%', border: '1px solid var(--border-color)'
       }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
           <input type="checkbox" checked={isDrumOn} onChange={e => setIsDrumOn(e.target.checked)} />
@@ -800,15 +795,8 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
             setDrumPattern(DrumPatterns[name]);
           }}
           style={{ 
-            background: '#111216', 
-            color: '#fff', 
-            border: '1px solid var(--border-color)', 
-            padding: '4px 12px', 
-            borderRadius: '4px',
-            fontSize: '12px',
-            fontWeight: 600,
-            minWidth: '140px',
-            maxWidth: '200px'
+            background: '#111216', color: '#fff', border: '1px solid var(--border-color)', padding: '4px 12px', 
+            borderRadius: '4px', fontSize: '12px', fontWeight: 600, minWidth: '140px', maxWidth: '200px'
           }}
         >
           {drumPatternNames.map(name => {
@@ -825,61 +813,35 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
         </select>
 
         <button
-          onClick={generateRandomPattern}
-          disabled={isRandomizing}
+          onClick={generateRandomPattern} disabled={isRandomizing}
           style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--accent)',
+            padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--accent)',
             background: isRandomizing ? 'var(--bg-secondary)' : 'var(--accent)',
             color: isRandomizing ? 'var(--text-muted)' : '#000',
-            cursor: isRandomizing ? 'default' : 'pointer',
-            fontWeight: 800,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Generate random pattern"
+            cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 800, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap'
+          }} title="Generate random pattern"
         >
           {isRandomizing ? '⏳ ...' : '🎲 Random'}
         </button>
 
         <button
-          onClick={mutateCurrentPattern}
-          disabled={!drumPattern || isRandomizing}
+          onClick={mutateCurrentPattern} disabled={!drumPattern || isRandomizing}
           style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--border-color)',
-            background: 'transparent',
+            padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent',
             color: drumPattern && !isRandomizing ? 'var(--text-primary)' : 'var(--text-muted)',
-            cursor: drumPattern && !isRandomizing ? 'pointer' : 'default',
-            fontWeight: 600,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Mutate current pattern"
+            cursor: drumPattern && !isRandomizing ? 'pointer' : 'default', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap'
+          }} title="Mutate current pattern"
         >
           🔄 Mutate
         </button>
 
         <button
-          onClick={() => generateMultiplePatterns(5)}
-          disabled={isRandomizing}
+          onClick={() => generateMultiplePatterns(5)} disabled={isRandomizing}
           style={{
-            padding: '4px 12px',
-            borderRadius: '4px',
-            border: '1px solid var(--border-color)',
-            background: 'transparent',
+            padding: '4px 12px', borderRadius: '4px', border: '1px solid var(--border-color)', background: 'transparent',
             color: isRandomizing ? 'var(--text-muted)' : 'var(--text-primary)',
-            cursor: isRandomizing ? 'default' : 'pointer',
-            fontWeight: 600,
-            fontSize: '12px',
-            transition: '0.2s',
-            whiteSpace: 'nowrap'
-          }}
-          title="Generate 5 random patterns and pick one"
+            cursor: isRandomizing ? 'default' : 'pointer', fontWeight: 600, fontSize: '12px', transition: '0.2s', whiteSpace: 'nowrap'
+          }} title="Generate 5 random patterns and pick one"
         >
           🎲 5x
         </button>
@@ -889,32 +851,13 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
             <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>↺</span>
             {randomHistory.slice(-5).map((_, index) => (
               <button
-                key={index}
-                onClick={() => restoreFromHistory(randomHistory.length - 1 - index)}
+                key={index} onClick={() => restoreFromHistory(randomHistory.length - 1 - index)}
                 style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  border: '1px solid var(--border-color)',
-                  background: 'transparent',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
-                  fontSize: '10px',
-                  padding: 0,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: '0.2s'
-                }}
-                title={`Restore pattern #${randomHistory.length - index}`}
-                onMouseEnter={e => {
-                  e.currentTarget.style.borderColor = 'var(--accent)';
-                  e.currentTarget.style.color = 'var(--accent)';
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.borderColor = 'var(--border-color)';
-                  e.currentTarget.style.color = 'var(--text-muted)';
-                }}
+                  width: '20px', height: '20px', borderRadius: '50%', border: '1px solid var(--border-color)', background: 'transparent',
+                  color: 'var(--text-muted)', cursor: 'pointer', fontSize: '10px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: '0.2s'
+                }} title={`Restore pattern #${randomHistory.length - index}`}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
               >
                 {index + 1}
               </button>
@@ -925,11 +868,7 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
           <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700 }}>VOL</span>
           <input 
-            type="range" 
-            min="0" 
-            max="1" 
-            step="0.05" 
-            value={drumVelocity}
+            type="range" min="0" max="1" step="0.05" value={drumVelocity}
             onChange={e => setDrumVelocity(Number(e.target.value))}
             style={{ width: '80px', accentColor: 'var(--accent)' }}
           />
@@ -941,13 +880,45 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
         </div>
       </div>
 
-      {/* Основной плеер SVG */}
+      {/* 🎚️ ПАНЕЛЬ МИКШЕРА (ХИРУРГИЧЕСКИ ВСТРОЕНА СЮДА) */}
+      <div style={{
+        display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', 
+        padding: '12px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%',
+        border: '1px solid var(--border-color)'
+      }}>
+        <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', marginRight: 'auto' }}>🎚️ MIXER</span>
+        
+        {['master', 'guitar', 'bass', 'drums', 'chords'].map((channel) => (
+          <div key={channel} style={{ display: 'flex', flexDirection: 'column', gap: '4px', minWidth: '100px', flex: 1 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase' }}>
+              <span 
+                onClick={() => {
+                  if (channel !== 'master') setMutes({ ...mutes, [channel]: !mutes[channel as keyof typeof mutes] });
+                }}
+                style={{ 
+                  color: mutes[channel as keyof typeof mutes] ? '#ff4444' : 'var(--text-primary)', 
+                  cursor: channel !== 'master' ? 'pointer' : 'default' 
+                }}
+              >
+                {channel} {mutes[channel as keyof typeof mutes] ? '🔇' : ''}
+              </span>
+              <span style={{ color: 'var(--text-muted)' }}>{vols[channel as keyof typeof vols]} dB</span>
+            </div>
+            <input 
+              type="range" min="-40" max="6" step="1" 
+              value={vols[channel as keyof typeof vols]} 
+              onChange={e => setVols({ ...vols, [channel]: Number(e.target.value) })}
+              style={{ width: '100%', accentColor: mutes[channel as keyof typeof mutes] ? '#ff4444' : 'var(--accent)' }}
+            />
+          </div>
+        ))}
+      </div>
+
       <div style={{ width: '100%', background: '#090a0e', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
         {soloData ? (
           <>
             <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block', minWidth: '100%' }}>
               
-              {/* ===== ТРЕК АККОРДОВ ===== */}
               {progression.map((chord, idx) => {
                 const x = TRACK_MARGIN_X + idx * BAR_WIDTH;
                 return (
@@ -988,7 +959,6 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
               
               <line x1={SVG_WIDTH - TRACK_MARGIN_X} y1={CHORD_Y} x2={SVG_WIDTH - TRACK_MARGIN_X} y2={SVG_HEIGHT} stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
 
-              {/* ===== 🔥 НОВЫЙ ТРЕК SOLO С ШТИЛЯМИ ===== */}
               <rect x={TRACK_MARGIN_X} y={SOLO_Y - 10} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height="65" fill="rgba(255,255,255,0.01)" rx="4" />
               <text x={TRACK_MARGIN_X + 8} y={SOLO_Y + 22} fill="var(--text-muted)" fontSize="10" fontWeight="700" opacity="0.5">SOLO</text>
 
@@ -1148,7 +1118,6 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
                 );
               })}
 
-              {/* ===== ТАБУЛАТУРА С АВТОСКРОЛЛОМ ===== */}
               <foreignObject x={TRACK_MARGIN_X} y={TAB_Y} width={SVG_WIDTH - TRACK_MARGIN_X * 2} height={300}>
                 <div 
                   ref={tabContainerRef}
@@ -1360,4 +1329,4 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
   );
 };
 
-export default SoloGenerator;   
+export default SoloGenerator;
