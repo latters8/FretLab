@@ -170,17 +170,6 @@ const ChessGame: React.FC = () => {
         newBoard[row][col] = newBoard[selected[0]][selected[1]];
         newBoard[selected[0]][selected[1]] = null;
 
-// Check for king capture (game over)
-        let whiteKingFound = false, blackKingFound = false;
-        for (let r = 0; r < 8; r++) {
-          for (let c = 0; c < 8; c++) {
-            if (newBoard[r][c]?.type === 'king') {
-              if (newBoard[r][c]?.color === 'white') whiteKingFound = true;
-              else blackKingFound = true;
-            }
-          }
-        }
-
         setBoard(newBoard);
         boardRef.current = newBoard;
         const nextTurn = turn === 'white' ? 'black' : 'white';
