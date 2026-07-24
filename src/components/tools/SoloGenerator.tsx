@@ -27,8 +27,8 @@ const SoloGenerator: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoopOn, setIsLoopOn] = useState(false);
-  const [isChordsOn, setIsChordsOn] = useState(true);
-  const [isSoloOn, setIsSoloOn] = useState(true);
+  const [isChordsOn] = useState(true);
+  const [isSoloOn] = useState(true);
   const [playbackProgress, setPlaybackProgress] = useState(0);
   const [tips, setTips] = useState<Tip[]>([]);
   const [diatonicChords, setDiatonicChords] = useState<any[]>([]);
@@ -45,7 +45,7 @@ const SoloGenerator: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const [isDrumOn, setIsDrumOn] = useState(true);
+  const [isDrumOn] = useState(true);
   const [drumPatternName, setDrumPatternName] = useState<string>('ROCK');
   const [drumPattern, setDrumPattern] = useState<DrumPattern>(DrumPatterns.ROCK);
   const [drumVelocity] = useState<number>(0.8);
@@ -60,7 +60,7 @@ const SoloGenerator: React.FC = () => {
   const tabContainerRef = useRef<HTMLDivElement | null>(null);
 
   // 🎸 Состояния баса
-  const [isBassOn, setIsBassOn] = useState(true);
+  const [isBassOn] = useState(true);
   const [bassNotes, setBassNotes] = useState<{ note: string; time: number; duration: number }[]>([]);
 
   const sequencePartRef = useRef<Tone.Part | null>(null);
@@ -852,76 +852,17 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', background: 'var(--bg-root)', padding: '10px 16px', borderRadius: '8px', flexWrap: 'wrap', width: '100%' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
-          <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>Takt</span>
-          <select
-            value={timeSignature.beats}
-            onChange={(e) => setTimeSignature({ ...timeSignature, beats: Number(e.target.value) })}
-            style={{
-              background: '#111216',
-              color: '#fff',
-              border: '1px solid var(--border-color)',
-              padding: '6px 8px',
-              borderRadius: '6px',
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            {[2, 3, 4, 6].map(v => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
-          <span style={{ color: 'var(--text-muted)', fontWeight: 900 }}>/</span>
-          <select
-            value={timeSignature.noteValue}
-            onChange={(e) => setTimeSignature({ ...timeSignature, noteValue: Number(e.target.value) })}
-            style={{
-              background: '#111216',
-              color: '#fff',
-              border: '1px solid var(--border-color)',
-              padding: '6px 8px',
-              borderRadius: '6px',
-              fontWeight: 800,
-              cursor: 'pointer'
-            }}
-          >
-            {[2, 4, 8].map(v => (
-              <option key={v} value={v}>{v}</option>
-            ))}
-          </select>
-        </div>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isChordsOn} onChange={e => setIsChordsOn(e.target.checked)} /> Chords Backing
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isSoloOn} onChange={e => setIsSoloOn(e.target.checked)} /> Lead Solo
-        </label>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isBassOn} onChange={e => setIsBassOn(e.target.checked)} /> 🎸 Bass
-        </label>
-      </div>
-
       <div style={{ 
         display: 'flex', 
         gap: '12px', 
         alignItems: 'center', 
         background: 'var(--bg-root)', 
-        padding: '8px 16px', 
+        padding: '10px 16px', 
         borderRadius: '8px', 
         flexWrap: 'wrap', 
         width: '100%',
         border: '1px solid var(--border-color)'
       }}>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--text-primary)', fontSize: '13px', fontWeight: 700, cursor: 'pointer' }}>
-          <input type="checkbox" checked={isDrumOn} onChange={e => setIsDrumOn(e.target.checked)} />
-          🥁 Drums
-        </label>
         
         <select 
           value={drumPatternName} 
@@ -1055,6 +996,50 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
 
         <div style={{ fontSize: '10px', color: 'var(--text-muted)', maxWidth: '200px', textAlign: 'right' }}>
           {drumPattern.isRandom ? '🎲 Random' : drumPattern.description?.substring(0, 30) + (drumPattern.description?.length > 30 ? '...' : '')}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
+          <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>Takt</span>
+          <select
+            value={timeSignature.beats}
+            onChange={(e) => setTimeSignature({ ...timeSignature, beats: Number(e.target.value) })}
+            style={{
+              background: '#111216',
+              color: '#fff',
+              border: '1px solid var(--border-color)',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {[2, 3, 4, 6].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
+          <span style={{ color: 'var(--text-muted)', fontWeight: 900 }}>/</span>
+          <select
+            value={timeSignature.noteValue}
+            onChange={(e) => setTimeSignature({ ...timeSignature, noteValue: Number(e.target.value) })}
+            style={{
+              background: '#111216',
+              color: '#fff',
+              border: '1px solid var(--border-color)',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              fontWeight: 800,
+              cursor: 'pointer'
+            }}
+          >
+            {[2, 4, 8].map(v => (
+              <option key={v} value={v}>{v}</option>
+            ))}
+          </select>
         </div>
       </div>
 
