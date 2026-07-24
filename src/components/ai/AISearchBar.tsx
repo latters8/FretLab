@@ -1,6 +1,8 @@
 // src/components/ai/AISearchBar.tsx
 
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import type React from 'react';
+import { createPortal } from 'react-dom';
 import { processAIQuery, type TrackOption, type VideoPlatform } from '../../services/AIEngine';
 import { useMusic } from '../../context/MusicContext';
 
@@ -314,8 +316,30 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
   const [hasWelcomed, setHasWelcomed] = useState(false);
   
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 🔥 Позиция выпадающего окна считается вручную и рендерится через портал
+  // в document.body с position: fixed. Раньше это был position: absolute
+  // внутри шапки — его обрезало overflow:hidden у .app-container (подсказки
+  // "пропадали"), а на узких экранах оно вылезало за правый край экрана.
+  const [dropdownRect, setDropdownRect] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const updateDropdownPosition = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const viewportWidth = window.innerWidth;
+    const margin = 12;
+    const width = Math.min(rect.width, viewportWidth - margin * 2);
+    let left = rect.left;
+    if (left + width > viewportWidth - margin) {
+      left = viewportWidth - margin - width;
+    }
+    if (left < margin) left = margin;
+    setDropdownRect({ top: rect.bottom + 8, left, width });
+  }, []);
 
   const { setKeyNote, setMode, setBpm } = useMusic();
 
@@ -328,13 +352,29 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insideWrapper = wrapperRef.current && wrapperRef.current.contains(target);
+      const insideDropdown = dropdownRef.current && dropdownRef.current.contains(target);
+      if (!insideWrapper && !insideDropdown) {
         setIsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Пересчитываем позицию дропдауна при открытии и держим её в синхроне
+  // при ресайзе/скролле/повороте экрана, пока он открыт.
+  useEffect(() => {
+    if (!isOpen) return;
+    updateDropdownPosition();
+    window.addEventListener('resize', updateDropdownPosition);
+    window.addEventListener('scroll', updateDropdownPosition, true);
+    return () => {
+      window.removeEventListener('resize', updateDropdownPosition);
+      window.removeEventListener('scroll', updateDropdownPosition, true);
+    };
+  }, [isOpen, updateDropdownPosition]);
 
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -629,21 +669,25 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
         )}
       </div>
 
-      {isOpen && (
-        <div style={{
-          position: 'absolute',
-          top: 'calc(100% + 8px)',
-          left: 0,
-          right: 0,
-          background: 'var(--bg-panel)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '16px',
-          maxHeight: '450px',
-          overflowY: 'auto',
-          padding: '16px',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
-          zIndex: 1000,
-        }}>
+      {isOpen && dropdownRect && createPortal(
+        <div
+          ref={dropdownRef}
+          style={{
+            position: 'fixed',
+            top: dropdownRect.top,
+            left: dropdownRect.left,
+            width: dropdownRect.width,
+            background: 'var(--bg-panel)',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            maxHeight: 'min(450px, calc(100dvh - ' + (dropdownRect.top + 16) + 'px))',
+            overflowY: 'auto',
+            padding: '16px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+            zIndex: 2000,
+            boxSizing: 'border-box',
+          }}
+        >
           
           {messages.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
@@ -764,7 +808,8 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           )}
 
           <div ref={messagesEndRef} />
-        </div>
+        </div>,
+        document.body
       )}
 
       <style>{`

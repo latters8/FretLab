@@ -1,4 +1,4 @@
-import React from 'react';
+import type React from 'react';
 import { MusicProvider } from './context/MusicContext';
 import AppShell from './components/layout/AppShell';
 

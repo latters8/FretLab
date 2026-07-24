@@ -1,6 +1,7 @@
 // src/components/tips/AnimatedTipBlock.tsx
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type React from 'react';
 import { type Tip } from '../../utils/tipsGenerator';
 
 interface AnimatedTipBlockProps {

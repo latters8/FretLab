@@ -581,11 +581,38 @@ export const generateSynchronizedSolo = (
   const beatsPerBar = timeSignature.beats;
   const totalBeats = bars * beatsPerBar;
   
+  // 🔥 FIX: Если progressionChords пустой — создаём фоллбэк из 4 тактов на I
+  if (!progressionChords || progressionChords.length === 0) {
+    const rootNote = keyNote || 'C';
+    const rootIdx = ALL_NOTES.indexOf(rootNote);
+    const fallbackNotes = rootIdx !== -1
+      ? [ALL_NOTES[rootIdx], ALL_NOTES[(rootIdx + 4) % 12], ALL_NOTES[(rootIdx + 7) % 12]]
+      : [rootNote];
+    
+    for (let i = 0; i < bars; i++) {
+      progressionChords.push({
+        name: rootNote,
+        notes: fallbackNotes
+      });
+    }
+  }
+  
   // Формируем аккорды с проверкой нот
   const chords: SyncChord[] = [];
   
   for (let i = 0; i < bars; i++) {
-    const chordObj = progressionChords[i % progressionChords.length];
+    const safeIdx = i % progressionChords.length;
+    const chordObj = progressionChords[safeIdx];
+    if (!chordObj) {
+      // Абсолютный фоллбэк если и это не сработало
+      chords.push({
+        name: keyNote || 'C',
+        notes: [keyNote || 'C'],
+        beatStart: i * beatsPerBar,
+        durationBeats: beatsPerBar
+      });
+      continue;
+    }
     let chordNotes = chordObj.notes;
     if (!chordNotes || chordNotes.length === 0) {
       const root = chordObj.name.replace(/[^A-G#b]/g, '');
@@ -616,7 +643,6 @@ export const generateSynchronizedSolo = (
   let currentString = 2;
   const startFret = Math.floor(Math.random() * 5) + 3;
   let lastScaleIdx = Math.floor(safeScale.length / 2);
-  let consecutiveNotes = 0;
 
   // ОПРЕДЕЛЯЕМ РЕЖИМ
   const isArpeggioMode = mode.includes('_arp') || mode === 'arpeggio';
@@ -829,110 +855,124 @@ export const generateSynchronizedSolo = (
     '2n': 2.0
   };
 
-  let maxSteps = totalBeats * 4;
-  let steps = 0;
-
-  while (currentBeat < totalBeats && steps < maxSteps) {
-    if (currentBeat > totalBeats - 0.25) break;
-
-    let durVal = 0.5;
-    let durType = '8n';
+  // 🔥 ФИКС: Гарантируем ноты во всех 4 тактах — генерируем по-тактово
+  const minNotesPerBar = 3;
+  
+  for (let barIdx = 0; barIdx < bars; barIdx++) {
+    const barStart = barIdx * beatsPerBar;
+    const barEnd = (barIdx + 1) * beatsPerBar;
+    const activeChordNotes = chords[barIdx]?.notes || [keyNote];
     
-    const durChoice = durPool[Math.floor(Math.random() * durPool.length)];
-    durVal = durationMap[durChoice] || 0.5;
-    durType = durChoice;
+    let barBeat = barStart;
+    let notesInBar = 0;
+    let maxNotesInBar = 8;
     
-    // Режем вероятность «удлинения» в 4n, чтобы соло звучало более мелодично (меньше длинных нот).
-    if (consecutiveNotes > 6 && Math.random() > 0.85) {
-      durVal = 1.0;
-      durType = '4n';
-      consecutiveNotes = 0;
-    }
-    
-    if (Math.random() > 0.92 && consecutiveNotes > 3) {
-      notes.push({
-        string: 0, fret: null, isRest: true,
-        beatStart: currentBeat, beatDuration: durVal,
-        duration: durType, technique: 'none', velocity: 0, accent: false
-      });
-      currentBeat += durVal;
-      consecutiveNotes = 0;
-      steps++;
-      continue;
-    }
-
-    if (currentBeat + durVal > totalBeats) break;
-
-    const isStrongBeat = currentBeat % 1 === 0 || currentBeat % 1 === 0.5;
-    const currentBarIndex = Math.floor(currentBeat / beatsPerBar);
-    const activeChordNotes = chords[currentBarIndex]?.notes || [keyNote];
-
-    let noteStr = '';
-    
-    if (isStrongBeat && Math.random() > 0.5) {
-      noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
-      const foundIdx = safeScale.indexOf(noteStr);
-      if (foundIdx !== -1) lastScaleIdx = foundIdx;
-    } else {
-      const step = selectedMelody.steps[patternIdx % selectedMelody.steps.length];
-      patternIdx++;
+    // Генерируем минимум minNotesPerBar нот в каждом такте
+    while (barBeat < barEnd - 0.1 && notesInBar < maxNotesInBar) {
+      // Если это последний такт и последняя нота — делаем её длинной финальной
+      const isLastBar = barIdx === bars - 1;
+      const isLastNote = notesInBar >= minNotesPerBar - 1 && barBeat >= barEnd - 1.0;
       
-      let finalStep = step;
-      if (Math.random() > 0.8) {
-        finalStep += (Math.random() > 0.5 ? 1 : -1);
+      let durVal: number;
+      let durType: string;
+      
+      if (isLastNote && isLastBar) {
+        durVal = Math.min(2.0, barEnd - barBeat);
+        durType = '2n';
+      } else if (notesInBar < minNotesPerBar || barEnd - barBeat < 0.75) {
+        // Нужно больше нот — используем 16n или 8n
+        durVal = Math.min(0.5, (barEnd - barBeat) / 2);
+        durType = '16n';
+      } else {
+        const durChoice = durPool[Math.floor(Math.random() * durPool.length)];
+        durVal = Math.min(durationMap[durChoice] || 0.5, barEnd - barBeat);
+        durType = durChoice;
       }
       
-      lastScaleIdx = (lastScaleIdx + finalStep + safeScale.length) % safeScale.length;
-      noteStr = safeScale[lastScaleIdx];
-    }
-
-    let fret = findFretForNote(noteStr, currentString, 0, 21);
-    
-    if (fret < startFret - 2 || fret > startFret + 5) {
-      for (let s = 1; s <= 4; s++) {
-        const altFret = findFretForNote(noteStr, s, 0, 19);
-        if (altFret >= startFret - 2 && altFret <= startFret + 5) {
-          currentString = s;
-          fret = altFret;
-          break;
+      if (durVal <= 0) break;
+      
+      // Сильная доля
+      const isStrongBeat = (barBeat - barStart) % 1 === 0;
+      
+      // Выбираем ноту
+      let noteStr = '';
+      if (isStrongBeat && Math.random() > 0.4) {
+        noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
+        const foundIdx = safeScale.indexOf(noteStr);
+        if (foundIdx !== -1) lastScaleIdx = foundIdx;
+      } else {
+        const step = selectedMelody.steps[patternIdx % selectedMelody.steps.length];
+        patternIdx++;
+        
+        let finalStep = step;
+        if (Math.random() > 0.8) {
+          finalStep += (Math.random() > 0.5 ? 1 : -1);
+        }
+        
+        lastScaleIdx = (lastScaleIdx + finalStep + safeScale.length) % safeScale.length;
+        noteStr = safeScale[lastScaleIdx];
+      }
+      
+      if (!noteStr) noteStr = keyNote || 'C';
+      
+      // Находим лад
+      let fret = findFretForNote(noteStr, currentString, 0, 21);
+      
+      if (fret < startFret - 2 || fret > startFret + 5) {
+        for (let s = 1; s <= 4; s++) {
+          const altFret = findFretForNote(noteStr, s, 0, 19);
+          if (altFret >= startFret - 2 && altFret <= startFret + 5) {
+            currentString = s;
+            fret = altFret;
+            break;
+          }
         }
       }
+      
+      // Техника
+      let technique: Technique = 'none';
+      if (durVal >= 1.0) {
+        technique = Math.random() > 0.5 ? 'vibrato' : 'bend';
+      } else if (durVal <= 0.25) {
+        technique = Math.random() > 0.5 ? 'hammer' : 'pull';
+      }
+      
+      // Небольшая пауза иногда (но не в начале такта и не если мало нот)
+      const canRest = notesInBar >= minNotesPerBar && barBeat - barStart > 0.5;
+      if (canRest && Math.random() > 0.92 && notesInBar > 2) {
+        notes.push({
+          string: 0, fret: null, isRest: true,
+          beatStart: barBeat, beatDuration: durVal * 0.5,
+          duration: '16n', technique: 'none', velocity: 0, accent: false
+        });
+        barBeat += durVal * 0.5;
+        continue;
+      }
+      
+      notes.push({
+        string: currentString,
+        fret: Math.max(0, fret),
+        isRest: false,
+        beatStart: barBeat,
+        beatDuration: durVal,
+        duration: durType,
+        technique: technique,
+        accent: isStrongBeat,
+        velocity: isStrongBeat ? 0.9 : 0.6
+      });
+      
+      barBeat += durVal;
+      notesInBar++;
     }
-
-    let technique: Technique = 'none';
-    if (durVal >= 1.0) {
-      technique = Math.random() > 0.5 ? 'vibrato' : 'bend';
-    } else if (durVal <= 0.25) {
-      technique = Math.random() > 0.5 ? 'hammer' : 'pull';
-    } else if (durVal === 0.333 || durVal === 0.167) {
-      technique = Math.random() > 0.6 ? 'hammer' : 'pull';
-    } else if (durVal === 0.75 || durVal === 0.5) {
-      technique = Math.random() > 0.8 ? 'slide' : 'none';
-    }
-
-    notes.push({
-      string: currentString,
-      fret: Math.max(0, fret),
-      isRest: false,
-      beatStart: currentBeat,
-      beatDuration: durVal,
-      duration: durType,
-      technique: technique,
-      accent: isStrongBeat,
-      velocity: isStrongBeat ? 0.9 : 0.6
-    });
-
-    currentBeat += durVal;
-    consecutiveNotes++;
-    steps++;
+    
+    currentBeat = barEnd; // синхронизируем для следующего такта
   }
 
-  // ФИНАЛ
+  // ФИНАЛ — разрешение в тонику последнего аккорда
   if (notes.length > 0) {
     const lastNote = notes[notes.length - 1];
     if (!lastNote.isRest) {
-      const lastChordNotes = chords[bars - 1].notes;
-      const resolveNote = lastChordNotes[0] || keyNote;
+      const resolveNote = chords[bars - 1].notes[0] || keyNote;
       const fret = findFretForNote(resolveNote, lastNote.string, startFret - 2, startFret + 5);
       lastNote.fret = Math.max(0, Math.min(21, fret));
       lastNote.technique = 'vibrato';
@@ -940,28 +980,6 @@ export const generateSynchronizedSolo = (
       lastNote.beatDuration = 2;
       lastNote.velocity = 0.9;
       lastNote.accent = true;
-    }
-  }
-
-  // Если нот слишком мало
-  if (notes.length < 4) {
-    const rootNote = keyNote || 'C';
-    for (let i = 0; i < 8; i++) {
-      const beat = i * 0.5;
-      if (beat < totalBeats) {
-        const fret = findFretForNote(rootNote, 2, 3, 15);
-        notes.push({
-          string: 2,
-          fret: Math.max(0, Math.min(21, fret)),
-          isRest: false,
-          beatStart: beat,
-          beatDuration: 0.5,
-          duration: '8n',
-          technique: 'none',
-          accent: i % 2 === 0,
-          velocity: 0.7
-        });
-      }
     }
   }
 

@@ -1,11 +1,14 @@
 // src/components/fretboard/Tablature.tsx
 
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { generateSmartLick, type Lick } from '../../services/AIEngine';
 import { generateTips, type Tip } from '../../utils/tipsGenerator';
 import TablatureDisplay from './TablatureDisplay';
 import AnimatedTipBlock from '../tips/AnimatedTipBlock';
+import * as Tone from 'tone';
+import { audioManager } from '../../services/AudioManager';
 
 const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
 
@@ -31,10 +34,12 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   
   const effectiveCompact = compact || isMobile;
 
-  // 🔥 КОНТЕКСТ СОЗДАЕТСЯ ОДИН РАЗ (Нет утечек!)
-  const audioCtxRef = useRef<AudioContext | null>(null);
   const timeoutsRef = useRef<number[]>([]);
-  const oscillatorsRef = useRef<OscillatorNode[]>([]);
+  const playbackIdRef = useRef<number>(0);
+  const sequencePartRef = useRef<Tone.Part | null>(null);
+  const playheadAnimRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+
 
   useEffect(() => {
     const scale = getScaleNotes();
@@ -53,15 +58,29 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
     stopPlayback();
   }, [keyNote, mode, bpm, timeSignature, getScaleNotes]);
 
-  // 🔥 МГНОВЕННЫЙ ОСТАНОВ (Без убийства контекста)
+  // 🔥 МГНОВЕННЫЙ ОСТАНОВ — отменяет Tone.Transport (сэмплы) + синтезаторы (как в SoloGenerator)
   const stopPlayback = () => {
+    playbackIdRef.current += 1; // инкремент отменяет все запланированные ноты
     timeoutsRef.current.forEach(clearTimeout);
     timeoutsRef.current = [];
 
-    oscillatorsRef.current.forEach(osc => {
-      try { osc.stop(); osc.disconnect(); } catch (err) {}
-    });
-    oscillatorsRef.current = [];
+    // Остановка Tone.Part — отменяет запланированные сэмплы (аналог SoloGenerator)
+    if (sequencePartRef.current) {
+      try {
+        sequencePartRef.current.stop();
+        sequencePartRef.current.dispose();
+      } catch (_) {}
+      sequencePartRef.current = null;
+    }
+
+    // Остановка Transport — отменяет все future события
+    Tone.Transport.stop();
+    Tone.Transport.cancel(0);
+
+    // Safety net: останавливаем синтезаторы и осцилляторы
+    audioManager.stopAll();
+
+    cancelAnimationFrame(playheadAnimRef.current);
 
     setIsPlayingAudio(false);
     setLocalActiveStep(-1);
@@ -85,70 +104,88 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
     }, 350);
   };
 
+  // 🎸 Воспроизведение через Tone.Part + AudioManager (как в SoloGenerator)
   const playLickAudio = async (e?: React.MouseEvent) => {
     if (e) (e.currentTarget as HTMLButtonElement).blur(); 
     if (!currentLick || isPlayingAudio) return;
 
     stopPlayback();
 
-    // 🔥 Инициализируем контекст ТОЛЬКО если его нет
-    if (!audioCtxRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      audioCtxRef.current = new AudioContextClass();
-    }
-    
-    const ctx = audioCtxRef.current;
-    
-    // Пробуждаем браузерный аудио-движок
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
+    // Инициализация AudioManager (загружает гитарные сэмплы из public/samples/guitar/)
+    await audioManager.init();
+    await Tone.start();
 
     setIsPlayingAudio(true);
     setLocalActiveStep(-1);
 
     try {
-      let startTime = ctx.currentTime + 0.05;
       const currentBpm = (bpm || 120) * playbackSpeed;
       const quarterDuration = 60 / currentBpm;
+
+      Tone.Transport.bpm.value = currentBpm;
+
+      const currentPlaybackId = playbackIdRef.current;
+      const events: any[] = [];
+      let totalDurationSec = 0;
 
       currentLick.notes.forEach((note, index) => {
         const durationMap: Record<string, number> = { '4n': 1.0, '8n': 0.5, '16n': 0.25, '2n': 2.0 };
         const factor = durationMap[note.duration || '8n'] || 0.5;
-        const actualDuration = quarterDuration * factor;
+        const actualDurationSec = quarterDuration * factor;
 
-        const timeoutId = window.setTimeout(() => setLocalActiveStep(index), (startTime - ctx.currentTime) * 1000);
+        const timeSec = totalDurationSec;
+        totalDurationSec += actualDurationSec;
+
+        // Визуальная подсветка активной ноты через setTimeout (не звук!)
+        const timeoutId = window.setTimeout(() => {
+          if (playbackIdRef.current !== currentPlaybackId) return;
+          setLocalActiveStep(index);
+        }, timeSec * 1000);
         timeoutsRef.current.push(timeoutId);
 
         if (!note.isRest && note.fret !== null) {
           const freq = OPEN_FREQS[note.string] * Math.pow(2, note.fret / 12);
-          
-          const osc = ctx.createOscillator();
-          const gainNode = ctx.createGain();
-          
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(freq, startTime);
+          const velocity = note.accent ? 0.9 : 0.6;
 
-          gainNode.gain.setValueAtTime(0, startTime);
-          gainNode.gain.linearRampToValueAtTime(0.7, startTime + 0.01);
-          gainNode.gain.exponentialRampToValueAtTime(0.001, startTime + actualDuration);
-
-          osc.connect(gainNode);
-          gainNode.connect(ctx.destination);
-          
-          osc.start(startTime);
-          osc.stop(startTime + actualDuration + 0.05);
-          
-          oscillatorsRef.current.push(osc);
+          events.push({
+            time: timeSec,
+            type: 'solo_web_audio',
+            freq,
+            duration: actualDurationSec,
+            velocity,
+            index
+          });
         }
-
-        startTime += actualDuration;
       });
 
-      const endTimeout = window.setTimeout(() => stopPlayback(), (startTime - ctx.currentTime) * 1000 + 300);
+      // Создаём Tone.Part — он будет управляться через Transport
+      // При stop() Part.dispose() отменяет ВСЕ запланированные сэмплы
+      sequencePartRef.current = new Tone.Part((time, value) => {
+        if (value.type === 'solo_web_audio' && !value.isRest) {
+          audioManager.playGuitarNote(
+            value.freq,
+            value.duration,
+            time + 0.02,
+            value.velocity
+          );
+        }
+      }, events).start(0);
+
+      // Не зацикливаем (как в Tablature — однократное воспроизведение)
+      sequencePartRef.current.loop = false;
+
+      Tone.Transport.start();
+      startTimeRef.current = Tone.now();
+
+      // Авто-остановка по окончании
+      const endTimeout = window.setTimeout(() => {
+        if (playbackIdRef.current !== currentPlaybackId) return;
+        stopPlayback();
+      }, totalDurationSec * 1000 + 500);
       timeoutsRef.current.push(endTimeout);
 
     } catch (err) {
+      console.error('[Tablature] playLickAudio error:', err);
       stopPlayback();
     }
   };
@@ -166,27 +203,27 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
           <span style={{ fontSize: effectiveCompact ? '13px' : '14px', fontWeight: 900, color: 'var(--accent)' }}>{currentLick ? currentLick.name : 'Генерация...'}</span>
         </div>
 
-        {!effectiveCompact && (
-          <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', width: effectiveCompact ? '100%' : 'auto', marginTop: effectiveCompact ? '8px' : '0' }}>
+          {!effectiveCompact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>SPEED</span>
               <input type="range" min="0.5" max="1.8" step="0.1" value={playbackSpeed} onChange={e => setPlaybackSpeed(parseFloat(e.target.value))} style={{ width: '70px', accentColor: 'var(--accent)', cursor: 'pointer' }} />
               <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 900 }}>{playbackSpeed.toFixed(1)}x</span>
             </div>
+          )}
 
-            <div style={{ display: 'flex', gap: '6px' }}>
-              {!isPlayingAudio ? (
-                <button onClick={playLickAudio} disabled={isGenerating || !currentLick} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer' }}>▶ PLAY</button>
-              ) : (
-                <button onClick={(e) => { (e.currentTarget as HTMLButtonElement).blur(); stopPlayback(); }} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '6px 16px', borderRadius: '4px', fontWeight: 900, fontSize: '11px', cursor: 'pointer' }}>⏹ STOP</button>
-              )}
-            </div>
-
-            <button onClick={handleGenerate} disabled={isGenerating || isPlayingAudio} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '6px 14px', borderRadius: '4px', fontSize: '11px', fontWeight: 800, cursor: 'pointer' }}>
-              🎲 RE-GENERATE
-            </button>
+          <div style={{ display: 'flex', gap: '6px' }}>
+            {!isPlayingAudio ? (
+              <button onClick={playLickAudio} disabled={isGenerating || !currentLick} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: `${effectiveCompact ? '8px 20px' : '6px 16px'}`, borderRadius: '4px', fontWeight: 900, fontSize: `${effectiveCompact ? '13px' : '11px'}`, cursor: 'pointer', minWidth: effectiveCompact ? '80px' : 'auto' }}>▶ PLAY</button>
+            ) : (
+              <button onClick={(e) => { (e.currentTarget as HTMLButtonElement).blur(); stopPlayback(); }} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: `${effectiveCompact ? '8px 20px' : '6px 16px'}`, borderRadius: '4px', fontWeight: 900, fontSize: `${effectiveCompact ? '13px' : '11px'}`, cursor: 'pointer', minWidth: effectiveCompact ? '80px' : 'auto' }}>⏹ STOP</button>
+            )}
           </div>
-        )}
+
+          <button onClick={handleGenerate} disabled={isGenerating || isPlayingAudio} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: `${effectiveCompact ? '8px 18px' : '6px 14px'}`, borderRadius: '4px', fontSize: `${effectiveCompact ? '13px' : '11px'}`, fontWeight: 800, cursor: 'pointer', minWidth: effectiveCompact ? '100px' : 'auto' }}>
+            🎲 RE-GENERATE
+          </button>
+        </div>
       </div>
 
 <div style={{ padding: effectiveCompact ? '12px' : '24px', overflowX: 'auto', background: '#111216', flex: 1, display: 'flex', alignItems: 'flex-start' }}>

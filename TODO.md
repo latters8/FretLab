@@ -1,15 +1,20 @@
-# ✅ План исправлений Solo Generator — ВЫПОЛНЕНО
+# DONE: Fix Tablature.tsx play/stop to properly stop samples
 
-## 🔧 AudioManager.ts
-- [x] 1. Исправить `init()` — добавить `await` для загрузки сэмплов (guitar+bass, drums)
-- [x] 2. Исправить `baseUrl` басового сэмплера на `./samples/bass/`
-- [x] 3. Исправить маппинг URL басовых сэмплов (E1→E1.mp3, A1→A1.mp3, D2→D1.mp3)
-- [x] 4. Исправить тип `guitarSamplerPromise` с `Promise<Tone.Sampler>` на `Promise<void>`
+## Problem
+Play/Stop in Tablature (main page) only stopped synthesizer sounds, but guitar samples scheduled via `audioManager.playGuitarNote()` with future `Tone.now() + offset` continued playing after STOP.
 
-## 🎸 SoloGenerator.tsx
-- [x] 5. Исправить `note.beatStart` → `chord.beatStart` в forEach аккордов
+## Solution
+Rewrote `playLickAudio` and `stopPlayback` in `Tablature.tsx` to use `Tone.Part` + `Tone.Transport` (same approach as SoloGenerator).
 
-## 🧪 Проверка
-- [x] 6. `npx tsc --noEmit` ✅ (типы исправлены)
-- [x] 7. `npm run build` ✅
+### Changes made:
+- **Added** `sequencePartRef`, `playheadAnimRef`, `startTimeRef` refs
+- **`playLickAudio`**: Now collects all notes into events array, creates `Tone.Part`, starts via `Tone.Transport.start()`. `Tone.Part` manages scheduling — when disposed, cancels ALL scheduled sample playback
+- **`stopPlayback`**: Now properly stops/disposes `sequencePartRef`, calls `Tone.Transport.stop()` + `Tone.Transport.cancel(0)` to cancel future sample events, plus `audioManager.stopAll()` as safety net
+- **Visual highlighting**: Still uses `timeoutsRef` + `playbackIdRef` (setTimeout is fine for visual only — it doesn't affect audio)
+- Build succeeds: `tsc -b && vite build` passes with no errors
+
+### Verification
+- [x] TypeScript compilation passes
+- [x] Build produces no errors
+- [x] Deployment published successfully
 

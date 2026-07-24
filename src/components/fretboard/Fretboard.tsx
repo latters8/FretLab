@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 
 const TUNINGS = {
-  'Standard E': ['E', 'A', 'D', 'G', 'B', 'e'],
-  'Drop D': ['D', 'A', 'D', 'G', 'B', 'e'],
-  'Drop C': ['C', 'G', 'C', 'F', 'A', 'd'],
-  'D Standard': ['D', 'G', 'C', 'F', 'A', 'd'],
+  'Standard E': ['E', 'A', 'D', 'G', 'B', 'E'],
+  'Drop D': ['D', 'A', 'D', 'G', 'B', 'E'],
+  'Drop C': ['C', 'G', 'C', 'F', 'A', 'D'],
+  'D Standard': ['D', 'G', 'C', 'F', 'A', 'D'],
 };
 
 const MATERIALS = {

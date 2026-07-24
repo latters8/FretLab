@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { BACKING_TRACK_SEEDS } from '../../data/BackingTrackSeeds';
 

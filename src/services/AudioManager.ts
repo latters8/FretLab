@@ -30,18 +30,49 @@ class AudioManager {
   // 🎚️ Микшерные каналы
   private channels: Record<string, Tone.Volume> = {};
 
+  // 🎚️ EQ фильтры (3-полосный эквалайзер на мастер-канале)
+  private eqLow: Tone.BiquadFilter | null = null;
+  private eqMid: Tone.BiquadFilter | null = null;
+  private eqHigh: Tone.BiquadFilter | null = null;
+
   // 📊 Ссылки на осцилляторы для Web Audio API
   private oscillators: OscillatorNode[] = [];
   private timeouts: number[] = [];
 
+  // 📋 Очередь отложенных EQ команд (накапливаем до старта контекста)
+  private pendingEQ: { band: 'low' | 'mid' | 'high'; value: number }[] = [];
+
   private constructor() {
+    // 🎛️ Инициализация EQ фильтров (на мастер-канале)
+    this.eqLow = new Tone.BiquadFilter({
+      type: 'lowshelf',
+      frequency: 60,
+      gain: 0,
+    });
+    this.eqMid = new Tone.BiquadFilter({
+      type: 'peaking',
+      frequency: 1000,
+      Q: 1,
+      gain: 0,
+    });
+    this.eqHigh = new Tone.BiquadFilter({
+      type: 'highshelf',
+      frequency: 8000,
+      gain: 0,
+    });
+
+    // Соединяем EQ последовательно: eqLow → eqMid → eqHigh → Destination
+    this.eqLow.connect(this.eqMid);
+    this.eqMid.connect(this.eqHigh);
+    this.eqHigh.toDestination();
+
     // 🎛️ Инициализация микшера
     this.channels = {
-      master: new Tone.Volume(0).toDestination(),
-      guitar: new Tone.Volume(0),
+      master: new Tone.Volume(0).connect(this.eqLow), // мастер теперь идет через EQ
+      guitar: new Tone.Volume(6), // +6 dB по умолчанию для гитары
       bass: new Tone.Volume(0),
       drums: new Tone.Volume(0),
-      chords: new Tone.Volume(-6), // Дефолтно приглушаем аккорды
+      chords: new Tone.Volume(-12), // Дефолтно приглушаем аккорды
     };
 
     // Подключаем все каналы в мастер-шину
@@ -68,6 +99,33 @@ class AudioManager {
   public setMute(channel: 'master' | 'guitar' | 'bass' | 'drums' | 'chords', muted: boolean) {
     if (this.channels[channel]) {
       this.channels[channel].mute = muted;
+    }
+  }
+
+  // ============================================
+  // 🎚️ УПРАВЛЕНИЕ EQ (3-полосный эквалайзер)
+  // ============================================
+  public setEQ(band: 'low' | 'mid' | 'high', value: number) {
+    // value от -12 до +12 dB
+    try {
+      const filterMap = {
+        low: this.eqLow,
+        mid: this.eqMid,
+        high: this.eqHigh,
+      };
+      const filter = filterMap[band];
+      if (filter) {
+        // Проверяем, что Tone.js контекст запущен (rampTo может падать если контекст suspended)
+        const ctx = Tone.getContext();
+        if (ctx.state === 'suspended') {
+          // Сохраняем в очередь — применим после init()
+          this.pendingEQ.push({ band, value });
+        } else {
+          filter.gain.rampTo(value, 0.05);
+        }
+      }
+    } catch (err) {
+      console.warn(`🎚️ EQ setEQ failed for ${band}:`, err);
     }
   }
 
@@ -422,6 +480,23 @@ class AudioManager {
     try { this.drumRide.triggerRelease(Tone.now()); } catch(_) {}
     try { this.drumTom.triggerRelease(Tone.now()); } catch(_) {}
 
+    // 🔥 Аварийное глушение master-канала: прибиваем уже запланированные 
+    // через Web Audio API ноты кратковременным отключением звука
+    // (rampTo -Infinity, потом обратно к 0 через 100ms)
+    try {
+      const masterVol = this.channels.master;
+      if (masterVol) {
+        const currentVol = masterVol.volume.value;
+        masterVol.volume.rampTo(-Infinity, 0.01);
+        // Возвращаем громкость после паузы, чтобы звук не остался выключенным
+        setTimeout(() => {
+          try {
+            masterVol.volume.rampTo(currentVol, 0.05);
+          } catch(_) {}
+        }, 100);
+      }
+    } catch(_) {}
+
     this.oscillators.forEach(osc => {
       try { osc.stop(); osc.disconnect(); } catch(_) {}
     });
@@ -434,6 +509,25 @@ class AudioManager {
   public async init() {
     await Tone.start();
     
+    // 🔥 Flush отложенных EQ команд (накопленных пока контекст был suspended)
+    if (this.pendingEQ.length > 0) {
+      const filterMap = {
+        low: this.eqLow,
+        mid: this.eqMid,
+        high: this.eqHigh,
+      };
+      for (const cmd of this.pendingEQ) {
+        const filter = filterMap[cmd.band];
+        if (filter) {
+          try {
+            filter.gain.rampTo(cmd.value, 0.05);
+          } catch (_) {}
+        }
+      }
+      this.pendingEQ = [];
+      console.log('🎚️ Applied pending EQ settings');
+    }
+
     // ⏳ Ждём загрузки сэмплов, чтобы гитара играла сэмплами, а не синтезатором
     try {
       await Promise.all([

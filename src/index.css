@@ -69,10 +69,71 @@ body {
   flex-shrink: 0;
   min-height: 64px;
 }
-.header-brand, .header-controls {
+.header-brand {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.header-logo {
+  color: var(--accent);
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+
+.header-theme-select {
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-color);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+
+.header-center {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 20px;
+  min-width: 0;
+}
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 800;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  white-space: nowrap;
+}
+
+.header-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.header-meta-value {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.header-meta-accent {
+  color: var(--accent);
 }
 
 /* --- ОСНОВНАЯ СЕТКА --- */
@@ -142,6 +203,12 @@ body {
   flex-direction: column;
   gap: 24px;
   overflow-y: auto;
+}
+
+/* Стрелка-переключатель и подложка панели инструментов — только мобильные */
+.tools-toggle,
+.tools-backdrop {
+  display: none;
 }
 
 .fretboard-scroll-wrapper {
@@ -356,7 +423,8 @@ body {
     flex-direction: row;
     flex-wrap: wrap;
     padding: 10px 16px; 
-    gap: 8px; 
+    gap: 8px;
+    row-gap: 8px;
   }
   .header-brand { 
     width: auto; 
@@ -364,8 +432,24 @@ body {
     gap: 8px; 
     flex-wrap: nowrap;
   }
-  .header-brand > div:first-child {
-    font-size: 16px !important;
+  .header-logo {
+    font-size: 16px;
+  }
+  .header-theme-select {
+    font-size: 10px;
+    padding: 3px 8px;
+  }
+  .header-center {
+    order: 3;
+    width: 100%;
+    padding: 4px 0 0;
+  }
+  .header-meta {
+    font-size: 10px;
+    gap: 10px;
+  }
+  .header-meta-value {
+    font-size: 12px;
   }
 
   .app-layout { 
@@ -413,41 +497,102 @@ body {
   }
 
   .main-workspace { 
+    flex: 1 1 auto;
     flex-direction: column; 
     overflow: visible; 
     height: auto;
-    min-height: 0;
   }
 
   .center-column {
-    min-height: 0;
+    flex: 1 1 auto;
     overflow-y: visible;
     overflow-x: hidden;
   }
 
-  .right-column { 
-    width: 100%; 
-    flex-shrink: 1; 
-    border-left: none; 
-    border-top: 1px solid var(--border-color); 
-    padding: 12px; 
-    overflow: visible; 
-    height: auto; 
-    max-width: 100%;
+  /* Панель инструментов уезжает из потока и становится выдвижным
+     drawer'ом справа. Благодаря этому center-column (плеер/гриф/таб)
+     больше не делит высоту с right-column и всегда занимает весь
+     экран — именно это раньше "съедало" плеер и гриф на iPhone. */
+  .right-column {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: min(88vw, 360px);
+    max-width: 360px;
+    height: 100dvh;
+    flex-shrink: 0;
+    border-left: 1px solid var(--border-color);
+    padding: 16px;
+    padding-top: calc(16px + env(safe-area-inset-top));
+    padding-bottom: calc(84px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-x: hidden;
+    gap: 16px;
+    transform: translateX(100%);
+    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 900;
+    box-shadow: -12px 0 32px rgba(0,0,0,0.45);
   }
 
-  .right-column.mobile-order-after {
-    order: 10;
+  .right-column-open {
+    transform: translateX(0);
+  }
+
+  .right-column > * {
+    max-width: 100%;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
 
   .right-column > div {
-    border-radius: 0 !important;
-    border-left: none !important;
-    border-right: none !important;
+    border-radius: var(--radius) !important;
     margin: 0 !important;
     width: 100% !important;
-    max-width: 100vw !important;
+    max-width: 100% !important;
     box-sizing: border-box !important;
+  }
+
+  .tools-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 64px;
+    border: none;
+    border-radius: 12px 0 0 12px;
+    background: var(--accent);
+    color: #000;
+    font-size: 18px;
+    font-weight: 900;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 950;
+    box-shadow: -4px 0 14px rgba(0,0,0,0.35);
+    transition: right 0.32s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .tools-toggle.open {
+    right: min(88vw, 360px);
+  }
+
+  .tools-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 890;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.32s ease;
+  }
+
+  .tools-backdrop.open {
+    display: block;
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .fretboard-scroll-wrapper {
@@ -488,9 +633,20 @@ body {
     gap: 6px;
     min-height: 48px;
   }
-  .header-brand > div:first-child {
-    font-size: 14px !important;
-    letter-spacing: 1px !important;
+  .header-logo {
+    font-size: 14px;
+    letter-spacing: 1px;
+  }
+  .header-theme-select {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
+  .header-meta {
+    font-size: 9px;
+    gap: 8px;
+  }
+  .header-meta-value {
+    font-size: 11px;
   }
   .left-sidebar {
     height: 48px;
@@ -524,8 +680,23 @@ body {
     padding: 6px 8px;
     gap: 4px;
   }
-  .header-brand > div:first-child {
-    font-size: 12px !important;
+  .header-logo {
+    font-size: 12px;
+  }
+  .header-theme-select {
+    font-size: 9px;
+    padding: 2px 6px;
+    max-width: 100px;
+  }
+  .header-center {
+    padding-top: 2px;
+  }
+  .header-meta {
+    font-size: 8px;
+    gap: 6px;
+  }
+  .header-meta-value {
+    font-size: 10px;
   }
   .left-sidebar {
     height: 42px;

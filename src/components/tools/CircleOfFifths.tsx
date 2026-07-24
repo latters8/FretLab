@@ -20,6 +20,7 @@ const CircleOfFifths: React.FC = () => {
       if (w <= 400) setSize(170);
       else if (w <= 480) setSize(220);
       else if (w <= 768) setSize(250);
+      else if (w <= 1024) setSize(260);
       else setSize(300);
     };
     handleResize();

@@ -1,6 +1,7 @@
 // src/components/PracticeDashboard.tsx
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
+import type React from 'react';
 import { useMusic } from '../context/MusicContext';
 import { playChordByName, playScale } from '../utils/audioEngine';
 import {

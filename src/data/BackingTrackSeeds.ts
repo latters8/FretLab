@@ -19,7 +19,7 @@ const seedFromYouTubeUrl = (url: string): string | null => {
     // http://www.youtube.com/watch?v=XXXXXXXXXXX
     const m = url.match(/[?&]v=([^&?\s]{11})/);
     return m ? m[1] : null;
-  } catch {
+  } catch (_e) {
     return null;
   }
 };

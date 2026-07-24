@@ -1,6 +1,7 @@
 // src/components/layout/AppShell.tsx
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import type React from 'react';
 import Header from './Header';
 import Player from '../player/Player';
 import CircleOfFifths from '../tools/CircleOfFifths';
@@ -28,6 +29,7 @@ const AppShell: React.FC = () => {
   const [activeModule, setActiveModule] = useState<ModuleType>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [toolsOpen, setToolsOpen] = useState(false);
 
   const { setBpm } = useMusic();
 
@@ -108,6 +110,7 @@ const AppShell: React.FC = () => {
       }
       if (e.key === 'Escape') {
         setAiTargetChord(null);
+        setToolsOpen(false);
       }
     };
 
@@ -118,6 +121,10 @@ const AppShell: React.FC = () => {
   const handleModuleClick = (module: ModuleType) => {
     setActiveModule(module);
   };
+
+  useEffect(() => {
+    setToolsOpen(false);
+  }, [activeModule]);
 
   const renderNavIcon = (module: ModuleType) => {
     const isActive = activeModule === module;
@@ -140,11 +147,16 @@ const AppShell: React.FC = () => {
     );
   };
 
-  const renderContent = () => {
+  // Каждый модуль отдаёт основной контент (всегда виден, на всю ширину)
+  // и опциональный "side" контент (инструменты), который на мобильных
+  // сворачивается в выдвижную панель за стрелкой, а на десктопе
+  // остаётся обычной правой колонкой. Так на любую другую страницу
+  // можно будет добавить свои правые блоки — просто вернув side.
+  const renderContent = (): { main: React.ReactNode; side: React.ReactNode | null } => {
     switch (activeModule) {
       case 'engine':
-        return (
-          <>
+        return {
+          main: (
             <main className="center-column">
               <Player />
               <div className="fretboard-scroll-wrapper">
@@ -152,47 +164,62 @@ const AppShell: React.FC = () => {
               </div>
               <Tablature />
             </main>
-
-            <aside className="right-column mobile-order-after">
+          ),
+          side: (
+            <>
               <CircleOfFifths />
               <DiatonicChords />
               <ToolBox />
-            </aside>
-          </>
-        );
+            </>
+          ),
+        };
 
       case 'dictionary':
-        return (
-          <main className="center-column" style={{ overflowY: 'hidden' }}>
-            <ChordDictionary targetChord={aiTargetChord} />
-          </main>
-        );
+        return {
+          main: (
+            <main className="center-column" style={{ overflowY: 'hidden' }}>
+              <ChordDictionary targetChord={aiTargetChord} />
+            </main>
+          ),
+          side: null,
+        };
 
       case 'autotab':
-        return (
-          <main className="center-column" style={{ overflowY: 'hidden' }}>
-            <SoloGenerator />
-          </main>
-        );
+        return {
+          main: (
+            <main className="center-column" style={{ overflowY: 'hidden' }}>
+              <SoloGenerator />
+            </main>
+          ),
+          side: null,
+        };
 
       case 'practice':
-        return (
-          <main className="center-column" style={{ overflowY: 'hidden' }}>
-            <PracticeDashboard />
-          </main>
-        );
+        return {
+          main: (
+            <main className="center-column" style={{ overflowY: 'hidden' }}>
+              <PracticeDashboard />
+            </main>
+          ),
+          side: null,
+        };
 
       case 'gameroom':
-        return (
-          <main className="center-column" style={{ overflowY: 'auto', padding: 0 }}>
-            <GameRoom />
-          </main>
-        );
+        return {
+          main: (
+            <main className="center-column" style={{ overflowY: 'auto', padding: 0 }}>
+              <GameRoom />
+            </main>
+          ),
+          side: null,
+        };
 
       default:
-        return null;
+        return { main: null, side: null };
     }
   };
+
+  const { main, side } = renderContent();
 
   return (
     <div className="app-container">
@@ -214,7 +241,28 @@ const AppShell: React.FC = () => {
           </aside>
 
           <div className={`main-workspace ${isTransitioning ? 'transitioning' : ''}`}>
-            {renderContent()}
+            {main}
+
+            {side && (
+              <>
+                <div
+                  className={`tools-backdrop ${toolsOpen ? 'open' : ''}`}
+                  onClick={() => setToolsOpen(false)}
+                />
+                <button
+                  type="button"
+                  className={`tools-toggle ${toolsOpen ? 'open' : ''}`}
+                  onClick={() => setToolsOpen(o => !o)}
+                  aria-label={toolsOpen ? 'Скрыть панель инструментов' : 'Показать панель инструментов'}
+                  title={toolsOpen ? 'Скрыть инструменты' : 'Инструменты'}
+                >
+                  {toolsOpen ? '›' : '‹'}
+                </button>
+                <aside className={`right-column mobile-order-after ${toolsOpen ? 'right-column-open' : ''}`}>
+                  {side}
+                </aside>
+              </>
+            )}
           </div>
         </div>
       </div>

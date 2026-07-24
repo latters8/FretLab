@@ -1,6 +1,6 @@
 // src/components/fretboard/TablatureDisplay.tsx
 
-import React from 'react';
+import type React from 'react';
 import { type LickNote } from '../../services/AIEngine';
 
 interface TablatureDisplayProps {
