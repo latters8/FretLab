@@ -1,26 +1,91 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
-    <title>fretlab</title>
-    <!-- Yandex.Metrika counter -->
-<script type="text/javascript">
-    (function(m,e,t,r,i,k,a){
-        m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-        m[i].l=1*new Date();
-        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
-        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
-    })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=111004844', 'ym');
 
-    ym(111004844, 'init', {ssr:true, webvisor:true, clickmap:true, referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
-</script>
-<noscript><div><img src="https://mc.yandex.ru/watch/111004844" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
-<!-- /Yandex.Metrika counter -->
+    <!-- ===== FAVICON ===== -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <!-- ===== ОСНОВНЫЕ МЕТА-ТЕГИ ===== -->
+    <meta name="description" content="FretLab — профессиональная интерактивная гитарная платформа с AI-генерацией соло, DAW-микшером, тюнером и игровой комнатой. Изучай гитару онлайн бесплатно." />
+    <meta name="keywords" content="гитара онлайн, обучение гитаре, AI генератор соло, guitar learning, гитарный тюнер, DAW онлайн, fretboard, табулатуры, аккорды, музыкальная теория, fretlab" />
+    <meta name="author" content="FretLab Team" />
+    <meta name="robots" content="index, follow" />
+    <meta name="googlebot" content="index, follow" />
+    <meta name="yandex" content="index, follow" />
+    <meta name="yandex-verification" content="5b090c8f5b4506f4" />
+
+    <!-- ===== CANONICAL ===== -->
+    <link rel="canonical" href="https://latters8.github.io/FretLab/" />
+
+    <!-- ===== OPEN GRAPH (Facebook, VK, Telegram) ===== -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FretLab" />
+    <meta property="og:title" content="FretLab — интерактивная гитарная платформа с AI" />
+    <meta property="og:description" content="Профессиональная гитарная платформа с AI-генерацией соло, DAW-микшером, тюнером и обучением музыке. Бесплатно онлайн." />
+    <meta property="og:url" content="https://latters8.github.io/FretLab/" />
+    <meta property="og:image" content="https://latters8.github.io/FretLab/hero.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ru_RU" />
+
+    <!-- ===== TWITTER CARD ===== -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FretLab — интерактивная гитарная платформа с AI" />
+    <meta name="twitter:description" content="Профессиональная гитарная платформа с AI-генерацией соло, DAW-микшером, тюнером и обучением музыке." />
+    <meta name="twitter:image" content="https://latters8.github.io/FretLab/hero.png" />
+
+    <!-- ===== GEO META (для локального SEO) ===== -->
+    <meta name="geo.region" content="RU" />
+    <meta name="geo.placename" content="Russia" />
+
+    <!-- ===== GOOGLE FONTS ===== -->
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+
+    <!-- ===== JSON-LD STRUCTURED DATA ===== -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FretLab",
+      "url": "https://latters8.github.io/FretLab/",
+      "description": "Профессиональная интерактивная гитарная платформа с AI-генерацией соло, DAW-микшером, тюнером и игровой комнатой для гитаристов.",
+      "applicationCategory": "EducationalApplication",
+      "operatingSystem": "All",
+      "browserRequirements": "Modern browser with Web Audio API support",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD",
+        "availability": "https://schema.org/InStock"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "FretLab Team"
+      },
+      "inLanguage": ["ru", "en"]
+    }
+    </script>
+
+    <!-- ===== Yandex.Metrika counter ===== -->
+    <script type="text/javascript">
+      (function(m,e,t,r,i,k,a){
+          m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+          m[i].l=1*new Date();
+          for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+          k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+      })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=111004844', 'ym');
+
+      ym(111004844, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <!-- ===== /Yandex.Metrika counter ===== -->
+
+    <title>FretLab — интерактивная гитарная платформа с AI | Онлайн-тренажёр для гитаристов</title>
   </head>
   <body>
+    <noscript><img src="https://mc.yandex.ru/watch/111004844" style="position:absolute; left:-9999px;" alt="" /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

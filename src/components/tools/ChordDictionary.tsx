@@ -48,6 +48,17 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
   const [selectedSuffix, setSelectedSuffix] = useState('');
   const [activeCategory, setActiveCategory] = useState<keyof typeof CHORD_CATEGORIES>('Major');
 
+  // 🔥 НОВОЕ: раньше компонент вообще не знал о ширине экрана — три колонки
+  // по 260px/300px/flex стояли жёстко всегда, поэтому на мобильном третья
+  // колонка (диаграмма аккорда) просто обрезалась за край экрана.
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const currentChordName = `${selectedRoot}${selectedSuffix}`;
 
   // 🔥 СЛУШАЕМ ИИ: Если пришла команда показать аккорд, парсим его и настраиваем интерфейс
@@ -111,7 +122,7 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
 
   return (
     <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', border: '1px solid var(--border-color)', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 8px 32px rgba(0,0,0,0.3)' }}>
-      <div style={{ padding: '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ padding: isMobile ? '14px 16px' : '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px' }}>📖</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
           <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Interactive Chord Dictionary</span>
@@ -119,8 +130,12 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }} className="dictionary-layout">
-        <div style={{ width: '260px', borderRight: '1px solid var(--border-color)', background: 'var(--bg-primary)', padding: '20px', display: 'flex', flexDirection: 'column', gap: '20px', overflowY: 'auto' }}>
+      {/* 🔥 ИЗМЕНЕНО: flexDirection зависит от isMobile — на мобильном колонки
+          складываются в вертикальный поток вместо трёх параллельных рядов.
+          overflowY тоже переезжает сюда на мобильном, чтобы можно было
+          скроллить всю цепочку шагов целиком. */}
+      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: 1, overflow: 'hidden', overflowY: isMobile ? 'auto' : 'hidden' }} className="dictionary-layout">
+        <div style={{ width: isMobile ? '100%' : '260px', borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', background: 'var(--bg-primary)', padding: isMobile ? '16px' : '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: isMobile ? 'visible' : 'auto', flexShrink: 0 }}>
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>1. Select Root Note</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
@@ -138,7 +153,10 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
 
           <div>
             <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>2. Category</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            {/* 🔥 ИЗМЕНЕНО: на мобильном категории — горизонтальная лента чипов
+                (scroll-x), а не вертикальный список на всю ширину — экономит
+                высоту экрана в пользу самой диаграммы аккорда ниже. */}
+            <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '6px', overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch', paddingBottom: isMobile ? '2px' : 0 }}>
               {Object.keys(CHORD_CATEGORIES).map(cat => (
                 <button
                   key={cat}
@@ -146,7 +164,7 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
                     setActiveCategory(cat as any);
                     setSelectedSuffix(CHORD_CATEGORIES[cat as keyof typeof CHORD_CATEGORIES][0].suffix);
                   }}
-                  style={{ background: activeCategory === cat ? 'var(--bg-hover)' : 'transparent', color: activeCategory === cat ? 'var(--accent)' : 'var(--text-secondary)', border: '1px solid transparent', padding: '10px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', textAlign: 'left', cursor: 'pointer', transition: '0.15s' }}
+                  style={{ background: activeCategory === cat ? 'var(--bg-hover)' : 'transparent', color: activeCategory === cat ? 'var(--accent)' : 'var(--text-secondary)', border: `1px solid ${isMobile ? 'var(--border-color)' : 'transparent'}`, padding: '10px 14px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', textAlign: 'left', cursor: 'pointer', transition: '0.15s', whiteSpace: 'nowrap', flexShrink: 0 }}
                 >
                   {cat === 'Major' ? '🟢 ' : cat === 'Minor' ? '🔵 ' : cat === 'Dominant' ? '🟡 ' : '🔴 '}
                   {cat}
@@ -156,25 +174,29 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
           </div>
         </div>
 
-        <div style={{ width: '300px', borderRight: '1px solid var(--border-color)', padding: '20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div style={{ width: isMobile ? '100%' : '300px', borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', padding: isMobile ? '16px' : '20px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
           <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>3. Select Extensions</div>
-          {CHORD_CATEGORIES[activeCategory].map(item => (
-            <button
-              key={item.suffix}
-              onClick={() => setSelectedSuffix(item.suffix)}
-              style={{ background: selectedSuffix === item.suffix ? 'var(--bg-primary)' : 'transparent', color: selectedSuffix === item.suffix ? 'var(--accent)' : 'var(--text-primary)', border: `1px solid ${selectedSuffix === item.suffix ? 'var(--border-color)' : 'transparent'}`, padding: '12px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '14px', textAlign: 'left', cursor: 'pointer', transition: '0.15s', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              onMouseEnter={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'var(--bg-secondary)'; }}
-              onMouseLeave={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'transparent'; }}
-            >
-              <span>{selectedRoot}{item.suffix || ' (maj)'}</span>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>{item.label}</span>
-            </button>
-          ))}
+          {/* 🔥 ИЗМЕНЕНО: на мобильном — тоже горизонтальная лента чипов вместо
+              списка широких строк (тот же приём, что и для категорий). */}
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '8px', overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
+            {CHORD_CATEGORIES[activeCategory].map(item => (
+              <button
+                key={item.suffix}
+                onClick={() => setSelectedSuffix(item.suffix)}
+                style={{ background: selectedSuffix === item.suffix ? 'var(--bg-primary)' : 'transparent', color: selectedSuffix === item.suffix ? 'var(--accent)' : 'var(--text-primary)', border: `1px solid ${selectedSuffix === item.suffix ? 'var(--border-color)' : (isMobile ? 'var(--border-color)' : 'transparent')}`, padding: '12px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '14px', textAlign: 'left', cursor: 'pointer', transition: '0.15s', display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: isMobile ? '2px' : '0', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', whiteSpace: isMobile ? 'nowrap' : 'normal', flexShrink: 0 }}
+                onMouseEnter={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+                onMouseLeave={e => { if(selectedSuffix !== item.suffix) e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span>{selectedRoot}{item.suffix || ' (maj)'}</span>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 'normal' }}>{item.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-root)' }}>
+        <div style={{ flex: 1, padding: isMobile ? '20px 16px' : '24px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', alignItems: 'center', background: 'var(--bg-root)' }}>
           <div style={{ textAlign: 'center', marginBottom: '20px' }}>
-            <h2 style={{ fontSize: '32px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--accent)', textShadow: '0 0 20px rgba(0,255,157,0.2)' }}>
+            <h2 style={{ fontSize: isMobile ? '26px' : '32px', fontWeight: 900, margin: '0 0 4px 0', color: 'var(--accent)', textShadow: '0 0 20px rgba(0,255,157,0.2)' }}>
               {currentChordName}
             </h2>
           </div>

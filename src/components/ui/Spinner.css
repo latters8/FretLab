@@ -1,0 +1,47 @@
+/* Spinner — pure CSS, scales with size prop */
+.fl-spinner {
+  display: inline-block;
+  border-style: solid;
+  border-color: var(--color-surface-4);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: fl-spin 0.8s linear infinite;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.fl-spinner--sm {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+}
+
+.fl-spinner--md {
+  width: 20px;
+  height: 20px;
+  border-width: 2.5px;
+}
+
+.fl-spinner--lg {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.fl-spinner--overlay {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+}
+
+@keyframes fl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fl-spinner {
+    animation-duration: 2s;
+  }
+}

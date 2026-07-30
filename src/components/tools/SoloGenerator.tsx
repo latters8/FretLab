@@ -3,22 +3,39 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
-import { generateSynchronizedSolo, type SyncSoloData } from '../../services/AIEngine';
+import { generateSynchronizedSolo, generateExtendedSolo, getSuggestedNotesForChord, getPhraseSuggestions, predictNextNote, type SyncSoloData, type SoloStyle, type ExtendedSoloConfig, type SuggestionNote, type PhraseSuggestion } from '../../services/AIEngine';
 import { generateTips, type Tip } from '../../utils/tipsGenerator';
 import TablatureDisplay from '../fretboard/TablatureDisplay';
 import AnimatedTipBlock from '../tips/AnimatedTipBlock';
 import StudioMixer from './StudioMixer';
+import RecordingAnalyzer from './RecordingAnalyzer';
+import PhraseSuggestionOverlay from './PhraseSuggestionOverlay';
+import { Button } from '../ui/Button';
 import * as Tone from 'tone';
 import { audioManager } from '../../services/AudioManager';
-import { 
-  DrumPatterns, 
-  getRandomPattern, 
-  mutatePattern, 
+import {
+  DrumPatterns,
+  getRandomPattern,
+  mutatePattern,
   type DrumPattern,
-  PatternGenerator 
+  PatternGenerator
 } from '../../utils/drumPatterns';
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+const SOLO_STYLES: { value: SoloStyle; label: string; icon: string }[] = [
+  { value: 'blues', label: 'Blues', icon: '🎸' },
+  { value: 'rock', label: 'Rock', icon: '🤘' },
+  { value: 'jazz', label: 'Jazz', icon: '🎷' },
+  { value: 'fusion', label: 'Fusion', icon: '🌌' },
+  { value: 'metal', label: 'Metal', icon: '⚡' },
+  { value: 'funk', label: 'Funk', icon: '🕺' },
+  { value: 'country', label: 'Country', icon: '🤠' },
+  { value: 'pop', label: 'Pop', icon: '🎤' },
+  { value: 'classical', label: 'Classical', icon: '🎻' },
+];
+
+const BAR_OPTIONS = [4, 8, 16, 32, 64];
 
 const SoloGenerator: React.FC = () => {
   const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm, setTimeSignature } = useMusic();
@@ -30,19 +47,47 @@ const SoloGenerator: React.FC = () => {
   const [isChordsOn] = useState(true);
   const [isSoloOn] = useState(true);
   const [playbackProgress, setPlaybackProgress] = useState(0);
+  
+  // 🆕 ФАЗА 3: Новые состояния для расширенного соло
+  const [soloStyle, setSoloStyle] = useState<SoloStyle>('rock');
+  const [soloBars, setSoloBars] = useState<number>(4);
+  const [useCallResponse, setUseCallResponse] = useState<boolean>(true);
+  const [useMotifDev, setUseMotifDev] = useState<boolean>(true);
+  const [soloComplexity, setSoloComplexity] = useState<number>(3);
+  const [soloVariation, setSoloVariation] = useState<number>(0.3);
+  
+  // 🆕 ФАЗА 2: Interactive mode
+  const [isInteractiveMode, setIsInteractiveMode] = useState<boolean>(false);
+  const [suggestedNotes, setSuggestedNotes] = useState<SuggestionNote[]>([]);
+  const [phraseSuggestions, setPhraseSuggestions] = useState<PhraseSuggestion[]>([]);
   const [tips, setTips] = useState<Tip[]>([]);
   const [diatonicChords, setDiatonicChords] = useState<any[]>([]);
   const [progression, setProgression] = useState<{ name: string; notes: string[] }[]>([]);
   const [editingBarIndex, setEditingBarIndex] = useState<number | null>(null);
 
-  const [isMixerVisible, setIsMixerVisible] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   const currentPlayBarRef = useRef<number>(-1);
+  const trackContainerRef = useRef<HTMLDivElement | null>(null);
+  const [trackWidth, setTrackWidth] = useState<number>(1200);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // 📐 ResizeObserver для динамической ширины трека
+  useEffect(() => {
+    const el = trackContainerRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const w = entry.contentRect.width;
+        if (w > 0) setTrackWidth(w);
+      }
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
   }, []);
 
   const [isDrumOn] = useState(true);
@@ -466,26 +511,64 @@ const SoloGenerator: React.FC = () => {
       return chord;
     });
 
-    const newSolo = generateSynchronizedSolo(
-      safeScale, 
-      keyNote || 'C', 
-      mode || 'major', 
-      timeSignature || { beats: 4, noteValue: 4 }, 
-      chordsForGeneration,
-      false
-    );
-
-    setSoloData(newSolo);
-    try {
-      const chordNames = newSolo.chords.map(c => c.name);
-      setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
-    } catch (err) {}
-
-    // Генерируем басовую линию
     const beatsPerBar = timeSignature?.beats || 4;
-    const totalBeatsForBass = 4 * beatsPerBar;
-    const bassLine = generateBassLine(targetProgression, beatsPerBar, totalBeatsForBass);
-    setBassNotes(bassLine);
+
+    // 🆕 Используем generateExtendedSolo если >4 тактов или включены опции
+    const useExtended = soloBars > 4 || useCallResponse || useMotifDev || soloComplexity > 3;
+    
+    if (useExtended) {
+      const extendedConfig: ExtendedSoloConfig = {
+        bars: soloBars,
+        style: soloStyle,
+        useCallResponse,
+        useMotifDevelopment: useMotifDev,
+        complexity: soloComplexity as 1 | 2 | 3 | 4 | 5,
+        variation: soloVariation,
+      };
+      
+      const newSolo = generateExtendedSolo(
+        safeScale, 
+        keyNote || 'C', 
+        mode || 'major', 
+        timeSignature || { beats: 4, noteValue: 4 }, 
+        chordsForGeneration,
+        extendedConfig
+      );
+      setSoloData(newSolo);
+      try {
+        const chordNames = newSolo.chords.map(c => c.name);
+        setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
+      } catch (err) {}
+      
+      // Генерируем басовую линию для extended
+      const totalBeatsForBass = soloBars * beatsPerBar;
+      // Extend progression to match soloBars
+      const extendedProg: { name: string; notes: string[] }[] = [];
+      for (let i = 0; i < soloBars; i++) {
+        extendedProg.push(targetProgression[i % targetProgression.length]);
+      }
+      const bassLine = generateBassLine(extendedProg, beatsPerBar, totalBeatsForBass);
+      setBassNotes(bassLine);
+    } else {
+      const newSolo = generateSynchronizedSolo(
+        safeScale, 
+        keyNote || 'C', 
+        mode || 'major', 
+        timeSignature || { beats: 4, noteValue: 4 }, 
+        chordsForGeneration,
+        false
+      );
+
+      setSoloData(newSolo);
+      try {
+        const chordNames = newSolo.chords.map(c => c.name);
+        setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
+      } catch (err) {}
+
+      const totalBeatsForBass = 4 * beatsPerBar;
+      const bassLine = generateBassLine(targetProgression, beatsPerBar, totalBeatsForBass);
+      setBassNotes(bassLine);
+    }
 
     setIsGenerating(false);
   };
@@ -526,8 +609,7 @@ const SoloGenerator: React.FC = () => {
     return result;
   };
 
-  const handleGenerateClick = (e: React.MouseEvent) => {
-    (e.currentTarget as HTMLButtonElement).blur();
+  const handleGenerateClick = () => {
     stopPlayback();
     executeGeneration(progression);
   };
@@ -752,10 +834,11 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
     }
   };
 
-  const SVG_WIDTH = isMobile ? window.innerWidth - 20 : 1200;
+  const SVG_WIDTH = trackWidth;
   const SVG_HEIGHT = 520;
   const TRACK_MARGIN_X = 20;
-  const BAR_WIDTH = (SVG_WIDTH - TRACK_MARGIN_X * 2) / 4;
+  const totalBars = progression.length || soloBars || 4;
+  const BAR_WIDTH = Math.max(80, (SVG_WIDTH - TRACK_MARGIN_X * 2) / Math.max(totalBars, 4));
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;
   const SOLO_Y = 90;
@@ -799,8 +882,6 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
     
     return suggestions.slice(0, 8);
   };
-
-  const MIXER_WIDTH = 560;
 
   return (
     <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '20px', padding: '12px 0' }}>
@@ -846,9 +927,16 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
             </button>
           </div>
 
-          <button onClick={handleGenerateClick} disabled={isGenerating || isPlaying} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 20px', borderRadius: '6px', fontWeight: 800, cursor: 'pointer' }}>
-            {isGenerating ? '⏳ RENDERING...' : '🎲 GENERATE'}
-          </button>
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={handleGenerateClick}
+            disabled={isPlaying}
+            loading={isGenerating}
+            aria-label={isGenerating ? 'Generating solo' : 'Generate new solo'}
+          >
+            {isGenerating ? 'RENDERING' : '🎲 GENERATE'}
+          </Button>
         </div>
       </div>
 
@@ -1040,12 +1128,131 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
               <option key={v} value={v}>{v}</option>
             ))}
           </select>
-        </div>
+</div>
       </div>
 
-      <div style={{ width: '100%', display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+      {/* 🆕 ФАЗА 3: Расширенные настройки соло */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '12px', 
+        alignItems: 'center', 
+        background: 'rgba(0,255,157,0.03)', 
+        padding: '10px 16px', 
+        borderRadius: '8px', 
+        flexWrap: 'wrap', 
+        width: '100%',
+        border: '1px solid rgba(0,255,157,0.1)'
+      }}>
+        <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 800, letterSpacing: '0.5px' }}>🎛️ SOLO ENGINE</span>
         
-        <div style={{ flex: 1, background: '#090a0e', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
+        {/* Стиль */}
+        <select 
+          value={soloStyle} 
+          onChange={e => setSoloStyle(e.target.value as SoloStyle)}
+          style={{ background: '#111216', color: '#fff', border: '1px solid var(--border-color)', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}
+        >
+          {SOLO_STYLES.map(s => (
+            <option key={s.value} value={s.value}>{s.icon} {s.label}</option>
+          ))}
+        </select>
+
+        {/* Количество тактов */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>BARS</span>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {BAR_OPTIONS.map(b => (
+              <button
+                key={b}
+                onClick={() => setSoloBars(b)}
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  border: `1px solid ${soloBars === b ? 'var(--accent)' : 'var(--border-color)'}`,
+                  background: soloBars === b ? 'rgba(0,255,157,0.15)' : 'transparent',
+                  color: soloBars === b ? 'var(--accent)' : 'var(--text-muted)',
+                  fontWeight: 800,
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  transition: '0.15s'
+                }}
+              >
+                {b}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Сложность */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 600 }}>COMPLEXITY</span>
+          <input 
+            type="range" 
+            min="1" max="5" step="1"
+            value={soloComplexity}
+            onChange={e => setSoloComplexity(Number(e.target.value))}
+            style={{ width: '60px', accentColor: 'var(--accent)', cursor: 'pointer' }}
+          />
+          <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--accent)', minWidth: '14px' }}>{'★'.repeat(soloComplexity)}</span>
+        </div>
+
+        {/* Call-Response */}
+        <button
+          onClick={() => setUseCallResponse(!useCallResponse)}
+          style={{
+            padding: '4px 10px',
+            borderRadius: '4px',
+            border: `1px solid ${useCallResponse ? 'var(--accent)' : 'var(--border-color)'}`,
+            background: useCallResponse ? 'rgba(0,255,157,0.1)' : 'transparent',
+            color: useCallResponse ? 'var(--accent)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '10px',
+            cursor: 'pointer',
+            transition: '0.15s'
+          }}
+        >
+          🗣️ Call-Response
+        </button>
+
+        {/* Motif Development */}
+        <button
+          onClick={() => setUseMotifDev(!useMotifDev)}
+          style={{
+            padding: '4px 10px',
+            borderRadius: '4px',
+            border: `1px solid ${useMotifDev ? 'var(--accent)' : 'var(--border-color)'}`,
+            background: useMotifDev ? 'rgba(0,255,157,0.1)' : 'transparent',
+            color: useMotifDev ? 'var(--accent)' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '10px',
+            cursor: 'pointer',
+            transition: '0.15s'
+          }}
+        >
+          🧬 Motif Dev
+        </button>
+
+        {/* Interactive Mode */}
+        <button
+          onClick={() => setIsInteractiveMode(!isInteractiveMode)}
+          style={{
+            padding: '4px 10px',
+            borderRadius: '4px',
+            border: `1px solid ${isInteractiveMode ? '#ffd93d' : 'var(--border-color)'}`,
+            background: isInteractiveMode ? 'rgba(255,217,61,0.1)' : 'transparent',
+            color: isInteractiveMode ? '#ffd93d' : 'var(--text-muted)',
+            fontWeight: 700,
+            fontSize: '10px',
+            cursor: 'pointer',
+            transition: '0.15s'
+          }}
+        >
+          🎯 Interactive
+        </button>
+      </div>
+
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'stretch' }}>
+        
+        <div ref={trackContainerRef} style={{ flex: 1, background: '#090a0e', borderRadius: '12px', border: '1px solid var(--border-color)', overflowX: 'auto', position: 'relative', minHeight: `${SVG_HEIGHT}px` }}>
           {soloData ? (
             <>
               <svg width={SVG_WIDTH} height={SVG_HEIGHT} style={{ display: 'block', minWidth: '100%' }}>
@@ -1484,53 +1691,12 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
           )}
         </div>
 
-        {/* Правая колонка: Микшер — на десктопе всегда виден, на мобиле скрыт/показ */}
+        {/* Микшер — вертикально под треком, на всю ширину */}
         {soloData && (
-          <>
-            {/* Кнопка-стрелка только на мобильных */}
-            {isMobile && (
-              <button
-                type="button"
-                onClick={() => setIsMixerVisible(v => !v)}
-                style={{
-                  flexShrink: 0,
-                  width: '26px',
-                  height: '64px',
-                  border: 'none',
-                  borderRadius: '12px 0 0 12px',
-                  background: 'var(--accent)',
-                  color: '#000',
-                  fontSize: '18px',
-                  fontWeight: 900,
-                  lineHeight: 1,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxShadow: '-4px 0 14px rgba(0,0,0,0.35)',
-                  transition: 'all 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
-                  position: 'relative',
-                  zIndex: 10,
-                  marginTop: '60px',
-                }}
-                title={isMixerVisible ? 'Скрыть микшер' : 'Показать микшер'}
-              >
-                {isMixerVisible ? '›' : '‹'}
-              </button>
-            )}
-
-            {/* Контейнер микшера — ширина 560px */}
-            <div style={{
-              width: isMobile ? (isMixerVisible ? `${MIXER_WIDTH}px` : '0px') : `${MIXER_WIDTH}px`,
-              overflow: 'hidden',
-              flexShrink: 0,
-              transition: isMobile ? 'width 0.32s cubic-bezier(0.4, 0, 0.2, 1)' : 'none',
-            }}>
-              <div style={{ width: `${MIXER_WIDTH}px` }}>
-                <StudioMixer />
-              </div>
-            </div>
-          </>
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <StudioMixer />
+            <RecordingAnalyzer />
+          </div>
         )}
       </div>
 

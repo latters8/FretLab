@@ -3,6 +3,7 @@
   --bg-root: #090a0f; --bg-panel: #111216; --bg-primary: #1a1b23; --bg-secondary: #22242e; --bg-hover: #2a2d39;
   --text-primary: #ffffff; --text-secondary: #a0a5b5; --text-muted: #6b7280; --border-color: #2a2d39;
   --accent: #00FF9D; --accent-blue: #00b8ff; --radius: 12px;
+  /* Design tokens are imported in main.tsx; this file keeps the theme palette */
 }
 body[data-theme="nebula"] { --bg-root: #0b0c10; --bg-panel: #1f2833; --bg-primary: #12161c; --bg-secondary: #1a2129; --bg-hover: #2c3540; --text-primary: #ffffff; --text-secondary: #45f3ff; --text-muted: #667885; --border-color: #2c3e50; --accent: #45f3ff; --accent-blue: #00a8ff; }
 body[data-theme="titanium"] { --bg-root: #1c1d21; --bg-panel: #2a2b30; --bg-primary: #212226; --bg-secondary: #2e3036; --bg-hover: #3a3d45; --text-primary: #ffffff; --text-secondary: #e5c158; --text-muted: #8a8d96; --border-color: #3e414a; --accent: #ffcc00; --accent-blue: #ff9100; }
@@ -130,37 +131,31 @@ body {
 .header-meta-value {
   color: var(--text-primary);
   font-size: 14px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
 }
 
 .header-meta-accent {
   color: var(--accent);
 }
 
-/* --- ОСНОВНАЯ СЕТКА --- */
+/* --- ВЕРТИКАЛЬНЫЙ LAYOUT (НОВЫЙ) --- */
 .app-layout {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
 }
 
-.left-sidebar {
-  width: 90px;
-  flex-shrink: 0;
-  border-right: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-  padding: 20px 0;
-}
-
+/* Основной контент — скроллится вертикально */
 .main-workspace {
   flex: 1;
   display: flex;
-  overflow: hidden;
-  min-width: 0; 
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-width: 0;
   position: relative;
   opacity: 1;
   transition: opacity 0.3s ease;
@@ -170,19 +165,50 @@ body {
   opacity: 0.8;
 }
 
+/* Центральная колонка — на всю ширину */
 .center-column {
   flex: 1;
-  padding: 0 !important;
-  overflow-y: auto;
+  width: 100%;
+  max-width: 100%;
+  padding: 0;
+  overflow-y: visible;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   background: var(--bg-root);
-  min-width: 0; 
+  min-width: 0;
   animation: fadeIn 0.3s ease;
 }
 
-/* Full-Bleed на Десктопе */
+/* Инструменты — вливаются в поток после табов */
+.tools-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+/* Bottom Navigation — всегда внизу */
+.bottom-nav {
+  width: 100%;
+  height: 64px;
+  flex-shrink: 0;
+  border-top: 1px solid var(--border-color);
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  align-items: center;
+  padding: 0 8px;
+  gap: 0;
+  z-index: var(--z-nav);
+  /* iPhone safe area */
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+/* Full-Bleed компонентов */
 .center-column > div {
   width: 100% !important;
   max-width: 100vw !important;
@@ -191,24 +217,6 @@ body {
   border-right: none !important;
   margin: 0 !important;
   flex-shrink: 0 !important;
-}
-
-.right-column {
-  width: 340px;
-  flex-shrink: 0;
-  padding: 24px 16px;
-  border-left: 1px solid var(--border-color);
-  background: var(--bg-panel);
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  overflow-y: auto;
-}
-
-/* Стрелка-переключатель и подложка панели инструментов — только мобильные */
-.tools-toggle,
-.tools-backdrop {
-  display: none;
 }
 
 .fretboard-scroll-wrapper {
@@ -223,69 +231,18 @@ body {
   min-height: 120px;
 }
 
-/* --- NAV ICONS (from AppShell) --- */
-.nav-icon {
-  padding: 12px;
-  background: transparent;
-  color: var(--text-muted);
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 24px;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  transform: scale(1);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 48px;
-  min-height: 48px;
-}
-
-.nav-icon:hover {
-  color: var(--text-primary);
-  transform: scale(1.05);
-}
-
-.nav-icon-active {
-  background: var(--bg-hover);
-  color: var(--accent);
-  transform: scale(1.1);
-  box-shadow: inset 0 0 30px rgba(0,255,157,0.05);
-}
-
-.nav-dot {
-  position: absolute;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 20px var(--accent);
-  animation: pulse-dot 2s infinite;
-}
-
-.nav-dot-bottom {
-  bottom: -4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-}
-
-.nav-dot-top {
-  top: -2px;
-  right: -2px;
-  width: 8px;
-  height: 8px;
-  animation-duration: 1.5s;
-}
+/* --- NAV ICONS ---
+   Replaced by the shared <IconButton /> component (size="lg").
+   Old .nav-icon / .nav-dot / pulse-dot rules removed in favor of
+   .fl-icon-button + .fl-icon-button--active (see ui/IconButton.css).
+*/
 
 .sidebar-footer {
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--border-color);
-  width: 80%;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  padding: 4px 8px;
 }
 
 .version-text {
@@ -345,17 +302,6 @@ body {
 }
 
 /* --- ANIMATIONS --- */
-@keyframes pulse-dot {
-  0%, 100% { 
-    opacity: 1;
-    transform: translateX(-50%) scale(1);
-  }
-  50% { 
-    opacity: 0.5;
-    transform: translateX(-50%) scale(1.5);
-  }
-}
-
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -368,38 +314,31 @@ body {
 }
 
 /* --- SCROLLBARS --- */
-.right-column::-webkit-scrollbar,
 .center-column::-webkit-scrollbar {
   width: 4px;
 }
 
-.right-column::-webkit-scrollbar-track,
 .center-column::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.right-column::-webkit-scrollbar-thumb,
 .center-column::-webkit-scrollbar-thumb {
   background: var(--border-color);
   border-radius: 2px;
 }
 
-.right-column::-webkit-scrollbar-thumb:hover,
 .center-column::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
 
 /* --- ПЛАНШЕТ (≤1024px) --- */
 @media (max-width: 1024px) {
-  .right-column {
-    width: 280px;
-    padding: 16px 12px;
-    gap: 16px;
+  .bottom-nav {
+    height: 56px;
   }
-  .left-sidebar {
-    width: 70px;
+  .tools-section {
+    padding: 16px;
     gap: 16px;
-    padding: 16px 0;
   }
   .app-header {
     padding: 0 16px;
@@ -452,43 +391,9 @@ body {
     font-size: 12px;
   }
 
-  .app-layout { 
-    flex-direction: column; 
-    overflow-y: auto; 
-    overflow-x: hidden;
-    padding-bottom: 70px; /* space for bottom nav */
-  }
-
-  .left-sidebar { 
-    width: 100%; 
-    height: 56px; 
-    flex-direction: row; 
-    justify-content: space-around;
-    align-items: center;
-    padding: 0 8px; 
-    gap: 0; 
-    border-right: none; 
-    border-bottom: 1px solid var(--border-color);
-    border-top: 1px solid var(--border-color);
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    background: var(--bg-primary);
-    /* iPhone safe area */
+  .bottom-nav {
+    height: 56px;
     padding-bottom: max(8px, env(safe-area-inset-bottom));
-  }
-
-  .nav-icon {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 44px; /* touch target */
-    min-width: 44px;
-    padding: 8px !important;
-    font-size: 22px !important;
   }
 
   .sidebar-footer,
@@ -496,103 +401,9 @@ body {
     display: none !important;
   }
 
-  .main-workspace { 
-    flex: 1 1 auto;
-    flex-direction: column; 
-    overflow: visible; 
-    height: auto;
-  }
-
-  .center-column {
-    flex: 1 1 auto;
-    overflow-y: visible;
-    overflow-x: hidden;
-  }
-
-  /* Панель инструментов уезжает из потока и становится выдвижным
-     drawer'ом справа. Благодаря этому center-column (плеер/гриф/таб)
-     больше не делит высоту с right-column и всегда занимает весь
-     экран — именно это раньше "съедало" плеер и гриф на iPhone. */
-  .right-column {
-    position: fixed;
-    top: 0;
-    right: 0;
-    width: min(88vw, 360px);
-    max-width: 360px;
-    height: 100dvh;
-    flex-shrink: 0;
-    border-left: 1px solid var(--border-color);
-    padding: 16px;
-    padding-top: calc(16px + env(safe-area-inset-top));
-    padding-bottom: calc(84px + env(safe-area-inset-bottom));
-    overflow-y: auto;
-    overflow-x: hidden;
-    gap: 16px;
-    transform: translateX(100%);
-    transition: transform 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 900;
-    box-shadow: -12px 0 32px rgba(0,0,0,0.45);
-  }
-
-  .right-column-open {
-    transform: translateX(0);
-  }
-
-  .right-column > * {
-    max-width: 100%;
-    box-sizing: border-box;
-    flex-shrink: 0;
-  }
-
-  .right-column > div {
-    border-radius: var(--radius) !important;
-    margin: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-  }
-
-  .tools-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    position: fixed;
-    top: 50%;
-    right: 0;
-    transform: translateY(-50%);
-    width: 26px;
-    height: 64px;
-    border: none;
-    border-radius: 12px 0 0 12px;
-    background: var(--accent);
-    color: #000;
-    font-size: 18px;
-    font-weight: 900;
-    line-height: 1;
-    cursor: pointer;
-    z-index: 950;
-    box-shadow: -4px 0 14px rgba(0,0,0,0.35);
-    transition: right 0.32s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-
-  .tools-toggle.open {
-    right: min(88vw, 360px);
-  }
-
-  .tools-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.5);
-    z-index: 890;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.32s ease;
-  }
-
-  .tools-backdrop.open {
-    display: block;
-    opacity: 1;
-    pointer-events: auto;
+  .tools-section {
+    padding: 12px;
+    gap: 12px;
   }
 
   .fretboard-scroll-wrapper {
@@ -648,18 +459,12 @@ body {
   .header-meta-value {
     font-size: 11px;
   }
-  .left-sidebar {
+  .bottom-nav {
     height: 48px;
     gap: 0;
     padding-bottom: max(4px, env(safe-area-inset-bottom));
   }
-  .nav-icon {
-    padding: 6px !important;
-    font-size: 20px !important;
-    min-height: 40px;
-    min-width: 40px;
-  }
-  .right-column {
+  .tools-section {
     padding: 8px;
     gap: 8px;
   }
@@ -698,25 +503,15 @@ body {
   .header-meta-value {
     font-size: 10px;
   }
-  .left-sidebar {
+  .bottom-nav {
     height: 42px;
     gap: 0;
     padding: 0 4px;
     padding-bottom: max(4px, env(safe-area-inset-bottom));
   }
-  .nav-icon {
-    padding: 4px !important;
-    font-size: 18px !important;
-    min-height: 36px;
-    min-width: 36px;
-  }
-  .right-column {
+  .tools-section {
     padding: 4px;
     gap: 4px;
-  }
-  .right-column > div {
-    padding-left: 4px !important;
-    padding-right: 4px !important;
   }
   .gameroom-grid {
     grid-template-columns: 1fr;
@@ -730,30 +525,34 @@ body {
 
 /* --- LANDSCAPE MOBILE --- */
 @media (max-width: 768px) and (orientation: landscape) {
-  .app-layout {
-    flex-direction: row;
-    padding-bottom: 0;
-  }
-  .left-sidebar {
-    position: relative;
-    width: 56px;
-    height: auto;
-    flex-direction: column;
-    border-right: 1px solid var(--border-color);
-    border-top: none;
-    border-bottom: none;
-    padding-bottom: 0;
-  }
-  .nav-icon {
-    min-height: 36px;
-    min-width: 36px;
-    padding: 6px !important;
-    font-size: 18px !important;
-  }
-  .main-workspace {
-    flex-direction: row;
-  }
-  .center-column {
-    overflow-y: auto;
+  .bottom-nav {
+    height: 48px;
   }
 }
+
+/* ============================================================
+   GLOBAL ACCESSIBILITY — focus ring + reduced motion
+   ============================================================ */
+
+/* Visible focus ring for any keyboard focusable element that
+   doesn't already define its own :focus-visible. */
+:where(button, [role="button"], a, input, select, textarea):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-sm);
+}
+
+/* Respect reduced motion at the global level. Individual
+   components can override this with their own rules. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+

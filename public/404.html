@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>404 — Страница не найдена | FretLab</title>
+    <meta name="robots" content="noindex" />
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #0a0a0a;
+        color: #e0e0e0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        text-align: center;
+      }
+      .container { max-width: 500px; padding: 2rem; }
+      h1 { font-size: 6rem; margin: 0; color: #00ff9d; text-shadow: 0 0 40px rgba(0,255,157,0.3); }
+      h2 { font-size: 1.5rem; margin: 0.5rem 0 1.5rem; }
+      p { color: #888; margin-bottom: 2rem; line-height: 1.6; }
+      a {
+        display: inline-block;
+        padding: 12px 32px;
+        background: #00ff9d;
+        color: #0a0a0a;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 600;
+        transition: all 0.3s;
+      }
+      a:hover { background: #00cc7d; transform: translateY(-2px); }
+      .note { font-size: 0.8rem; color: #555; margin-top: 2rem; }
+    </style>
+    <script>
+      // Redirect SPA routes to index.html for GitHub Pages
+      sessionStorage.redirect = location.href;
+    </script>
+  </head>
+  <body>
+    <div class="container">
+      <h1>404</h1>
+      <h2>Страница не найдена</h2>
+      <p>Возможно, эта страница была перемещена или удалена.<br/>Но ты всегда можешь вернуться на главную.</p>
+      <a href="/FretLab/">Вернуться на FretLab</a>
+      <p class="note">🎸 Продолжай играть!</p>
+    </div>
+  </body>
+</html>
+

@@ -1,6 +1,11 @@
 // src/services/AudioManager.ts
 
 import * as Tone from 'tone';
+import {
+  DistortionEffect, DelayEffect, ReverbEffect, ChorusEffect, 
+  CompressorEffect, LimiterEffect, NoiseGateEffect, WahWahEffect,
+  GUITAR_PRESETS, type GuitarPresetName
+} from './effects/index';
 
 class AudioManager {
   private static instance: AudioManager;
@@ -39,8 +44,39 @@ class AudioManager {
   private oscillators: OscillatorNode[] = [];
   private timeouts: number[] = [];
 
-  // 📋 Очередь отложенных EQ команд (накапливаем до старта контекста)
+// 📋 Очередь отложенных EQ команд (накапливаем до старта контекста)
   private pendingEQ: { band: 'low' | 'mid' | 'high'; value: number }[] = [];
+
+  // 🎛️ DSP EFFECTS CHAIN — виртуальный процессор
+  public effectsChain: {
+    noiseGate: NoiseGateEffect | null;
+    compressor: CompressorEffect | null;
+    distortion: DistortionEffect | null;
+    chorus: ChorusEffect | null;
+    delay: DelayEffect | null;
+    reverb: ReverbEffect | null;
+    wah: WahWahEffect | null;
+    limiter: LimiterEffect | null;
+  } = {
+    noiseGate: null,
+    compressor: null,
+    distortion: null,
+    chorus: null,
+    delay: null,
+    reverb: null,
+    wah: null,
+    limiter: null
+  };
+
+  // 🎛️ Текущий пресет
+  private _currentPreset: GuitarPresetName | 'custom' = 'clean';
+
+  // 🎛️ Guitar DSP routing: sampler/synth → effects chain → master
+  private guitarDSPChain: {
+    input: Tone.Gain;
+    output: Tone.Gain;
+    nodes: AudioNode[];
+  } | null = null;
 
   private constructor() {
     // 🎛️ Инициализация EQ фильтров (на мастер-канале)
@@ -456,9 +492,187 @@ class AudioManager {
     }
   }
 
-  public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
+public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
     const freq = isAccent ? 1000 : 800;
     this.metronomeSynth.triggerAttackRelease(freq, 0.05, time, 0.5);
+  }
+
+  // ============================================
+  // 🎛️ DSP CHAIN MANAGEMENT — виртуальный процессор
+  // ============================================
+
+  /**
+   * Инициализирует цепочку DSP эффектов для гитарного канала
+   * Соединяет: Input → NoiseGate → Compressor → Distortion → EQ → Chorus → Delay → Reverb → Limiter → Output
+   */
+  public initGuitarDSPChain() {
+    // Если уже инициализирована — не делаем повторно
+    if (this.guitarDSPChain) {
+      console.log('🎛️ DSP chain already initialized');
+      return;
+    }
+
+    try {
+      const ctx = this.getAudioContext();
+      
+      // Создаём input/output узлы для DSP цепочки
+      const input = new Tone.Gain(1);
+      const output = new Tone.Gain(1);
+      
+      // Подключаем: input → guitar channel (bypass default)
+      input.connect(this.channels.guitar);
+      
+      // Создаём все эффекты
+      const noiseGate = new NoiseGateEffect(ctx);
+      const compressor = new CompressorEffect(ctx);
+      const distortion = new DistortionEffect(ctx);
+      const chorus = new ChorusEffect(ctx);
+      const delay = new DelayEffect(ctx);
+      const reverb = new ReverbEffect(ctx);
+      const wah = new WahWahEffect(ctx);
+      const limiter = new LimiterEffect(ctx);
+      
+      this.effectsChain = {
+        noiseGate,
+        compressor,
+        distortion,
+        chorus,
+        delay,
+        reverb,
+        wah,
+        limiter
+      };
+      
+      // Соединяем последовательно: 
+      // NoiseGate → Compressor → Distortion → Chorus → Delay → Reverb → Limiter
+      noiseGate.getOutputNode().connect(compressor.getInputNode());
+      compressor.getOutputNode().connect(distortion.getInputNode());
+      distortion.getOutputNode().connect(chorus.getInputNode());
+      chorus.getOutputNode().connect(delay.getInputNode());
+      delay.getOutputNode().connect(reverb.getInputNode());
+      reverb.getOutputNode().connect(limiter.getInputNode());
+      
+      // Сохраняем ссылки для реконфигурации
+      this.guitarDSPChain = {
+        input,
+        output,
+        nodes: [
+          noiseGate.getInputNode(),
+          compressor.getInputNode(),
+          distortion.getInputNode(),
+          chorus.getInputNode(),
+          delay.getInputNode(),
+          reverb.getInputNode(),
+          wah.getInputNode(),
+          limiter.getInputNode()
+        ]
+      };
+      
+      console.log('🎛️ Guitar DSP chain initialized: NoiseGate → Compressor → Distortion → Chorus → Delay → Reverb → Limiter');
+    } catch (err) {
+      console.warn('🎛️ Failed to initialize DSP chain:', err);
+    }
+  }
+
+  /**
+   * Применяет пресет эффектов
+   */
+  public setPreset(presetName: GuitarPresetName) {
+    const preset = GUITAR_PRESETS[presetName];
+    if (!preset) {
+      console.warn(`🎛️ Unknown preset: ${presetName}`);
+      return;
+    }
+
+    this._currentPreset = presetName;
+    const chain = preset.chain;
+
+    // Применяем параметры к каждому эффекту
+    if (this.effectsChain.noiseGate && chain.noiseGate) {
+      this.effectsChain.noiseGate.setParams(chain.noiseGate);
+    }
+    if (this.effectsChain.compressor && chain.compressor) {
+      this.effectsChain.compressor.setParams(chain.compressor);
+    }
+    if (this.effectsChain.distortion && chain.distortion) {
+      this.effectsChain.distortion.setParams(chain.distortion);
+    }
+    if (this.effectsChain.chorus && chain.chorus) {
+      this.effectsChain.chorus.setParams(chain.chorus);
+    }
+    if (this.effectsChain.delay && chain.delay) {
+      this.effectsChain.delay.setParams(chain.delay);
+    }
+    if (this.effectsChain.reverb && chain.reverb) {
+      this.effectsChain.reverb.setParams(chain.reverb);
+    }
+    if (this.effectsChain.wah && chain.wah) {
+      this.effectsChain.wah.setParams(chain.wah);
+    }
+    if (this.effectsChain.limiter && chain.wah) {
+      // Limiter использует compressor params
+      this.effectsChain.limiter.setParams(chain.compressor);
+    }
+
+    console.log(`🎛️ Applied preset: ${preset.name} (${preset.description})`);
+  }
+
+  /**
+   * Возвращает название текущего пресета
+   */
+  public getCurrentPreset(): GuitarPresetName | 'custom' {
+    return this._currentPreset;
+  }
+
+  /**
+   * Возвращает параметры эффекта
+   */
+  public getEffectParams(effectName: keyof typeof AudioManager.prototype.effectsChain) {
+    const effect = this.effectsChain[effectName];
+    if (!effect || typeof effect === 'object' && 'params' in effect) {
+      return (effect as any)?.params || null;
+    }
+    return null;
+  }
+
+  /**
+   * Обновляет параметры эффекта в реальном времени
+   */
+  public updateEffect(effectName: keyof typeof AudioManager.prototype.effectsChain, params: any) {
+    const effect = this.effectsChain[effectName];
+    if (effect && typeof (effect as any).setParams === 'function') {
+      (effect as any).setParams(params);
+      this._currentPreset = 'custom'; // сброс пресета при ручной правке
+    }
+  }
+
+  /**
+   * Включает/выключает эффект (bypass)
+   */
+  public bypassEffect(effectName: keyof typeof AudioManager.prototype.effectsChain, bypassed: boolean) {
+    const effect = this.effectsChain[effectName];
+    if (effect) {
+      if (bypassed) {
+        (effect as any).bypass?.();
+      } else {
+        (effect as any).activate?.();
+      }
+    }
+  }
+
+  /**
+   * Возвращает все параметры эффектов для UI
+   */
+  public getAllEffectParams() {
+    return {
+      noiseGate: (this.effectsChain.noiseGate as any)?.params || null,
+      compressor: (this.effectsChain.compressor as any)?.params || null,
+      distortion: (this.effectsChain.distortion as any)?.params || null,
+      chorus: (this.effectsChain.chorus as any)?.params || null,
+      delay: (this.effectsChain.delay as any)?.params || null,
+      reverb: (this.effectsChain.reverb as any)?.params || null,
+      wah: (this.effectsChain.wah as any)?.params || null,
+    };
   }
 
   public stopAll() {

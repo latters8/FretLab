@@ -1,0 +1,27 @@
+{
+  "tracks": [
+    {
+      "instrument": "Drums",
+      "midiFile": "drums_01.mid",
+      "position": 0,
+      "length": 8,
+      "style": "rock"
+    },
+    {
+      "instrument": "Bass",
+      "midiFile": "bass_01.mid",
+      "position": 0,
+      "length": 8,
+      "chord": "Am",
+      "style": "rock"
+    },
+    {
+      "instrument": "RhythmGuitar",
+      "midiFile": "rhythm_01.mid",
+      "position": 0,
+      "length": 8,
+      "chord": "Am",
+      "style": "rock"
+    }
+  ]
+}

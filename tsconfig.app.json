@@ -4,7 +4,7 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "node"], 
     "allowArbitraryExtensions": true,
     "skipLibCheck": true,
 
@@ -18,9 +18,9 @@
 
     /* Linting */
     "allowJs": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
     //"erasableSyntaxOnly": true,
   },
-  "include": ["src"]
+  "include": ["src", "runFactory.ts"]
 }

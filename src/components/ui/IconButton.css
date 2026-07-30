@@ -1,0 +1,102 @@
+/* IconButton — square touch target for icon-only controls */
+
+.fl-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: inherit;
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  user-select: none;
+  flex-shrink: 0;
+  position: relative;
+  transition:
+    background-color var(--transition-base),
+    color var(--transition-base),
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+.fl-icon-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.fl-icon-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.fl-icon-button:disabled,
+.fl-icon-button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* --- Sizes (square) --- */
+.fl-icon-button--sm {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 16px;
+}
+
+.fl-icon-button--md {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 20px;
+}
+
+.fl-icon-button--lg {
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  font-size: 24px;
+}
+
+/* --- Hover & active states --- */
+.fl-icon-button--ghost:hover:not(:disabled):not(.fl-icon-button--active) {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.fl-icon-button--subtle:hover:not(:disabled):not(.fl-icon-button--active) {
+  color: var(--text-primary);
+}
+
+.fl-icon-button--active {
+  background: var(--bg-hover);
+  color: var(--accent);
+  transform: scale(1.06);
+}
+
+.fl-icon-button--active::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--color-accent-glow);
+  /* Calm, single-state indicator — replaces the old "two pulsing dots" look */
+}
+
+/* --- Reduced motion --- */
+@media (prefers-reduced-motion: reduce) {
+  .fl-icon-button {
+    transition: none;
+  }
+  .fl-icon-button:active:not(:disabled),
+  .fl-icon-button--active {
+    transform: none;
+  }
+}

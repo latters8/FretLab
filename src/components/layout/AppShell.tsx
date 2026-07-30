@@ -13,7 +13,9 @@ import SoloGenerator from '../tools/SoloGenerator';
 import ToolBox from '../tools/ToolBox';
 import PracticeDashboard from '../PracticeDashboard';
 import GameRoom from '../GameRoom/GameRoom';
+import SEOHead from '../SEOHead';
 import { useMusic } from '../../context/MusicContext';
+import { IconButton } from '../ui/IconButton';
 
 type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'practice' | 'gameroom';
 
@@ -29,7 +31,6 @@ const AppShell: React.FC = () => {
   const [activeModule, setActiveModule] = useState<ModuleType>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
-  const [toolsOpen, setToolsOpen] = useState(false);
 
   const { setBpm } = useMusic();
 
@@ -110,7 +111,6 @@ const AppShell: React.FC = () => {
       }
       if (e.key === 'Escape') {
         setAiTargetChord(null);
-        setToolsOpen(false);
       }
     };
 
@@ -122,292 +122,138 @@ const AppShell: React.FC = () => {
     setActiveModule(module);
   };
 
-  useEffect(() => {
-    setToolsOpen(false);
-  }, [activeModule]);
-
   const renderNavIcon = (module: ModuleType) => {
     const isActive = activeModule === module;
     const config = MODULES[module];
 
     return (
-      <div 
-        onClick={() => handleModuleClick(module)}
-        className={`nav-icon ${isActive ? 'nav-icon-active' : ''}`}
+      <IconButton
+        aria-label={config.title}
         title={config.title}
+        size="lg"
+        active={isActive}
+        onClick={() => handleModuleClick(module)}
       >
         {config.icon}
-        {isActive && (
-          <>
-            <div className="nav-dot nav-dot-bottom" />
-            <div className="nav-dot nav-dot-top" />
-          </>
-        )}
-      </div>
+      </IconButton>
     );
   };
 
-  // Каждый модуль отдаёт основной контент (всегда виден, на всю ширину)
-  // и опциональный "side" контент (инструменты), который на мобильных
-  // сворачивается в выдвижную панель за стрелкой, а на десктопе
-  // остаётся обычной правой колонкой. Так на любую другую страницу
-  // можно будет добавить свои правые блоки — просто вернув side.
-  const renderContent = (): { main: React.ReactNode; side: React.ReactNode | null } => {
+  // Вертикальный поток: все блоки идут последовательно без колонок
+  const renderContent = (): React.ReactNode => {
     switch (activeModule) {
       case 'engine':
-        return {
-          main: (
-            <main className="center-column">
-              <Player />
-              <div className="fretboard-scroll-wrapper">
-                <Fretboard />
-              </div>
-              <Tablature />
-            </main>
-          ),
-          side: (
-            <>
+        return (
+          <main className="center-column">
+            <Player />
+            <div className="fretboard-scroll-wrapper">
+              <Fretboard />
+            </div>
+            <Tablature />
+            <div className="tools-section">
               <CircleOfFifths />
               <DiatonicChords />
               <ToolBox />
-            </>
-          ),
-        };
+            </div>
+          </main>
+        );
 
       case 'dictionary':
-        return {
-          main: (
-            <main className="center-column" style={{ overflowY: 'hidden' }}>
-              <ChordDictionary targetChord={aiTargetChord} />
-            </main>
-          ),
-          side: null,
-        };
+        return (
+          <main className="center-column">
+            <ChordDictionary targetChord={aiTargetChord} />
+          </main>
+        );
 
       case 'autotab':
-        return {
-          main: (
-            <main className="center-column" style={{ overflowY: 'hidden' }}>
-              <SoloGenerator />
-            </main>
-          ),
-          side: null,
-        };
+        return (
+          <main className="center-column">
+            <SoloGenerator />
+          </main>
+        );
 
       case 'practice':
-        return {
-          main: (
-            <main className="center-column" style={{ overflowY: 'hidden' }}>
-              <PracticeDashboard />
-            </main>
-          ),
-          side: null,
-        };
+        return (
+          <main className="center-column">
+            <PracticeDashboard />
+          </main>
+        );
 
       case 'gameroom':
-        return {
-          main: (
-            <main className="center-column" style={{ overflowY: 'auto', padding: 0 }}>
-              <GameRoom />
-            </main>
-          ),
-          side: null,
-        };
+        return (
+          <main className="center-column" style={{ padding: 0 }}>
+            <GameRoom />
+          </main>
+        );
 
       default:
-        return { main: null, side: null };
+        return null;
     }
   };
 
-  const { main, side } = renderContent();
+const seoByModule: Record<ModuleType, { title: string; description: string; keywords: string }> = {
+    engine: {
+      title: 'Гриф гитары онлайн',
+      description: 'Интерактивный гриф гитары с подсветкой нот и ступеней. Изучай расположение нот на грифе с визуализацией музыкальной теории.',
+      keywords: 'гриф гитары онлайн, ноты на грифе, fretboard, аппликатуры, гаммы на грифе',
+    },
+    dictionary: {
+      title: 'Словарь аккордов для гитары',
+      description: 'Полный словарь гитарных аккордов с аппликатурами и озвучкой. Изучай аккорды для гитары с визуализацией на грифе.',
+      keywords: 'аккорды для гитары, словарь аккордов, аппликатуры аккордов, гитарные аккорды, справочник аккордов',
+    },
+    autotab: {
+      title: 'AI генератор соло для гитары',
+      description: 'Генерация гитарных соло с помощью AI. Создавай уникальные соло-партии с автоматической табулатурой и DAW-микшером.',
+      keywords: 'ai генератор соло, генератор табов, гитарное соло онлайн, ai музыка, solo generator, tab generator',
+    },
+    practice: {
+      title: 'Тренировки для гитариста',
+      description: 'Ежедневные тренировки для гитариста: гаммы, аккорды, ритм. Отслеживай прогресс обучения игре на гитаре.',
+      keywords: 'тренировки для гитары, обучение гитаре, практика, уроки гитары онлайн, самоучитель гитары',
+    },
+    gameroom: {
+      title: 'Игровая комната для гитаристов',
+      description: 'Коллекция браузерных игр для отдыха между тренировками. Игры для гитаристов и любителей ретро-гейминга.',
+      keywords: 'игры онлайн, браузерные игры, игровая комната, гитаристы, отдых, ретро игры',
+    },
+  };
+
+  const currentSeo = seoByModule[activeModule];
 
   return (
     <div className="app-container">
+      <SEOHead
+        title={currentSeo.title}
+        description={currentSeo.description}
+        keywords={currentSeo.keywords}
+        ogTitle={`${currentSeo.title} | FretLab`}
+        ogDescription={currentSeo.description}
+      />
       <Header onAIAction={handleAIAction} />
 
       <div className="app-main">
         <div className="app-layout">
-          <aside className="left-sidebar">
+          <div className={`main-workspace ${isTransitioning ? 'transitioning' : ''}`}>
+            {renderContent()}
+          </div>
+
+          <aside className="bottom-nav">
             {renderNavIcon('engine')}
             {renderNavIcon('dictionary')}
             {renderNavIcon('autotab')}
             {renderNavIcon('practice')}
             {renderNavIcon('gameroom')}
-
             <div className="sidebar-footer desktop-only">
               <span className="version-text">v2.0.0</span>
               <span className="shortcut-text">Ctrl+1-5</span>
             </div>
           </aside>
-
-          <div className={`main-workspace ${isTransitioning ? 'transitioning' : ''}`}>
-            {main}
-
-            {side && (
-              <>
-                <div
-                  className={`tools-backdrop ${toolsOpen ? 'open' : ''}`}
-                  onClick={() => setToolsOpen(false)}
-                />
-                <button
-                  type="button"
-                  className={`tools-toggle ${toolsOpen ? 'open' : ''}`}
-                  onClick={() => setToolsOpen(o => !o)}
-                  aria-label={toolsOpen ? 'Скрыть панель инструментов' : 'Показать панель инструментов'}
-                  title={toolsOpen ? 'Скрыть инструменты' : 'Инструменты'}
-                >
-                  {toolsOpen ? '›' : '‹'}
-                </button>
-                <aside className={`right-column mobile-order-after ${toolsOpen ? 'right-column-open' : ''}`}>
-                  {side}
-                </aside>
-              </>
-            )}
-          </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes pulse-dot {
-          0%, 100% { 
-            opacity: 1;
-            transform: translateX(-50%) scale(1);
-          }
-          50% { 
-            opacity: 0.5;
-            transform: translateX(-50%) scale(1.5);
-          }
-        }
-
-        @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .center-column {
-          animation: fadeIn 0.3s ease;
-        }
-
-        .nav-icon {
-          padding: 12px;
-          background: transparent;
-          color: var(--text-muted);
-          border-radius: 12px;
-          cursor: pointer;
-          font-size: 24px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          position: relative;
-          transform: scale(1);
-        }
-
-        .nav-icon:hover {
-          color: var(--text-primary);
-          transform: scale(1.05);
-        }
-
-        .nav-icon-active {
-          background: var(--bg-hover);
-          color: var(--accent);
-          transform: scale(1.1);
-          box-shadow: inset 0 0 30px rgba(0,255,157,0.05);
-        }
-
-        .nav-dot {
-          position: absolute;
-          border-radius: 50%;
-          background: var(--accent);
-          box-shadow: 0 0 20px var(--accent);
-          animation: pulse-dot 2s infinite;
-        }
-
-        .nav-dot-bottom {
-          bottom: -4px;
-          left: 50%;
-          transform: translateX(-50%);
-          width: 6px;
-          height: 6px;
-        }
-
-        .nav-dot-top {
-          top: -2px;
-          right: -2px;
-          width: 8px;
-          height: 8px;
-          animation-duration: 1.5s;
-        }
-
-        .sidebar-footer {
-          margin-top: auto;
-          padding-top: 16px;
-          border-top: 1px solid var(--border-color);
-          width: 80%;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .version-text {
-          font-size: 10px;
-          color: var(--text-muted);
-          opacity: 0.5;
-          text-align: center;
-        }
-
-        .shortcut-text {
-          font-size: 8px;
-          color: var(--text-muted);
-          opacity: 0.3;
-          text-align: center;
-        }
-
-        .app-main {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          overflow: hidden;
-          position: relative;
-        }
-
-        .main-workspace {
-          position: relative;
-          opacity: 1;
-          transition: opacity 0.3s ease;
-        }
-
-        .main-workspace.transitioning {
-          opacity: 0.8;
-        }
-
-        .right-column::-webkit-scrollbar,
-        .center-column::-webkit-scrollbar {
-          width: 4px;
-        }
-
-        .right-column::-webkit-scrollbar-track,
-        .center-column::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .right-column::-webkit-scrollbar-thumb,
-        .center-column::-webkit-scrollbar-thumb {
-          background: var(--border-color);
-          border-radius: 2px;
-        }
-
-        .right-column::-webkit-scrollbar-thumb:hover,
-        .center-column::-webkit-scrollbar-thumb:hover {
-          background: var(--text-muted);
-        }
-      `}</style>
     </div>
   );
 };
 
 export default AppShell;
+

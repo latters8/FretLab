@@ -547,7 +547,289 @@ export const generateSmartLick = (
 };
 
 // ============================================================
-// 🔥 ГЕНЕРАТОР СОЛО ДЛЯ SOLOGENERATOR (С ПОДДЕРЖКОЙ ВСЕХ РЕЖИМОВ)
+// 🎯 ФАЗА 3: РАСШИРЕННАЯ ГЕНЕРАЦИЯ — 32+ ТАКТА, СТИЛИ, CALL-RESPONSE
+// ============================================================
+
+export type SoloStyle = 'blues' | 'jazz' | 'fusion' | 'metal' | 'funk' | 'country' | 'pop' | 'rock' | 'classical';
+
+export interface ExtendedSoloConfig {
+  bars: number;                // количество тактов (8, 16, 32, 64)
+  style: SoloStyle;
+  useCallResponse: boolean;    // структура вопрос-ответ
+  useMotifDevelopment: boolean; // развитие мотива
+  complexity: 1 | 2 | 3 | 4 | 5; // 1=просто, 5=сложно
+  variation: number;           // 0-1, насколько сильно меняется каждая следующая фраза
+}
+
+/**
+ * Генерация расширенного соло на 32+ такта
+ */
+export const generateExtendedSolo = (
+  scaleNotes: string[],
+  keyNote: string,
+  mode: string,
+  timeSignature: { beats: number; noteValue: number },
+  progressionChords: { name: string; notes: string[] }[],
+  config: ExtendedSoloConfig
+): SyncSoloData => {
+  const bars = Math.max(4, Math.min(config.bars, 64));
+  const beatsPerBar = timeSignature.beats;
+  const totalBeats = bars * beatsPerBar;
+
+  // Безопасная прогрессия
+  const safeProgression: { name: string; notes: string[] }[] = [];
+  const safeScale = scaleNotes.length > 0 ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
+  const rootNote = keyNote || 'C';
+
+  for (let i = 0; i < bars; i++) {
+    if (progressionChords && progressionChords.length > 0) {
+      const idx = i % progressionChords.length;
+      const chord = progressionChords[idx];
+      safeProgression.push({
+        name: chord.name,
+        notes: chord.notes && chord.notes.length > 0 ? chord.notes : getTriadNotes(chord.name, rootNote)
+      });
+    } else {
+      safeProgression.push({
+        name: rootNote,
+        notes: getTriadNotes(rootNote, rootNote)
+      });
+    }
+  }
+
+  // Аккорды для данных
+  const chords: SyncChord[] = safeProgression.map((ch, i) => ({
+    name: ch.name,
+    notes: ch.notes,
+    beatStart: i * beatsPerBar,
+    durationBeats: beatsPerBar
+  }));
+
+  // === Генерация нот ===
+  const allNotes: SyncNote[] = [];
+  const phrasesCount = Math.ceil(bars / 4); // фраза на каждые 4 такта
+  const motif = generateMotif(safeScale, mode, keyNote, config.style, config.complexity);
+
+  for (let phraseIdx = 0; phraseIdx < phrasesCount; phraseIdx++) {
+    const phraseBarStart = phraseIdx * 4;
+    const phraseBars = Math.min(4, bars - phraseBarStart);
+    
+    if (phraseBars <= 0) break;
+
+    // Применяем варьирование мотива
+    let phraseMotif = motif;
+    if (phraseIdx > 0 && config.useMotifDevelopment) {
+      phraseMotif = varyMotif(motif, phraseIdx, config.variation);
+    }
+
+    // Call-Response
+    if (config.useCallResponse && phraseIdx % 2 === 1) {
+      // Response — играем обратный мотив с разрешением
+      phraseMotif = [...motif].reverse().map(n => ({
+        ...n,
+        velocity: Math.min(1, (n.velocity || 0.7) * 0.85),
+        technique: 'none' as Technique
+      }));
+    }
+
+    // Стилевые модификации
+    const styleAdjusted = applyStyleToPhrase(phraseMotif, config.style, phraseIdx);
+
+    // Генерируем ноты для фразы
+    for (let bar = 0; bar < phraseBars; bar++) {
+      const globalBarIdx = phraseBarStart + bar;
+      const properties: SyncNote[] = [];
+      
+      // Слоты для нот в такте
+      const notesInBar = Math.max(2, Math.round(4 * (config.complexity / 3)));
+      const beatStep = beatsPerBar / notesInBar;
+      
+      for (let slot = 0; slot < notesInBar; slot++) {
+        const slotBeat = globalBarIdx * beatsPerBar + slot * beatStep;
+        if (slotBeat >= totalBeats) break;
+        
+        const motifIdx = (slot + bar * 2 + phraseIdx * 8) % styleAdjusted.length;
+        const motifNote = styleAdjusted[motifIdx];
+        
+        if (!motifNote) continue;
+
+const noteName = getNoteFromFret(motifNote.fret ?? 0, motifNote.string);
+        
+        // Стилевое смещение ноты
+        let targetFret = motifNote.fret ?? 0;
+        let targetString = motifNote.string;
+        
+        if (noteName && !safeScale.includes(noteName)) {
+          // Если нота вне гаммы — подправляем к ближайшей
+          const nearest = findNearestScaleNote(noteName, safeScale);
+          if (nearest) {
+            targetFret = findFretForNote(nearest, targetString, 0, 21);
+          }
+        }
+
+        const isAccent = slot === 0 || (config.complexity >= 4 && slot % 3 === 0);
+        const isLastNoteGlobal = globalBarIdx === bars - 1 && slot === notesInBar - 1;
+
+        properties.push({
+          string: targetString,
+          fret: Math.max(0, Math.min(21, targetFret)),
+          isRest: false,
+          beatStart: slotBeat,
+          beatDuration: isLastNoteGlobal ? 2 : beatStep * 0.9,
+          duration: isLastNoteGlobal ? '2n' : '8n',
+          technique: isLastNoteGlobal ? 'vibrato' as Technique : (motifNote.technique || 'none' as Technique),
+          accent: isAccent,
+          velocity: isAccent ? 0.9 : (0.5 + Math.random() * 0.3)
+        });
+      }
+
+      allNotes.push(...properties);
+    }
+  }
+
+  return { bars, totalBeats, chords, notes: allNotes };
+};
+
+/** Создает начальный мотив */
+function generateMotif(
+  scale: string[],
+  mode: string,
+  key: string,
+  style: SoloStyle,
+  complexity: number
+): LickNote[] {
+  const motifLength = 4 + complexity * 2;
+  const notes: LickNote[] = [];
+  
+  for (let i = 0; i < motifLength; i++) {
+    const scaleIdx = i % scale.length;
+    const note = scale[scaleIdx];
+    const string = Math.min(4, Math.max(1, Math.floor(i / 2) + 1));
+    const fret = findFretForNote(note, string, 0, 21);
+    
+    let technique: Technique = 'none';
+    const r = Math.random();
+    if (r > 0.85) technique = 'bend';
+    else if (r > 0.7) technique = complexity >= 3 ? 'hammer' : 'slide';
+    else if (r > 0.6) technique = 'vibrato';
+    
+    notes.push({
+      string,
+      fret,
+      duration: '8n',
+      technique,
+      velocity: i === 0 ? 0.95 : 0.6 + Math.random() * 0.3,
+      accent: i === 0 || i % 4 === 0
+    });
+  }
+  return notes;
+}
+
+/** Варьирует мотив для каждой следующей фразы */
+function varyMotif(motif: LickNote[], phraseIndex: number, variation: number): LickNote[] {
+  return motif.map((note, i) => {
+    if (Math.random() < variation) {
+      const fretShift = Math.floor(Math.random() * 5) - 2; // -2 to +2
+      const stringShift = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
+      return {
+        ...note,
+        fret: Math.max(0, Math.min(21, (note.fret || 0) + fretShift)),
+        string: Math.max(0, Math.min(5, (note.string || 2) + stringShift)),
+        velocity: (note.velocity || 0.7) * (0.8 + Math.random() * 0.4),
+        technique: note.technique
+      };
+    }
+    return note;
+  });
+}
+
+/** Применяет стилевые модификации к фразе */
+function applyStyleToPhrase(phrase: LickNote[], style: SoloStyle, phraseIdx: number): LickNote[] {
+  return phrase.map((note, i) => {
+    let modNote = { ...note };
+    
+    switch (style) {
+      case 'blues':
+        // Чаще бенды и вибрато
+        if (i % 3 === 0) modNote.technique = 'bend';
+        if (i % 4 === 0) modNote.velocity = Math.min(1, (note.velocity || 0.7) + 0.2);
+        break;
+      case 'jazz':
+        // Разреженные ноты, swing feel
+        if (i % 2 === 0) modNote.technique = 'slide';
+        modNote.velocity = (note.velocity || 0.7) * 0.85;
+        break;
+      case 'metal':
+        // Агрессивные акценты, palm mute (ghost)
+        if (i % 2 === 0) modNote.technique = 'mute';
+        if (i % 4 === 0) modNote.velocity = 1.0;
+        break;
+      case 'funk':
+        // Стаккато, ритмические акценты
+        modNote.duration = '16n';
+        modNote.velocity = i % 2 === 0 ? 0.9 : 0.5;
+        break;
+      case 'country':
+        // Быстрые арпеджио, четкий звук
+        modNote.technique = 'none';
+        modNote.velocity = 0.8;
+        break;
+      case 'fusion':
+        // Смесь — сложные интервалы
+        if (i % 5 === 0) modNote.technique = 'bend';
+        if (i % 7 === 0) modNote.technique = 'slide';
+        break;
+      default:
+        break;
+    }
+    
+    return modNote;
+  });
+}
+
+/** Находит ближайшую ноту в гамме */
+function findNearestScaleNote(note: string, scale: string[]): string | null {
+  const noteIdx = ALL_NOTES.indexOf(note);
+  if (noteIdx === -1) return null;
+  
+  let best: string | null = null;
+  let bestDist = 12;
+  
+  for (const sn of scale) {
+    const snIdx = ALL_NOTES.indexOf(sn);
+    if (snIdx === -1) continue;
+    const dist = Math.min(Math.abs(noteIdx - snIdx), 12 - Math.abs(noteIdx - snIdx));
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = sn;
+    }
+  }
+  
+  return best;
+}
+
+/** Получает ноту из фрета */
+function getNoteFromFret(fret: number, string: number): string {
+  const openNotes = ['E', 'B', 'G', 'D', 'A', 'E'];
+  const openIdx = ALL_NOTES.indexOf(openNotes[string] || 'E');
+  if (openIdx === -1) return 'E';
+  return ALL_NOTES[(openIdx + fret) % 12];
+}
+
+/** Получает триадные ноты для аккорда */
+function getTriadNotes(chordName: string, fallbackRoot: string): string[] {
+  const root = chordName.replace(/[^A-G#b]/g, '') || fallbackRoot;
+  const rootIdx = ALL_NOTES.indexOf(root);
+  if (rootIdx === -1) return [fallbackRoot];
+  return [
+    ALL_NOTES[rootIdx],
+    ALL_NOTES[(rootIdx + 4) % 12],
+    ALL_NOTES[(rootIdx + 7) % 12]
+  ];
+}
+
+// ============================================================
+// 🔥 ОРИГИНАЛЬНЫЙ ГЕНЕРАТОР СОЛО (4 такта)
 // ============================================================
 
 export interface SyncChord {
@@ -568,6 +850,236 @@ export interface SyncSoloData {
   chords: SyncChord[];
   notes: SyncNote[];
 }
+
+// ============================================================
+// 🎯 ФАЗА 2: ИНТЕРАКТИВНЫЙ РЕЖИМ — ПОДСКАЗКИ НОТ И ФРАЗ
+// ============================================================
+
+export interface SuggestionNote {
+  note: string;
+  fret: number;
+  string: number;
+  degree: number;
+  isChordTone: boolean;
+  isTension: boolean;
+  isApproach: boolean;
+  label: string;
+}
+
+/**
+ * Возвращает рекомендуемые ноты для обыгрывания текущего аккорда
+ */
+export const getSuggestedNotesForChord = (
+  chord: { name: string; notes: string[] },
+  scaleNotes: string[],
+  keyNote: string
+): SuggestionNote[] => {
+  const suggestions: SuggestionNote[] = [];
+  const chordNotes = chord.notes || [];
+  const chordRoot = chord.name.replace(/[^A-G#b]/g, '');
+
+  // Аккордовые тоны (безопасные, якоря)
+  chordNotes.forEach((note, idx) => {
+    const degree = idx === 0 ? 1 : idx === 1 ? 3 : idx === 2 ? 5 : 7;
+    const fret = findFretForNote(note, 2, 0, 21);
+    suggestions.push({
+      note,
+      fret,
+      string: 2,
+      degree,
+      isChordTone: true,
+      isTension: false,
+      isApproach: false,
+      label: degree === 1 ? 'Tonic' : degree === 3 ? '3rd' : degree === 5 ? '5th' : '7th'
+    });
+  });
+
+  // tension ноты (9, 11, 13) из гаммы
+  const tensionIntervals = [1, 3, 5]; // 9th, 11th, 13th
+  const rootIdx = ALL_NOTES.indexOf(chordRoot);
+  tensionIntervals.forEach(interval => {
+    const noteIdx = (rootIdx + interval) % 12;
+    const note = ALL_NOTES[noteIdx];
+    if (scaleNotes.includes(note) && !chordNotes.includes(note)) {
+      const fret = findFretForNote(note, 2, 0, 21);
+      suggestions.push({
+        note,
+        fret,
+        string: 2,
+        degree: interval + 1 + 7, // 9, 11, 13
+        isChordTone: false,
+        isTension: true,
+        isApproach: false,
+        label: `${interval + 1 + 7}th`
+      });
+    }
+  });
+
+  // Проходные ноты (chromatic approach)
+  chordNotes.forEach(note => {
+    const noteIdx = ALL_NOTES.indexOf(note);
+    if (noteIdx > 0) {
+      const approachNote = ALL_NOTES[(noteIdx - 1 + 12) % 12];
+      if (!chordNotes.includes(approachNote)) {
+        const fret = findFretForNote(approachNote, 2, 0, 21);
+        suggestions.push({
+          note: approachNote,
+          fret,
+          string: 2,
+          degree: -1,
+          isChordTone: false,
+          isTension: false,
+          isApproach: true,
+          label: 'Approach'
+        });
+      }
+    }
+  });
+
+  return suggestions;
+};
+
+export interface PhraseSuggestion {
+  id: string;
+  name: string;
+  description: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  notes: LickNote[];
+  chordTarget: string;
+  style: string;
+}
+
+/**
+ * Возвращает фразы для обыгрывания текущей гармонии
+ */
+export const getPhraseSuggestions = (
+  chord: { name: string; notes: string[] },
+  keyNote: string,
+  mode: string,
+  difficulty: 'beginner' | 'intermediate' | 'advanced' = 'intermediate'
+): PhraseSuggestion[] => {
+  const suggestions: PhraseSuggestion[] = [];
+  const chordRoot = chord.name.replace(/[^A-G#b]/g, '');
+  const scale = getScaleForChordInternal(chordRoot, mode);
+  
+  // Простая фраза 1: арпеджио вверх
+  suggestions.push({
+    id: `phrase-${Date.now()}-1`,
+    name: 'Arpeggio Up',
+    description: 'Play chord tones ascending',
+    difficulty: 'beginner',
+    notes: chord.notes.map((note, i) => ({
+      string: 2,
+      fret: findFretForNote(note, 2, 0, 21),
+      duration: i === chord.notes.length - 1 ? '2n' : '8n',
+      technique: 'none' as Technique,
+      velocity: 0.8
+    })),
+    chordTarget: chord.name,
+    style: 'arpeggio'
+  });
+
+  // Фраза 2: пентатоника вниз
+  if (scale.length >= 5) {
+    const pentatonicIndices = [0, 2, 4, 7, 9];
+    const pentatonicNotes = pentatonicIndices.map(i => scale[i % scale.length]).filter(Boolean);
+    suggestions.push({
+      id: `phrase-${Date.now()}-2`,
+      name: 'Pentatonic Run',
+      description: 'Descending pentatonic pattern',
+      difficulty: 'intermediate',
+      notes: pentatonicNotes.reverse().map((note, i) => ({
+        string: 2,
+        fret: findFretForNote(note, 2, 0, 21),
+        duration: i === 0 ? '2n' : '8n',
+        technique: i % 2 === 0 ? 'hammer' as Technique : 'pull' as Technique,
+        velocity: 0.75
+      })),
+      chordTarget: chord.name,
+      style: 'pentatonic'
+    });
+  }
+
+  // Фраза 3: 3-6-5-3 pattern (advanced)
+  suggestions.push({
+    id: `phrase-${Date.now()}-3`,
+    name: '3-6-5-3 Pattern',
+    description: 'Classic jazz/blues enclosure pattern',
+    difficulty: 'advanced',
+    notes: [
+      { string: 2, fret: 5, duration: '16n', technique: 'none' as Technique, velocity: 0.9 },
+      { string: 2, fret: 8, duration: '16n', technique: 'slide' as Technique, velocity: 0.85 },
+      { string: 2, fret: 7, duration: '8n', technique: 'bend' as Technique, velocity: 0.95 },
+      { string: 2, fret: 5, duration: '4n', technique: 'vibrato' as Technique, velocity: 0.9 },
+    ],
+    chordTarget: chord.name,
+    style: 'jazz'
+  });
+
+  return suggestions;
+};
+
+/**
+ * Внутренняя функция получения нот гаммы для аккорда
+ */
+function getScaleForChordInternal(root: string, mode: string): string[] {
+  const rootIdx = ALL_NOTES.indexOf(root);
+  if (rootIdx === -1) return ['C', 'D', 'E', 'G', 'A'];
+  
+  const modeIntervals: Record<string, number[]> = {
+    major: [0, 2, 4, 5, 7, 9, 11],
+    minor: [0, 2, 3, 5, 7, 8, 10],
+    dorian: [0, 2, 3, 5, 7, 9, 10],
+    mixolydian: [0, 2, 4, 5, 7, 9, 10],
+    lydian: [0, 2, 4, 6, 7, 9, 11],
+    phrygian: [0, 1, 3, 5, 7, 8, 10],
+    locrian: [0, 1, 3, 5, 6, 8, 10],
+    pentatonic: [0, 2, 4, 7, 9],
+    blues: [0, 3, 5, 6, 7, 10],
+  };
+  
+  const intervals = modeIntervals[mode] || modeIntervals.major;
+  return intervals.map(i => ALL_NOTES[(rootIdx + i) % 12]);
+}
+
+/**
+ * Прогнозирование следующей ноты на основе контекста
+ */
+export const predictNextNote = (
+  currentNotes: LickNote[],
+  scaleNotes: string[],
+  keyNote: string,
+  mode: string,
+  lastFret: number
+): SuggestionNote[] => {
+  const predictions: SuggestionNote[] = [];
+  const safeScale = scaleNotes.length > 0 ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
+  
+  // Ближайшие ноты по гамме (в пределах 4 ладов от последней)
+  const stringToUse = 2;
+  safeScale.forEach(note => {
+    const fret = findFretForNote(note, stringToUse, 0, 21);
+    if (Math.abs(fret - lastFret) <= 4) {
+      const degree = safeScale.indexOf(note) + 1;
+      predictions.push({
+        note,
+        fret,
+        string: stringToUse,
+        degree,
+        isChordTone: degree === 1 || degree === 3 || degree === 5,
+        isTension: degree === 2 || degree === 4 || degree === 6,
+        isApproach: false,
+        label: `${degree}${degree === 1 ? 'st' : degree === 2 ? 'nd' : degree === 3 ? 'rd' : 'th'}`
+      });
+    }
+  });
+  
+  return predictions.sort((a, b) => Math.abs(a.fret - lastFret) - Math.abs(b.fret - lastFret)).slice(0, 5);
+};
+
+// ============================================================
+// 🔥 ОРИГИНАЛЬНЫЙ КОД generateSynchronizedSolo
+// ============================================================
 
 export const generateSynchronizedSolo = (
   scaleNotes: string[],

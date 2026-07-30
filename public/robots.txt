@@ -1,0 +1,20 @@
+# Robots.txt for FretLab
+# https://latters8.github.io/FretLab/
+
+User-agent: *
+Allow: /
+
+# Sitemap
+Sitemap: https://latters8.github.io/FretLab/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 10
+
+# Disallow paths (if any)
+# Disallow: /private/
+
+# Yandex specific
+User-agent: Yandex
+Allow: /
+Crawl-delay: 5
+

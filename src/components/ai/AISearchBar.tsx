@@ -5,6 +5,8 @@ import type React from 'react';
 import { createPortal } from 'react-dom';
 import { processAIQuery, type TrackOption, type VideoPlatform } from '../../services/AIEngine';
 import { useMusic } from '../../context/MusicContext';
+import { Button } from '../ui/Button';
+import { Spinner } from '../ui/Spinner';
 
 interface AISearchBarProps {
   onAction?: (action: any) => void;
@@ -644,28 +646,17 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
         />
         
         {isLoading ? (
-          <span style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 700, padding: '0 8px' }}>
-            ...
+          <span style={{ padding: '0 8px', display: 'inline-flex', alignItems: 'center' }} aria-live="polite">
+            <Spinner size="sm" label="AI is thinking" />
           </span>
         ) : query && (
-          <button
+          <Button
+            variant="primary"
+            size="sm"
             onClick={() => handleSearch()}
-            style={{
-              background: 'var(--accent)',
-              color: '#000',
-              border: 'none',
-              borderRadius: '20px',
-              padding: '6px 16px',
-              fontWeight: 800,
-              fontSize: '12px',
-              cursor: 'pointer',
-              transition: '0.2s',
-            }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
             Send
-          </button>
+          </Button>
         )}
       </div>
 
@@ -691,24 +682,13 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           
           {messages.length > 0 && (
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={clearChat}
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  padding: '4px 8px',
-                  borderRadius: '4px',
-                  transition: '0.2s',
-                }}
-                onMouseEnter={e => e.currentTarget.style.color = 'var(--text-primary)'}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
               >
                 ✕ Clear chat
-              </button>
+              </Button>
             </div>
           )}
 
@@ -786,17 +766,16 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
           ))}
 
           {isLoading && (
-            <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '8px 0' }}>
-              <span style={{ 
-                display: 'inline-block',
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                background: 'var(--accent)',
-                marginRight: '8px',
-                animation: 'pulse 1s infinite',
-              }} />
-              Thinking...
+            <div style={{
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              padding: '8px 0',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}>
+              <Spinner size="sm" label="AI is thinking" />
+              <span>Thinking…</span>
             </div>
           )}
 
@@ -811,13 +790,6 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
         </div>,
         document.body
       )}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.3; transform: scale(0.8); }
-        }
-      `}</style>
     </div>
   );
 };

@@ -13,7 +13,7 @@ const MATERIALS = {
   ebony: { bg: '#1a1a1a', dot: '#e0e0e0', fretDark: '#111215', fretLight: '#c0c0c0', fretWidth: '1px' },
   rosewood: { bg: '#3e2723', dot: '#d7ccc8', fretDark: '#211512', fretLight: '#d7ccc8', fretWidth: '1px' },
   maple: { bg: '#f1ba54', dot: '#3e2723', fretDark: '#5c4314', fretLight: '#fafafa', fretWidth: '1px' },
-  glass: { bg: 'rgba(255,255,255,0.04)', dot: 'var(--accent)', fretDark: 'rgba(255,255,255,0.15)', fretLight: 'var(--accent)', fretWidth: '1px' }
+  glass: { bg: 'rgba(255,255,255,0.04)', dot: '#d7ccc8', fretDark: 'rgba(255,255,255,0.15)', fretLight: 'var(--accent)', fretWidth: '1px' }
 };
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -51,8 +51,13 @@ const Fretboard: React.FC = () => {
   const isCyberpunk = material === 'glass' && fretColor === 'light';
 
   return (
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: isMobile ? '12px' : '24px', border: '1px solid var(--border-color)', minWidth: isMobile ? '600px' : '800px' }}>
-      
+    // 🔥 ИЗМЕНЕНО: minWidth убран отсюда — этот контейнер больше не скроллится
+    // целиком, поэтому панель селекторов внутри него теперь всегда на 100%
+    // ширины экрана и никогда не "уезжает" за левый край при горизонтальном
+    // скролле грифа.
+    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: isMobile ? '12px' : '24px', border: '1px solid var(--border-color)' }}>
+
+      {/* ПАНЕЛЬ СЕЛЕКТОРОВ — вне зоны горизонтального скролла, видна всегда целиком */}
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', marginBottom: isMobile ? '12px' : '24px', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '8px' : '0' }}>
         
         {/* ЛЕВАЯ ПАНЕЛЬ СЕЛЕКТОРОВ */}
@@ -103,116 +108,131 @@ const Fretboard: React.FC = () => {
         </div>
       </div>
 
-      <div style={{ display: 'flex', paddingLeft: '40px', marginBottom: '8px' }}>
-        {frets.map(f => <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
-      </div>
+      {/* 🔥 НОВОЕ: отдельная зона горизонтального скролла — только сетка ладов.
+          minWidth переехал сюда (на внутренний блок), а сам скролл-контейнер
+          занимает 100% ширины родителя и скроллится независимо от контролов. */}
+      <div
+        style={{
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          touchAction: 'pan-x',
+        }}
+      >
+        <div style={{ minWidth: isMobile ? '600px' : '800px' }}>
 
-      <div style={{ position: 'relative', background: '#000', border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
-        
-        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', background: currentMat.bg, zIndex: 0, pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', paddingLeft: '40px', marginBottom: '8px' }}>
+            {frets.map(f => <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
+          </div>
 
-        <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 1 }}>
-          {frets.map(f => (
-            <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `${isCyberpunk ? 'transparent' : currentMat.fretWidth} solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
-              {isCyberpunk && f !== 0 && (
-                <div style={{ position: 'absolute', right: '-1px', top: 0, bottom: 0, width: currentMat.fretWidth, background: 'var(--accent)', boxShadow: '0 0 2px var(--accent), 0 0 4px var(--accent)', opacity: 0.25, zIndex: 2 }} />
-              )}
-              {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />}
-              {doubleDots.includes(f) && (
-                <>
-                  <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
-                  <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
-                </>
-              )}
+          <div style={{ position: 'relative', background: '#000', border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
+            
+            <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', background: currentMat.bg, zIndex: 0, pointerEvents: 'none' }} />
+
+            <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 1 }}>
+              {frets.map(f => (
+                <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `${isCyberpunk ? 'transparent' : currentMat.fretWidth} solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
+                  {isCyberpunk && f !== 0 && (
+                    <div style={{ position: 'absolute', right: '-1px', top: 0, bottom: 0, width: currentMat.fretWidth, background: 'var(--accent)', boxShadow: '0 0 2px var(--accent), 0 0 4px var(--accent)', opacity: 0.25, zIndex: 2 }} />
+                  )}
+                  {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />}
+                  {doubleDots.includes(f) && (
+                    <>
+                      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
+                      <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
+                    </>
+                  )}
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        {strings.map((openNote, stringIdx) => {
-          const thickness = STRING_GAUGES[stringIdx];
-          
-          return (
-            <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
-              <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
-              <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 3, background: 'var(--bg-panel)' }}>{openNote}</div>
+            {strings.map((openNote, stringIdx) => {
+              const thickness = STRING_GAUGES[stringIdx];
               
-              {frets.map(fret => {
-                const note = getNoteAtFret(openNote, fret);
-                const isInScale = scaleNotes.includes(note);
-                const isRoot = note === keyNote;
-                const noteAlpha = material === 'maple' ? '1' : '0.75';
+              return (
+                <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
+                  <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
+                  <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 3, background: 'var(--bg-panel)' }}>{openNote}</div>
+                  
+                  {frets.map(fret => {
+                    const note = getNoteAtFret(openNote, fret);
+                    const isInScale = scaleNotes.includes(note);
+                    const isRoot = note === keyNote;
+                    const noteAlpha = material === 'maple' ? '1' : '0.75';
 
-                let labelText = '';
-                let displayStyle: React.CSSProperties = {};
+                    let labelText = '';
+                    let displayStyle: React.CSSProperties = {};
 
-                if (isInScale) {
-                  if (displayMode === 'notes') {
-                    labelText = note;
-                    displayStyle = {
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
-                      color: isRoot ? '#000' : '#111216', fontWeight: '900'
-                    };
-                  } 
-                  else if (displayMode === 'intervals') {
-                    const diff = (ALL_NOTES.indexOf(note) - ALL_NOTES.indexOf(keyNote) + 12) % 12;
-                    labelText = INTERVAL_MAP[diff];
-                    displayStyle = {
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
-                      color: isRoot ? '#000' : '#111216', fontWeight: '900'
-                    };
-                  } 
-                  else if (displayMode === 'caged') {
-                    labelText = note;
-                    if (isRoot) {
-                      displayStyle = {
-                        width: '24px', height: '24px', borderRadius: '4px',
-                        background: 'var(--accent)', color: '#000', fontWeight: '900'
-                      };
-                    } else {
-                      const isMaple = material === 'maple';
-                      // 🔥 ИСПРАВЛЕНО: Для не-тоники добавлена мягкая полупрозрачная серая заливка (rgba)
-                      displayStyle = {
-                        width: '24px', height: '24px', borderRadius: '4px',
-                        background: isMaple ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
-                        border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.4)'}`,
-                        color: isMaple ? '#5c4314' : 'var(--text-primary)',
-                        fontWeight: '800'
-                      };
+                    if (isInScale) {
+                      if (displayMode === 'notes') {
+                        labelText = note;
+                        displayStyle = {
+                          width: '24px', height: '24px', borderRadius: '50%',
+                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
+                          color: isRoot ? '#000' : '#111216', fontWeight: '900'
+                        };
+                      } 
+                      else if (displayMode === 'intervals') {
+                        const diff = (ALL_NOTES.indexOf(note) - ALL_NOTES.indexOf(keyNote) + 12) % 12;
+                        labelText = INTERVAL_MAP[diff];
+                        displayStyle = {
+                          width: '24px', height: '24px', borderRadius: '50%',
+                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
+                          color: isRoot ? '#000' : '#111216', fontWeight: '900'
+                        };
+                      } 
+                      else if (displayMode === 'caged') {
+                        labelText = note;
+                        if (isRoot) {
+                          displayStyle = {
+                            width: '24px', height: '24px', borderRadius: '4px',
+                            background: 'var(--accent)', color: '#000', fontWeight: '900'
+                          };
+                        } else {
+                          const isMaple = material === 'maple';
+                          displayStyle = {
+                            width: '24px', height: '24px', borderRadius: '4px',
+                            background: isMaple ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
+                            border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.4)'}`,
+                            color: isMaple ? '#5c4314' : 'var(--text-primary)',
+                            fontWeight: '800'
+                          };
+                        }
+                      } 
+                      else if (displayMode === 'clean') {
+                        labelText = '';
+                        displayStyle = {
+                          width: '24px', height: '24px', borderRadius: '50%',
+                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`
+                        };
+                      }
                     }
-                  } 
-                  else if (displayMode === 'clean') {
-                    labelText = '';
-                    displayStyle = {
-                      width: '24px', height: '24px', borderRadius: '50%',
-                      background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`
-                    };
-                  }
-                }
 
-                return (
-                  <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3 }}>
-                    {isInScale && (
-                      <div style={{
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '11px', border: 'none', zIndex: 4,
-                        boxShadow: (isRoot && displayMode !== 'caged') ? '0 2px 4px rgba(0,0,0,0.5)' : 'none',
-                        transition: 'all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                        ...displayStyle
-                      }}>
-                        {labelText}
+                    return (
+                      <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3 }}>
+                        {isInScale && (
+                          <div style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '11px', border: 'none', zIndex: 4,
+                            boxShadow: (isRoot && displayMode !== 'caged') ? '0 2px 4px rgba(0,0,0,0.5)' : 'none',
+                            transition: 'all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                            ...displayStyle
+                          }}>
+                            {labelText}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', paddingLeft: '40px', marginTop: '8px' }}>
-        {frets.map(f => <div key={`bottom-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', paddingLeft: '40px', marginTop: '8px' }}>
+            {frets.map(f => <div key={`bottom-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
+          </div>
+
+        </div>
       </div>
     </div>
   );

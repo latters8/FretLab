@@ -1,0 +1,17 @@
+{
+  "Blues": {
+    "instruments": {
+      "bass": {
+        "pattern_file": "assets/midi/blues/bass_shuffle_1bar.mid",
+        "original_key": "C"
+      },
+      "drums": {
+        "pattern_file": "assets/midi/blues/drums_shuffle_1bar.mid"
+      },
+      "rhythm_guitar": {
+        "pattern_file": "assets/midi/blues/guitar_comp_1bar.mid",
+        "original_key": "C"
+      }
+    }
+  }
+}
