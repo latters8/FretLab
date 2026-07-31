@@ -18,6 +18,8 @@ project-tree*.txt
 tree.txt
 tree*.txt
 *.txt
+ollama-mcp/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
