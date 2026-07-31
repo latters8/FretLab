@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
 import GuitarTuner from './GuitarTuner';
 import RecordingAnalyzer from './RecordingAnalyzer';
-import GuitarProcessor from './GuitarProcessor';
+import GuitarRig from './GuitarRig';
 import { Button } from '../ui/Button';
 // import { IconButton } from '../ui/IconButton';
 import * as Tone from 'tone';
@@ -169,7 +169,7 @@ const ToolBox: React.FC = () => {
         </div>
       </div>
 
-<GuitarProcessor />
+<GuitarRig />
       <GuitarTuner />
       <RecordingAnalyzer />
 

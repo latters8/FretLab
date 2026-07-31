@@ -616,20 +616,58 @@ export const generateExtendedSolo = (
     
     if (phraseBars <= 0) break;
 
-    // Применяем варьирование мотива
+// Применяем варьирование мотива — прогрессивно от предыдущей фразы
     let phraseMotif = motif;
     if (phraseIdx > 0 && config.useMotifDevelopment) {
-      phraseMotif = varyMotif(motif, phraseIdx, config.variation);
+      // Используем предыдущий phraseMotif (prevMotif), а не оригинальный motif
+      // Это даёт прогрессивное развитие: каждая фраза развивает предыдущую
+      const prevMotif = allNotes.length > 0 
+        ? (() => {
+            // Берём последние notesInBar нот предыдущей фразы как "предыдущий мотив"
+            const prevBarStart = (phraseIdx - 1) * 4;
+            const prevBarEnd = phraseIdx * 4;
+            const prevNotes = allNotes.filter(n => 
+              n.beatStart >= prevBarStart * beatsPerBar && 
+              n.beatStart < prevBarEnd * beatsPerBar
+            );
+            if (prevNotes.length >= 4) {
+              return prevNotes.map(n => ({
+                string: n.string,
+                fret: n.fret,
+                duration: n.duration,
+                technique: n.technique || 'none' as Technique,
+                velocity: n.velocity,
+                accent: n.accent,
+                isRest: n.isRest
+              } as LickNote));
+            }
+            return motif;
+          })()
+        : motif;
+      phraseMotif = varyMotif(prevMotif, phraseIdx, config.variation);
     }
 
-    // Call-Response
+    // Call-Response — базируемся на ТЕКУЩЕМ phraseMotif (после motif dev)
     if (config.useCallResponse && phraseIdx % 2 === 1) {
-      // Response — играем обратный мотив с разрешением
-      phraseMotif = [...motif].reverse().map(n => ({
-        ...n,
-        velocity: Math.min(1, (n.velocity || 0.7) * 0.85),
-        technique: 'none' as Technique
-      }));
+      // Response: реверсируем развитый мотив и разрешаем в тонику аккорда
+      const currentChord = chords[phraseBarStart] || chords[0];
+      const resolveNote = currentChord?.notes[0] || keyNote || 'E';
+      const resolveFret = findFretForNote(resolveNote, 2, 0, 21);
+      
+      phraseMotif = [...phraseMotif].reverse().map((n, i) => {
+        // Последняя нота ответа — разрешение в тонику
+        const isLast = i === phraseMotif.length - 1;
+        return {
+          ...n,
+          fret: isLast ? resolveFret : n.fret,
+          string: isLast ? 2 : n.string,
+          velocity: isLast 
+            ? Math.min(1, (n.velocity || 0.7) * 1.1) // тоника чуть громче
+            : Math.min(1, (n.velocity || 0.7) * 0.85),
+          technique: isLast ? 'vibrato' as Technique : ('none' as Technique),
+          duration: isLast ? '2n' : n.duration
+        };
+      });
     }
 
     // Стилевые модификации
@@ -725,39 +763,69 @@ function generateMotif(
   return notes;
 }
 
-/** Варьирует мотив для каждой следующей фразы */
-function varyMotif(motif: LickNote[], phraseIndex: number, variation: number): LickNote[] {
-  return motif.map((note, i) => {
-    if (Math.random() < variation) {
-      const fretShift = Math.floor(Math.random() * 5) - 2; // -2 to +2
-      const stringShift = Math.random() > 0.7 ? (Math.random() > 0.5 ? 1 : -1) : 0;
-      return {
-        ...note,
-        fret: Math.max(0, Math.min(21, (note.fret || 0) + fretShift)),
-        string: Math.max(0, Math.min(5, (note.string || 2) + stringShift)),
-        velocity: (note.velocity || 0.7) * (0.8 + Math.random() * 0.4),
-        technique: note.technique
-      };
+/** Варьирует мотив для каждой следующей фразы — прогрессивное развитие */
+function varyMotif(prevMotif: LickNote[], phraseIndex: number, variation: number): LickNote[] {
+  // variation растёт с каждой фразой, чтобы музыка развивалась
+  const progressiveVar = Math.min(1, variation * (1 + phraseIndex * 0.2));
+  const durationPool = ['16n', '8n', '8n.', '4n'];
+
+  return prevMotif.map((note, i) => {
+    let modNote = { ...note };
+
+    // Увеличиваем вероятность изменений с прогрессией
+    if (Math.random() < progressiveVar) {
+      // Более агрессивные сдвиги ладов: -4/+4
+      const fretShift = Math.floor(Math.random() * 9) - 4;
+      modNote.fret = Math.max(0, Math.min(21, (note.fret || 0) + fretShift));
+
+      // Смена струны
+      if (Math.random() > 0.6) {
+        const stringShift = Math.random() > 0.5 ? 1 : -1;
+        modNote.string = Math.max(0, Math.min(5, (note.string || 2) + stringShift));
+      }
+
+      // Ритмические вариации — смена длительности
+      if (Math.random() > 0.5) {
+        const newDur = durationPool[Math.floor(Math.random() * durationPool.length)];
+        modNote.duration = newDur;
+      }
+
+      // Динамические изменения
+      modNote.velocity = (note.velocity || 0.7) * (0.6 + Math.random() * 0.8);
+      modNote.accent = Math.random() > 0.7 ? !note.accent : note.accent;
+
+      // Технические вариации
+      if (Math.random() > 0.6) {
+        const techPool: Technique[] = ['hammer', 'pull', 'slide', 'bend', 'vibrato', 'none'];
+        modNote.technique = techPool[Math.floor(Math.random() * techPool.length)];
+      }
     }
-    return note;
+
+    return modNote;
   });
 }
 
-/** Применяет стилевые модификации к фразе */
+/** Применяет стилевые модификации к фразе — с учётом номера фразы */
 function applyStyleToPhrase(phrase: LickNote[], style: SoloStyle, phraseIdx: number): LickNote[] {
   return phrase.map((note, i) => {
     let modNote = { ...note };
     
     switch (style) {
       case 'blues':
-        // Чаще бенды и вибрато
-        if (i % 3 === 0) modNote.technique = 'bend';
-        if (i % 4 === 0) modNote.velocity = Math.min(1, (note.velocity || 0.7) + 0.2);
+        // Разные бенды в зависимости от позиции фразы
+        if (phraseIdx % 2 === 0) {
+          if (i % 3 === 0) modNote.technique = 'bend';
+          if (i % 4 === 0) modNote.velocity = Math.min(1, (note.velocity || 0.7) + 0.2);
+        } else {
+          if (i % 2 === 0) modNote.technique = 'slide';
+          if (i % 5 === 0) modNote.technique = 'vibrato';
+        }
         break;
       case 'jazz':
-        // Разреженные ноты, swing feel
+        // С ростом phraseIdx увеличиваем сложность
+        if (phraseIdx > 1 && i % 3 === 0) modNote.technique = 'bend';
         if (i % 2 === 0) modNote.technique = 'slide';
-        modNote.velocity = (note.velocity || 0.7) * 0.85;
+        modNote.velocity = (note.velocity || 0.7) * (0.85 - phraseIdx * 0.02);
         break;
       case 'metal':
         // Агрессивные акценты, palm mute (ghost)
