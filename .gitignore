@@ -17,7 +17,7 @@ project-tree.txt
 project-tree*.txt
 tree.txt
 tree*.txt
-
+*.txt
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

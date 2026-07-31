@@ -1,20 +1,25 @@
 /**
  * 🎛️ Effects Index
  * Re-exports all effect classes with AudioManager-compatible names
+ *
+ * HQ-эффекты (CompressorHQ, DelayHQ, ReverbHQ, LimiterHQ, CabinetIR)
+ * реэкспортируются из src/audio/effects/ — единственный источник истины
+ * для AudioWorklet процессоров.
  */
 
-// Re-export simple effects (names match AudioManager imports)
+// Re-export unique (non-duplicated) effects
 export { DistortionEffect } from './Distortion';
 export { ChorusEffect } from './Chorus';
 export { NoiseGateEffect } from './NoiseGate';
 export { WahWahEffect } from './WahWah';
 
-// Re-export HQ effects with AudioManager-compatible aliases
-import { DelayHQ } from './DelayHQ';
-import { ReverbHQ } from './ReverbHQ';
-import { CompressorHQ, LimiterHQ } from './CompressorHQ';
+// Re-export HQ effects from the single source (src/audio/effects/)
+import { DelayHQ } from '../../audio/effects/DelayHQ';
+import { ReverbHQ } from '../../audio/effects/ReverbHQ';
+import { CompressorHQ, LimiterHQ } from '../../audio/effects/CompressorHQ';
+import { CabinetIR } from '../../audio/effects/CabinetIR';
 
-export { DelayHQ, ReverbHQ, CompressorHQ, LimiterHQ };
+export { DelayHQ, ReverbHQ, CompressorHQ, LimiterHQ, CabinetIR };
 
 // Aliases for AudioManager compatibility
 export { DelayHQ as DelayEffect };
