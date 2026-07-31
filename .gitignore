@@ -1,0 +1,67 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Generated Project Tree & Dumps
+project-tree.txt
+project-tree*.txt
+tree.txt
+tree*.txt
+*.txt
+ollama-mcp/
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.blackbox
+.blackbox/
+.blackbox*
+*.blackbox
+# Секретные ключи окружения
+.env
+.env.local
+.env.*.local
+.env.txt
+
+# Windows artifact
+nul
+
+# Project rules & AI Agents
+.blackboxrules
+.cursorrules
+.clinerules
+.windsurfrules
+
+# TODOs
+TODO.md
+TODO.txt
+TODO/
+todo.md
+*.todo
+
+# Local Configs
+config.yaml
+config.local.yaml
+config.local.json
+
+
+# FretLab Generated Output & Temp Files
+output/
+*.rpp
