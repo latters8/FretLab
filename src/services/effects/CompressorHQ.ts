@@ -16,7 +16,8 @@
  * • GR metering через port message
  */
 
-import { COMPRESSOR_HQ_PROCESSOR_CODE, CompressorWorkletParams } from './CompressorWorklet';
+import { COMPRESSOR_HQ_PROCESSOR_CODE } from '../../audio/effects/CompressorWorklet';
+import type { CompressorWorkletParams } from '../../audio/effects/CompressorWorklet';
 
 export type CompressorType =
   | 'optical'
@@ -118,7 +119,7 @@ export class CompressorHQ {
       'makeupGain', 'mix', 'detectorType', 'topology',
       'saturation', 'scHpf', 'lookahead', 'active',
     ].forEach((name) => {
-      const param = p.get(name);
+      const param = (p as any).get(name);
       if (param) this.params.set(name, param);
     });
 

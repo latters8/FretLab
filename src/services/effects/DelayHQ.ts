@@ -15,7 +15,8 @@
  * • Плавная смена времени (интерполированный кольцевой буфер)
  */
 
-import { DELAY_HQ_PROCESSOR_CODE, DelayWorkletParams } from './DelayWorklet';
+import { DELAY_HQ_PROCESSOR_CODE } from '../../audio/effects/DelayWorklet';
+import type { DelayWorkletParams } from '../../audio/effects/DelayWorklet';
 
 export type DelayHQType =
   | 'digital'
@@ -133,7 +134,7 @@ export class DelayHQ {
       'duckingRelease', 'reverse', 'pingpong', 'numTaps',
       'tapSpacing', 'stereoWidth', 'active',
     ].forEach((name) => {
-      const param = p.get(name);
+      const param = (p as any).get(name);
       if (param) this.params.set(name, param);
     });
 

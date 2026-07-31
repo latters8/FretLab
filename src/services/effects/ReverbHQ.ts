@@ -14,7 +14,8 @@
  * • RT60-based decay (корректная формула затухания)
  */
 
-import { REVERB_HQ_PROCESSOR_CODE, ReverbWorkletParams } from './ReverbWorklet';
+import { REVERB_HQ_PROCESSOR_CODE } from '../../audio/effects/ReverbWorklet';
+import type { ReverbWorkletParams } from '../../audio/effects/ReverbWorklet';
 
 export type ReverbHQType =
   | 'room'
@@ -108,7 +109,7 @@ export class ReverbHQ {
       'modDepth', 'modRate', 'earlyLevel', 'earlySize',
       'shimmerAmount', 'shimmerPitch', 'stereoWidth', 'density', 'active',
     ].forEach((name) => {
-      const param = p.get(name);
+      const param = (p as any).get(name);
       if (param) this.params.set(name, param);
     });
 

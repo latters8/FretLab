@@ -324,3 +324,4 @@ class DelayHQProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('delay-hq-processor', DelayHQProcessor);
+`;

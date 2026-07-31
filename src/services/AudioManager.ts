@@ -592,7 +592,14 @@ public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
       this.effectsChain.noiseGate.setParams(chain.noiseGate);
     }
     if (this.effectsChain.compressor && chain.compressor) {
-      this.effectsChain.compressor.setParams(chain.compressor);
+      const c = chain.compressor;
+      this.effectsChain.compressor.setThreshold(c.threshold ?? -24);
+      this.effectsChain.compressor.setRatio(c.ratio ?? 4);
+      this.effectsChain.compressor.setAttack(c.attack ?? 3);
+      this.effectsChain.compressor.setRelease(c.release ?? 150);
+      this.effectsChain.compressor.setKnee(c.knee ?? 10);
+      this.effectsChain.compressor.setMakeupGain(c.makeupGain ?? 6);
+      this.effectsChain.compressor.setMix(c.mix ?? 1);
     }
     if (this.effectsChain.distortion && chain.distortion) {
       this.effectsChain.distortion.setParams(chain.distortion);
@@ -601,17 +608,25 @@ public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
       this.effectsChain.chorus.setParams(chain.chorus);
     }
     if (this.effectsChain.delay && chain.delay) {
-      this.effectsChain.delay.setParams(chain.delay);
+      const d = chain.delay;
+      if (d.delayTime !== undefined) this.effectsChain.delay.setDelayTime(d.delayTime);
+      if (d.feedback !== undefined) this.effectsChain.delay.setFeedback(d.feedback);
+      if (d.mix !== undefined) this.effectsChain.delay.setMix(d.mix);
     }
     if (this.effectsChain.reverb && chain.reverb) {
-      this.effectsChain.reverb.setParams(chain.reverb);
+      const r = chain.reverb;
+      if (r.decay !== undefined) this.effectsChain.reverb.setDecay(r.decay);
+      if (r.preDelay !== undefined) this.effectsChain.reverb.setPreDelay(r.preDelay);
+      if (r.damping !== undefined) this.effectsChain.reverb.setDamping(r.damping);
+      if (r.mix !== undefined) this.effectsChain.reverb.setMix(r.mix);
+      if (r.roomSize !== undefined) this.effectsChain.reverb.setRoomSize(r.roomSize);
     }
     if (this.effectsChain.wah && chain.wah) {
       this.effectsChain.wah.setParams(chain.wah);
     }
-    if (this.effectsChain.limiter && chain.wah) {
-      // Limiter использует compressor params
-      this.effectsChain.limiter.setParams(chain.compressor);
+    if (this.effectsChain.limiter && chain.limiter) {
+      const l = chain.limiter;
+      if (l.threshold !== undefined) this.effectsChain.limiter.setThreshold(l.threshold);
     }
 
     console.log(`🎛️ Applied preset: ${preset.name} (${preset.description})`);

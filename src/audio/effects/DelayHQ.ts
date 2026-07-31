@@ -134,7 +134,7 @@ export class DelayHQ {
       'duckingRelease', 'reverse', 'pingpong', 'numTaps',
       'tapSpacing', 'stereoWidth', 'active',
     ].forEach((name) => {
-      const param = p.get(name);
+      const param = (p as any).get(name);
       if (param) this.params.set(name, param);
     });
 
