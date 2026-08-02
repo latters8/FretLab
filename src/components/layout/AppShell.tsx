@@ -14,6 +14,7 @@ import ToolBox from '../tools/ToolBox';
 import PracticeDashboard from '../PracticeDashboard';
 import GameRoom from '../GameRoom/GameRoom';
 import SEOHead from '../SEOHead';
+import { RigPanel } from '../FretLabRig/RigPanel';
 import { useMusic } from '../../context/MusicContext';
 import { IconButton } from '../ui/IconButton';
 
@@ -231,6 +232,11 @@ const seoByModule: Record<ModuleType, { title: string; description: string; keyw
         ogDescription={currentSeo.description}
       />
       <Header onAIAction={handleAIAction} />
+
+      {/* 🎸 Унифицированный гитарный процессор — на всех страницах */}
+      <div className="rig-panel-slot">
+        <RigPanel />
+      </div>
 
       <div className="app-main">
         <div className="app-layout">
