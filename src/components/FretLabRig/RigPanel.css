@@ -182,6 +182,7 @@
 .rig-pedal.on.cab .rig-led { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
 .rig-pedal.on.delay .rig-led { background: #f472b6; box-shadow: 0 0 8px #f472b6; }
 .rig-pedal.on.reverb .rig-led { background: #818cf8; box-shadow: 0 0 8px #818cf8; }
+.rig-pedal.on.mod .rig-led { background: #22d3ee; box-shadow: 0 0 8px #22d3ee; }
 .rig-pedal.on.master .rig-led { background: #f87171; box-shadow: 0 0 8px #f87171; }
 
 .rig-pedal h3 {
@@ -196,6 +197,14 @@
 
 .rig-pedal.on h3 {
   color: #ccc;
+}
+
+/* --- KNOBS 2×2 GRID --- */
+.rig-knobs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 6px;
+  width: 100%;
 }
 
 /* --- KNOB --- */
@@ -224,6 +233,32 @@
   font-size: 10px;
   color: #ddd;
   font-family: monospace;
+}
+
+/* --- MODULATION SELECT --- */
+.rig-mod-select {
+  width: 100%;
+  background: #111;
+  color: #22d3ee;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 4px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.rig-pedal.on.mod .rig-mod-select {
+  border-color: #22d3ee;
+}
+
+.rig-mod-select:hover {
+  border-color: #22d3ee;
 }
 
 /* --- IR FILE --- */

@@ -2,10 +2,12 @@
  * 🎛️ RigPanel — унифицированный гитарный процессор для всех страниц
  *
  * React-порт предоставленной "FretLab Worklet Rig" педалборды:
- * - SVG-ручки (драг вертикально)
- * - Педали: Noise Gate, Tube Drive, Amp EQ, Cabinet IR, Delay, Reverb, Master
+ * - SVG-ручки (драг вертикально), единый стиль 2×2 (по 4 ручки на педаль)
+ * - Педали: Noise Gate, Tube Drive, Amp EQ, Cabinet IR, Modulation,
+ *   Delay, Reverb, Master
+ * - Modulation: Chorus / Flanger / Phaser / Tremolo / Vibrato
  * - FFT-визуализация
- * - Загрузка IR (.wav / .aif / .aiff)
+ * - Загрузка IR (.wav / .aif / .aiff) + автозагрузка IR по умолчанию
  * - START / STOP
  *
  * Использует синглтон `fretLabRig` (src/services/FretLabRig.ts).
@@ -28,11 +30,18 @@ interface KnobConfig {
   size?: number;
 }
 
+interface SelectConfig {
+  param: string;
+  options: string[];
+  def: number;
+}
+
 interface PedalConfig {
   id: string;
   title: string;
   className: string;
   knobs: KnobConfig[];
+  select?: SelectConfig;
   ir?: boolean;
 }
 
@@ -44,6 +53,8 @@ const PEDALS: PedalConfig[] = [
     knobs: [
       { label: 'Thresh', param: 'gateThreshold', min: -80, max: -20, step: 1, def: -50 },
       { label: 'Attack', param: 'gateAttack', min: 0.5, max: 20, step: 0.5, def: 2 },
+      { label: 'Release', param: 'gateRelease', min: 5, max: 200, step: 5, def: 40 },
+      { label: 'Depth', param: 'gateDepth', min: 0, max: 100, step: 1, def: 100 },
     ],
   },
   {
@@ -53,6 +64,8 @@ const PEDALS: PedalConfig[] = [
     knobs: [
       { label: 'Drive', param: 'drive', min: 0, max: 100, step: 1, def: 20 },
       { label: 'Tube', param: 'tubeAmount', min: 0, max: 100, step: 1, def: 30 },
+      { label: 'Tone', param: 'driveTone', min: 0, max: 100, step: 1, def: 100 },
+      { label: 'Level', param: 'driveLevel', min: 0, max: 100, step: 1, def: 100 },
     ],
   },
   {
@@ -63,6 +76,7 @@ const PEDALS: PedalConfig[] = [
       { label: 'Bass', param: 'bass', min: -12, max: 12, step: 0.5, def: 0 },
       { label: 'Mid', param: 'mid', min: -12, max: 12, step: 0.5, def: 0 },
       { label: 'Treble', param: 'treble', min: -12, max: 12, step: 0.5, def: 0 },
+      { label: 'Presence', param: 'presence', min: -12, max: 12, step: 0.5, def: 0 },
     ],
   },
   {
@@ -70,7 +84,28 @@ const PEDALS: PedalConfig[] = [
     title: 'Cabinet IR',
     className: 'cab',
     ir: true,
-    knobs: [],
+    knobs: [
+      { label: 'Level', param: 'cabLevel', min: 0, max: 100, step: 1, def: 100 },
+      { label: 'Mix', param: 'cabMix', min: 0, max: 100, step: 1, def: 100 },
+      { label: 'Tone', param: 'cabTone', min: 0, max: 100, step: 1, def: 100 },
+      { label: 'Air', param: 'cabAir', min: 0, max: 100, step: 1, def: 0 },
+    ],
+  },
+  {
+    id: 'mod',
+    title: 'Modulation',
+    className: 'mod',
+    select: {
+      param: 'modType',
+      options: ['Chorus', 'Flanger', 'Phaser', 'Tremolo', 'Vibrato'],
+      def: 0,
+    },
+    knobs: [
+      { label: 'Rate', param: 'modRate', min: 0, max: 100, step: 1, def: 20 },
+      { label: 'Depth', param: 'modDepth', min: 0, max: 100, step: 1, def: 30 },
+      { label: 'Fdbk', param: 'modFeedback', min: 0, max: 90, step: 1, def: 20 },
+      { label: 'Mix', param: 'modMix', min: 0, max: 100, step: 1, def: 50 },
+    ],
   },
   {
     id: 'delay',
@@ -80,6 +115,7 @@ const PEDALS: PedalConfig[] = [
       { label: 'Time', param: 'delayTime', min: 0, max: 100, step: 1, def: 30 },
       { label: 'Fdbk', param: 'delayFeedback', min: 0, max: 90, step: 1, def: 30 },
       { label: 'Mix', param: 'delayMix', min: 0, max: 100, step: 1, def: 20 },
+      { label: 'Tone', param: 'delayTone', min: 0, max: 100, step: 1, def: 100 },
     ],
   },
   {
@@ -89,6 +125,8 @@ const PEDALS: PedalConfig[] = [
     knobs: [
       { label: 'Decay', param: 'reverbDecay', min: 0, max: 100, step: 1, def: 20 },
       { label: 'Mix', param: 'reverbMix', min: 0, max: 100, step: 1, def: 15 },
+      { label: 'PreDly', param: 'reverbPreDelay', min: 0, max: 100, step: 1, def: 0 },
+      { label: 'Damp', param: 'reverbDamping', min: 0, max: 100, step: 1, def: 0 },
     ],
   },
   {
@@ -97,6 +135,9 @@ const PEDALS: PedalConfig[] = [
     className: 'master',
     knobs: [
       { label: 'Volume', param: 'masterGain', min: 0, max: 200, step: 1, def: 100, size: 60 },
+      { label: 'Tone', param: 'masterTone', min: 0, max: 100, step: 1, def: 50 },
+      { label: 'Drive', param: 'masterDrive', min: 0, max: 100, step: 1, def: 0 },
+      { label: 'Limit', param: 'masterLimit', min: 0, max: 100, step: 1, def: 0 },
     ],
   },
 ];
@@ -220,11 +261,12 @@ export const RigPanel: React.FC = () => {
     drive: true,
     eq: true,
     cab: true,
+    mod: false,
     delay: true,
     reverb: true,
     master: true,
   });
-  const [irName, setIrName] = useState('Default');
+  const [irName, setIrName] = useState('IR-meza.wav');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -281,6 +323,13 @@ export const RigPanel: React.FC = () => {
       fretLabRig.togglePedal(id, next[id]);
       return next;
     });
+  };
+
+  // ─── МОДУЛЯЦИЯ: выбор типа ───
+  const handleModTypeChange = (pedal: PedalConfig, value: number) => {
+    if (pedal.select) {
+      fretLabRig.setParam(pedal.select.param as any, value);
+    }
   };
 
   // ─── IR LOADER ───
@@ -354,7 +403,21 @@ export const RigPanel: React.FC = () => {
                 <div className="rig-led" />
                 <h3>{pedal.title}</h3>
 
-                {pedal.ir ? (
+                {pedal.select && (
+                  <select
+                    className="rig-mod-select"
+                    defaultValue={pedal.select.def}
+                    onChange={(e) => handleModTypeChange(pedal, Number(e.target.value))}
+                  >
+                    {pedal.select.options.map((opt, i) => (
+                      <option key={opt} value={i}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                )}
+
+                {pedal.ir && (
                   <>
                     <label className="rig-ir-file">
                       <input
@@ -367,10 +430,14 @@ export const RigPanel: React.FC = () => {
                     </label>
                     <div className="rig-ir-name">{irName}</div>
                   </>
-                ) : (
-                  pedal.knobs.map((knob) => (
-                    <KnobControl key={knob.param} config={knob} />
-                  ))
+                )}
+
+                {pedal.knobs.length > 0 && (
+                  <div className="rig-knobs">
+                    {pedal.knobs.map((knob) => (
+                      <KnobControl key={knob.param} config={knob} />
+                    ))}
+                  </div>
                 )}
 
                 <button className="rig-bypass" onClick={() => togglePedal(pedal.id)}>
