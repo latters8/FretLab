@@ -475,6 +475,25 @@ const SoloGenerator: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // ⚠️ FIX: без этого эффекта Tone.Transport и rAF-цикл drawPlayhead переживают
+  // размонтирование компонента при переключении вкладки, если плейбек не был
+  // остановлен вручную. Это создаёт "зомби"-процесс, который держит в замыкании
+  // весь soloData и detached DOM-ноду tabContainerRef, и продолжает планировать
+  // ноты в Tone.Transport бесконечно (особенно при isLoopOn).
+  useEffect(() => {
+    return () => {
+      if (sequencePartRef.current) {
+        sequencePartRef.current.stop();
+        sequencePartRef.current.dispose();
+        sequencePartRef.current = null;
+      }
+      Tone.Transport.stop();
+      Tone.Transport.cancel(0);
+      audioManager.stopAll();
+      cancelAnimationFrame(playheadAnimRef.current);
+    };
+  }, []);
+
   const stopPlayback = () => {
     if (sequencePartRef.current) {
       sequencePartRef.current.stop();

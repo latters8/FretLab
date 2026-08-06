@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
+import { playNote } from '../../utils/audioEngine';
+import { Button } from '../ui/Button';
 
-const TUNINGS = {
+const TUNINGS: Record<string, string[]> = {
   'Standard E': ['E', 'A', 'D', 'G', 'B', 'E'],
   'Drop D': ['D', 'A', 'D', 'G', 'B', 'E'],
   'Drop C': ['C', 'G', 'C', 'F', 'A', 'D'],
@@ -10,28 +12,40 @@ const TUNINGS = {
 };
 
 const MATERIALS = {
-  ebony: { bg: '#1a1a1a', dot: '#e0e0e0', fretDark: '#111215', fretLight: '#c0c0c0', fretWidth: '1px' },
-  rosewood: { bg: '#3e2723', dot: '#d7ccc8', fretDark: '#211512', fretLight: '#d7ccc8', fretWidth: '1px' },
-  maple: { bg: '#f1ba54', dot: '#3e2723', fretDark: '#5c4314', fretLight: '#fafafa', fretWidth: '1px' },
-  glass: { bg: 'rgba(255,255,255,0.04)', dot: '#d7ccc8', fretDark: 'rgba(255,255,255,0.15)', fretLight: 'var(--accent)', fretWidth: '1px' }
+  ebony: { bg: '#1a1a1a', dot: '#e0e0e0', fretDark: '#111215', fretLight: '#c0c0c0' },
+  rosewood: { bg: '#3e2723', dot: '#d7ccc8', fretDark: '#211512', fretLight: '#d7ccc8' },
+  maple: { bg: '#f1ba54', dot: '#3e2723', fretDark: '#5c4314', fretLight: '#fafafa' },
+  glass: { bg: 'rgba(255,255,255,0.04)', dot: '#d7ccc8', fretDark: 'rgba(255,255,255,0.15)', fretLight: 'var(--accent)' },
 };
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
 const STRING_GAUGES = [1.2, 1.8, 2.4, 3.2, 4.2, 5.4];
-
 const INTERVAL_MAP = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
+const MODE_LABELS: Record<string, string> = {
+  major: 'Major', minor: 'Minor', dorian: 'Dorian', phrygian: 'Phrygian',
+  lydian: 'Lydian', mixolydian: 'Mixolydian', aeolian: 'Aeolian', locrian: 'Locrian',
+  harmonic_minor: 'Harm. Minor', melodic_minor: 'Mel. Minor', pentatonic: 'Pentatonic', blues: 'Blues',
+  maj7_arp: 'Maj7 Arp.', min7_arp: 'Min7 Arp.', dom7_arp: 'Dom7 Arp.', dom9_arp: 'Dom9 Arp.', altered: 'Altered',
+};
 
 type DisplayMode = 'notes' | 'intervals' | 'caged' | 'clean';
+
+const DISPLAY_MODES: { value: DisplayMode; label: string }[] = [
+  { value: 'notes', label: '🎵 Notes' },
+  { value: 'intervals', label: '🔢 Intervals' },
+  { value: 'caged', label: '🦴 CAGED' },
+  { value: 'clean', label: '⏺ Clean' },
+];
 
 const Fretboard: React.FC = () => {
   const { keyNote, mode, getScaleNotes, setKeyNote, setMode } = useMusic();
   const scaleNotes = getScaleNotes();
-  const [tuningName, setTuningName] = useState<keyof typeof TUNINGS>('Standard E');
+  const [tuningName, setTuningName] = useState<string>('Standard E');
   const [material, setMaterial] = useState<keyof typeof MATERIALS>('glass');
   const [fretColor, setFretColor] = useState<'dark' | 'light'>('dark');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('notes');
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  const [hoveredNote, setHoveredNote] = useState<string | null>(null);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
@@ -39,187 +53,302 @@ const Fretboard: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const strings = TUNINGS[tuningName].slice().reverse(); 
+  const strings = TUNINGS[tuningName].slice().reverse();
   const frets = Array.from({ length: 25 }, (_, i) => i);
   const dots = [3, 5, 7, 9, 15, 17, 19, 21];
   const doubleDots = [12, 24];
-
-  const getNoteAtFret = (openNote: string, fret: number) => ALL_NOTES[(ALL_NOTES.indexOf(openNote) + fret) % 12];
   const currentMat = MATERIALS[material];
   const currentFretColor = fretColor === 'dark' ? currentMat.fretDark : currentMat.fretLight;
-  
-  const isCyberpunk = material === 'glass' && fretColor === 'light';
+const isCyberpunk = material === 'glass' && fretColor === 'light';
+
+const getNoteAtFret = (openNote: string, fret: number) =>
+    ALL_NOTES[(ALL_NOTES.indexOf(openNote) + fret) % 12];
+
+  const handleNoteClick = (note: string) => {
+    playNote(note, 0.8, 0.35);
+  };
+
+  const getFretLabel = (note: string, noteIdx: number): string => {
+    if (displayMode === 'notes') return note;
+    if (displayMode === 'intervals') {
+      const diff = (ALL_NOTES.indexOf(note) - ALL_NOTES.indexOf(keyNote) + 12) % 12;
+      return INTERVAL_MAP[diff];
+    }
+    if (displayMode === 'caged') return note;
+    return '';
+  };
+
+  const getFretStyle = (note: string, noteIdx: number): React.CSSProperties => {
+    const isRoot = note === keyNote;
+    const noteAlpha = material === 'maple' ? '1' : '0.75';
+    const base = { width: '24px', height: '24px', fontSize: '11px', fontWeight: '900' };
+
+    if (displayMode === 'notes' || displayMode === 'intervals') {
+      return {
+        ...base,
+        borderRadius: '50%',
+        background: isRoot ? 'var(--accent)' : `rgba(255,255,255,${noteAlpha})`,
+        color: isRoot ? '#000' : '#111216',
+        boxShadow: isRoot ? '0 0 8px var(--color-accent-glow), 0 2px 4px rgba(0,0,0,0.5)' : '0 2px 4px rgba(0,0,0,0.4)',
+      };
+    }
+    if (displayMode === 'caged') {
+      const isMaple = material === 'maple';
+      if (isRoot) {
+        return {
+          ...base,
+          borderRadius: '4px',
+          background: 'var(--accent)',
+          color: '#000',
+          boxShadow: '0 0 8px var(--color-accent-glow)',
+        };
+      }
+      return {
+        ...base,
+        borderRadius: '4px',
+        background: isMaple ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.14)',
+        border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.4)'}`,
+        color: isMaple ? '#5c4314' : 'var(--text-primary)',
+      };
+    }
+    // clean
+    return {
+      ...base,
+      borderRadius: '50%',
+      background: isRoot ? 'var(--accent)' : `rgba(255,255,255,${noteAlpha})`,
+      boxShadow: isRoot ? '0 0 8px var(--color-accent-glow)' : 'none',
+    };
+  };
 
   return (
-    // 🔥 ИЗМЕНЕНО: minWidth убран отсюда — этот контейнер больше не скроллится
-    // целиком, поэтому панель селекторов внутри него теперь всегда на 100%
-    // ширины экрана и никогда не "уезжает" за левый край при горизонтальном
-    // скролле грифа.
-    <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: isMobile ? '12px' : '24px', border: '1px solid var(--border-color)' }}>
+    <div style={{
+      background: 'var(--bg-panel)',
+      borderRadius: 'var(--radius)',
+padding: isMobile ? '12px' : '16px',
+      border: '1px solid var(--border-color)',
+    }}>
 
-      {/* ПАНЕЛЬ СЕЛЕКТОРОВ — вне зоны горизонтального скролла, видна всегда целиком */}
-      <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', marginBottom: isMobile ? '12px' : '24px', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? '8px' : '0' }}>
-        
-        {/* ЛЕВАЯ ПАНЕЛЬ СЕЛЕКТОРОВ */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-           {!isMobile && <div style={{ color: 'var(--accent)', fontWeight: 800, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', marginRight: '8px' }}>Fretboard Engine</div>}
-           
-           <select value={keyNote} onChange={(e) => setKeyNote(e.target.value)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px' }}>
+{/* ── Header: title ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginBottom: '16px',
+        flexWrap: 'wrap',
+        gap: '8px',
+      }}>
+        <span className="fl-section-label" style={{ color: 'var(--accent)', fontSize: '13px', letterSpacing: '1px' }}>
+          Fretboard Engine
+        </span>
+      </div>
+
+      {/* ── Controls row (single row on desktop) ── */}
+      <div className="fl-section-panel" style={{ marginBottom: '16px', justifyContent: 'space-between' }}>
+        {/* Left: key + mode + display mode toggle */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            value={keyNote}
+            onChange={(e) => setKeyNote(e.target.value)}
+            className="fl-select"
+            aria-label="Клавиша"
+          >
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
-          
-          <select value={mode} onChange={(e) => setMode(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px', maxWidth: isMobile ? '120px' : 'none' }}>
-            <optgroup label="Standard Scales">
-              {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => <option key={m} value={m}>{m.replace('_', ' ')}</option>)}
+
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as any)}
+            className="fl-select"
+            style={{ maxWidth: isMobile ? '120px' : '160px' }}
+            aria-label="Режим"
+          >
+            <optgroup label="Гаммы">
+              {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
+                <option key={m} value={m}>{MODE_LABELS[m]}</option>
+              ))}
             </optgroup>
-            <optgroup label="Arpeggios (Play Over)">
-              <option value="maj7_arp">Maj7 Arpeggio</option>
-              <option value="min7_arp">Min7 Arpeggio</option>
-              <option value="dom7_arp">Dom7 Arpeggio</option>
-              <option value="dom9_arp">Dom9 Arpeggio</option>
-              <option value="altered">Altered Scale (alt)</option>
+            <optgroup label="Арпеджио">
+              <option value="maj7_arp">Maj7 Arp.</option>
+              <option value="min7_arp">Min7 Arp.</option>
+              <option value="dom7_arp">Dom7 Arp.</option>
+              <option value="dom9_arp">Dom9 Arp.</option>
+              <option value="altered">Altered</option>
             </optgroup>
           </select>
 
-          <select 
-            value={displayMode} 
-            onChange={(e) => setDisplayMode(e.target.value as DisplayMode)} 
-            style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', outline: 'none', cursor: 'pointer', fontSize: isMobile ? '11px' : '13px' }}
-          >
-            <option value="notes">🎵 Notes</option>
-            <option value="intervals">🔢 Intervals</option>
-            <option value="caged">🦴 CAGED Skeleton</option>
-            <option value="clean">⏺ Clean Dots</option>
-          </select>
+          {/* Display mode toggle */}
+          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+            {DISPLAY_MODES.map(dm => (
+              <Button
+                key={dm.value}
+                variant={displayMode === dm.value ? 'secondary' : 'ghost'}
+                active={displayMode === dm.value}
+                size="sm"
+                onClick={() => setDisplayMode(dm.value)}
+                aria-pressed={displayMode === dm.value}
+              >
+                {dm.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
-        {/* ПРАВАЯ ПАНЕЛЬ СЕЛЕКТОРОВ */}
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <select value={tuningName} onChange={(e) => setTuningName(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', outline: 'none', cursor: 'pointer' }}>
-            {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t} Tuning</option>)}
+        {/* Right: tuning + material + fret color */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          <select
+            value={tuningName}
+            onChange={(e) => setTuningName(e.target.value)}
+            className="fl-select"
+            aria-label="Настройка"
+          >
+            {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <select value={material} onChange={(e) => setMaterial(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', textTransform: 'capitalize', outline: 'none', cursor: 'pointer' }}>
-            {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m} Neck</option>)}
+
+          <select
+            value={material}
+            onChange={(e) => setMaterial(e.target.value as any)}
+            className="fl-select"
+            aria-label="Накладка грифа"
+          >
+            {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)} Neck</option>)}
           </select>
-          <select value={fretColor} onChange={(e) => setFretColor(e.target.value as any)} style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '4px 6px', borderRadius: '4px', fontSize: isMobile ? '11px' : '13px', outline: 'none', cursor: 'pointer' }}>
+
+          <select
+            value={fretColor}
+            onChange={(e) => setFretColor(e.target.value as any)}
+            className="fl-select"
+            aria-label="Цвет ладов"
+          >
             <option value="dark">Dark Frets</option>
             <option value="light">Light Frets</option>
           </select>
         </div>
       </div>
 
-      {/* 🔥 НОВОЕ: отдельная зона горизонтального скролла — только сетка ладов.
-          minWidth переехал сюда (на внутренний блок), а сам скролл-контейнер
-          занимает 100% ширины родителя и скроллится независимо от контролов. */}
-      <div
-        style={{
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          touchAction: 'pan-x',
-        }}
-      >
+      {/* ── Fretboard grid ── */}
+      <div style={{ overflowX: 'auto', overflowY: 'hidden', WebkitOverflowScrolling: 'touch', touchAction: 'pan-x' }}>
         <div style={{ minWidth: isMobile ? '600px' : '800px' }}>
 
-          <div style={{ display: 'flex', paddingLeft: '40px', marginBottom: '8px' }}>
-            {frets.map(f => <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
+          {/* Fret numbers top */}
+          <div style={{ display: 'flex', paddingLeft: '40px', marginBottom: '6px' }}>
+            {frets.map(f => (
+              <div key={`top-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>
+                {f}
+              </div>
+            ))}
           </div>
 
-          <div style={{ position: 'relative', background: '#000', border: '2px solid #000', borderRadius: '4px', display: 'flex', flexDirection: 'column' }}>
-            
-            <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', background: currentMat.bg, zIndex: 0, pointerEvents: 'none' }} />
+          {/* Main grid */}
+          <div style={{
+            position: 'relative',
+            background: '#000',
+            border: '2px solid #000',
+            borderRadius: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
 
-            <div style={{ position: 'absolute', top: '18px', left: '40px', right: 0, bottom: '18px', display: 'flex', pointerEvents: 'none', zIndex: 1 }}>
+            {/* Background board */}
+            <div style={{
+              position: 'absolute',
+              top: '18px', left: '40px', right: 0, bottom: '18px',
+              background: currentMat.bg,
+              zIndex: 0,
+              pointerEvents: 'none',
+            }} />
+
+            {/* Fret lines + position dots */}
+            <div style={{
+              position: 'absolute',
+              top: '18px', left: '40px', right: 0, bottom: '18px',
+              display: 'flex',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}>
               {frets.map(f => (
-                <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `${isCyberpunk ? 'transparent' : currentMat.fretWidth} solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
+                <div key={`dotcol-${f}`} style={{ flex: 1, position: 'relative', borderRight: f === 0 ? '4px solid #bba182' : `${isCyberpunk ? 'transparent' : '1px'} solid ${isCyberpunk ? 'transparent' : currentFretColor}` }}>
                   {isCyberpunk && f !== 0 && (
-                    <div style={{ position: 'absolute', right: '-1px', top: 0, bottom: 0, width: currentMat.fretWidth, background: 'var(--accent)', boxShadow: '0 0 2px var(--accent), 0 0 4px var(--accent)', opacity: 0.25, zIndex: 2 }} />
+                    <div style={{
+                      position: 'absolute', right: '-1px', top: 0, bottom: 0, width: '1px',
+                      background: 'var(--accent)',
+                      boxShadow: '0 0 3px var(--accent)',
+                      opacity: 0.3,
+                    }} />
                   )}
-                  {dots.includes(f) && <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />}
+                  {dots.includes(f) && (
+                    <div style={{
+                      position: 'absolute', top: '50%', left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      width: '12px', height: '12px', borderRadius: '50%',
+                      background: currentMat.dot,
+                      boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none',
+                    }} />
+                  )}
                   {doubleDots.includes(f) && (
                     <>
-                      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
-                      <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot, boxShadow: isCyberpunk ? '0 0 4px var(--accent)' : 'none', zIndex: 2 }} />
+                      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
+                      <div style={{ position: 'absolute', top: '70%', left: '50%', transform: 'translate(-50%, -50%)', width: '12px', height: '12px', borderRadius: '50%', background: currentMat.dot }} />
                     </>
                   )}
                 </div>
               ))}
             </div>
 
+            {/* Strings + notes */}
             {strings.map((openNote, stringIdx) => {
               const thickness = STRING_GAUGES[stringIdx];
-              
               return (
                 <div key={stringIdx} style={{ display: 'flex', alignItems: 'center', position: 'relative', height: '36px' }}>
-                  <div style={{ position: 'absolute', left: 0, right: 0, height: `${thickness}px`, background: 'linear-gradient(to bottom, #777, #999, #555)', zIndex: 2, boxShadow: '0 2px 4px rgba(0,0,0,0.5)' }} />
-                  <div style={{ width: '40px', textAlign: 'center', fontWeight: 800, color: 'var(--text-muted)', zIndex: 3, background: 'var(--bg-panel)' }}>{openNote}</div>
-                  
+                  {/* String line */}
+                  <div style={{
+                    position: 'absolute', left: 0, right: 0,
+                    height: `${thickness}px`,
+                    background: 'linear-gradient(to bottom, #777, #999, #555)',
+                    zIndex: 2,
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                  }} />
+                  {/* Open note label */}
+                  <div style={{
+                    width: '40px', textAlign: 'center',
+                    fontWeight: 800, color: 'var(--text-muted)',
+                    zIndex: 3, background: 'var(--bg-panel)',
+                    fontFamily: 'var(--font-mono)',
+                  }}>
+                    {openNote}
+                  </div>
+
+                  {/* Frets */}
                   {frets.map(fret => {
                     const note = getNoteAtFret(openNote, fret);
                     const isInScale = scaleNotes.includes(note);
                     const isRoot = note === keyNote;
-                    const noteAlpha = material === 'maple' ? '1' : '0.75';
-
-                    let labelText = '';
-                    let displayStyle: React.CSSProperties = {};
-
-                    if (isInScale) {
-                      if (displayMode === 'notes') {
-                        labelText = note;
-                        displayStyle = {
-                          width: '24px', height: '24px', borderRadius: '50%',
-                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
-                          color: isRoot ? '#000' : '#111216', fontWeight: '900'
-                        };
-                      } 
-                      else if (displayMode === 'intervals') {
-                        const diff = (ALL_NOTES.indexOf(note) - ALL_NOTES.indexOf(keyNote) + 12) % 12;
-                        labelText = INTERVAL_MAP[diff];
-                        displayStyle = {
-                          width: '24px', height: '24px', borderRadius: '50%',
-                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`,
-                          color: isRoot ? '#000' : '#111216', fontWeight: '900'
-                        };
-                      } 
-                      else if (displayMode === 'caged') {
-                        labelText = note;
-                        if (isRoot) {
-                          displayStyle = {
-                            width: '24px', height: '24px', borderRadius: '4px',
-                            background: 'var(--accent)', color: '#000', fontWeight: '900'
-                          };
-                        } else {
-                          const isMaple = material === 'maple';
-                          displayStyle = {
-                            width: '24px', height: '24px', borderRadius: '4px',
-                            background: isMaple ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.14)',
-                            border: `1px solid ${isMaple ? '#5c4314' : 'rgba(255,255,255,0.4)'}`,
-                            color: isMaple ? '#5c4314' : 'var(--text-primary)',
-                            fontWeight: '800'
-                          };
-                        }
-                      } 
-                      else if (displayMode === 'clean') {
-                        labelText = '';
-                        displayStyle = {
-                          width: '24px', height: '24px', borderRadius: '50%',
-                          background: isRoot ? 'var(--accent)' : `rgba(255,255,255, ${noteAlpha})`
-                        };
-                      }
-                    }
+                    const label = getFretLabel(note, stringIdx);
+                    const fretStyle = getFretStyle(note, stringIdx);
+                    const isHovered = hoveredNote === `${note}-${stringIdx}-${fret}`;
 
                     return (
-                      <div key={`${stringIdx}-${fret}`} style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3 }}>
+                      <div
+                        key={`${stringIdx}-${fret}`}
+                        style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 3, position: 'relative' }}
+                        onMouseEnter={() => setHoveredNote(`${note}-${stringIdx}-${fret}`)}
+                        onMouseLeave={() => setHoveredNote(null)}
+                      >
                         {isInScale && (
-                          <div style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '11px', border: 'none', zIndex: 4,
-                            boxShadow: (isRoot && displayMode !== 'caged') ? '0 2px 4px rgba(0,0,0,0.5)' : 'none',
-                            transition: 'all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1)',
-                            ...displayStyle
-                          }}>
-                            {labelText}
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleNoteClick(note)}
+                            aria-label={`Нота ${note}${isRoot ? ' (тоника)' : ''}`}
+                            title={`${note}${isRoot ? ' (тоника)' : ''}`}
+                            style={{
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              border: 'none', cursor: 'pointer',
+                              transform: isHovered ? 'scale(1.18)' : 'scale(1)',
+                              transition: 'transform 0.1s ease',
+                              ...fretStyle,
+                            }}
+                          >
+                            {label}
+                          </button>
                         )}
                       </div>
                     );
@@ -228,10 +357,15 @@ const Fretboard: React.FC = () => {
               );
             })}
           </div>
-          <div style={{ display: 'flex', paddingLeft: '40px', marginTop: '8px' }}>
-            {frets.map(f => <div key={`bottom-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>{f}</div>)}
-          </div>
 
+          {/* Fret numbers bottom */}
+          <div style={{ display: 'flex', paddingLeft: '40px', marginTop: '6px' }}>
+            {frets.map(f => (
+              <div key={`bottom-${f}`} style={{ flex: 1, textAlign: 'center', color: 'var(--text-muted)', fontSize: '10px', fontWeight: 800 }}>
+                {f}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

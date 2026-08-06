@@ -7,6 +7,25 @@
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+// ⚠️ FIX: раньше playNote/quickPlay создавали новый AudioContext на КАЖДЫЙ
+// вызов и никогда его не закрывали. playScale дергает playNote в цикле —
+// одно проигрывание гаммы из 7 нот = 7 навсегда открытых AudioContext.
+// Держим один общий контекст на весь модуль (создаётся лениво при первом
+// вызове), это стандартная практика для утилитарных звуковых функций.
+let sharedCtx: AudioContext | null = null;
+
+const getSharedContext = (): AudioContext | null => {
+  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+  if (!AudioContextClass) return null;
+  if (!sharedCtx || sharedCtx.state === 'closed') {
+    sharedCtx = new AudioContextClass();
+  }
+  if (sharedCtx.state === 'suspended') {
+    sharedCtx.resume();
+  }
+  return sharedCtx;
+};
+
 const noteToFreq = (note: string): number => {
   const match = note.match(/^([A-G][#b]?)(\d+)?$/);
   if (!match) return 440;
@@ -25,8 +44,8 @@ const noteToFreq = (note: string): number => {
  */
 export const playNote = (note: string, duration: number = 1.0, volume: number = 0.3): void => {
   const freq = noteToFreq(note);
-  const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-  const ctx = new AudioContextClass();
+  const ctx = getSharedContext();
+  if (!ctx) return;
   
   const osc = ctx.createOscillator();
   const gainNode = ctx.createGain();
@@ -58,8 +77,8 @@ export const quickPlay = (notes: string[], arpeggio: boolean = false): void => {
       }, index * 150);
     });
   } else {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-    const ctx = new AudioContextClass();
+    const ctx = getSharedContext();
+    if (!ctx) return;
     
     notes.forEach((note) => {
       const freq = noteToFreq(note);

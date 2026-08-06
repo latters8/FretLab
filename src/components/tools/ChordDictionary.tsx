@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 
 const ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -59,6 +59,22 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // ⚠️ FIX: раньше playChordAudio создавал новый AudioContext на КАЖДЫЙ клик
+  // по аккорду и никогда его не закрывал. Это словарь аккордов — по нему
+  // кликают десятками за сессию, так что за пару минут накапливались десятки
+  // не закрытых AudioContext (тяжёлый нативный ресурс, отдельный аудио-поток).
+  // Теперь держим один общий контекст на весь компонент и закрываем при unmount.
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (audioCtxRef.current) {
+        audioCtxRef.current.close();
+        audioCtxRef.current = null;
+      }
+    };
+  }, []);
+
   const currentChordName = `${selectedRoot}${selectedSuffix}`;
 
   // 🔥 СЛУШАЕМ ИИ: Если пришла команда показать аккорд, парсим его и настраиваем интерфейс
@@ -95,7 +111,14 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return;
-      const ctx = new AudioContextClass();
+
+      // Переиспользуем один контекст вместо создания нового при каждом клике
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = audioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
+
       const OPEN_FREQS = [82.41, 110.00, 146.83, 196.00, 246.94, 329.63];
       let delay = 0;
       for (let i = 0; i <= 5; i++) {

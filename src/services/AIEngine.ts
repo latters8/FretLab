@@ -575,6 +575,8 @@ export const generateExtendedSolo = (
   const bars = Math.max(4, Math.min(config.bars, 64));
   const beatsPerBar = timeSignature.beats;
   const totalBeats = bars * beatsPerBar;
+  const phraseLengthBars = Math.max(2, Math.min(4, Math.ceil(bars / 4)));
+  const phraseCount = Math.max(1, Math.ceil(bars / phraseLengthBars));
 
   // Безопасная прогрессия
   const safeProgression: { name: string; notes: string[] }[] = [];
@@ -607,87 +609,91 @@ export const generateExtendedSolo = (
 
   // === Генерация нот ===
   const allNotes: SyncNote[] = [];
-  const phrasesCount = Math.ceil(bars / 4); // фраза на каждые 4 такта
   const motif = generateMotif(safeScale, mode, keyNote, config.style, config.complexity);
+  let previousPhraseMotif = motif;
 
-  for (let phraseIdx = 0; phraseIdx < phrasesCount; phraseIdx++) {
-    const phraseBarStart = phraseIdx * 4;
-    const phraseBars = Math.min(4, bars - phraseBarStart);
+  for (let phraseIdx = 0; phraseIdx < phraseCount; phraseIdx++) {
+    const phraseBarStart = phraseIdx * phraseLengthBars;
+    const phraseBars = Math.min(phraseLengthBars, bars - phraseBarStart);
     
     if (phraseBars <= 0) break;
 
-// Применяем варьирование мотива — прогрессивно от предыдущей фразы
+    const phraseRole = getPhraseRole(phraseIdx, config);
     let phraseMotif = motif;
-    if (phraseIdx > 0 && config.useMotifDevelopment) {
-      // Используем предыдущий phraseMotif (prevMotif), а не оригинальный motif
-      // Это даёт прогрессивное развитие: каждая фраза развивает предыдущую
-      const prevMotif = allNotes.length > 0 
-        ? (() => {
-            // Берём последние notesInBar нот предыдущей фразы как "предыдущий мотив"
-            const prevBarStart = (phraseIdx - 1) * 4;
-            const prevBarEnd = phraseIdx * 4;
-            const prevNotes = allNotes.filter(n => 
-              n.beatStart >= prevBarStart * beatsPerBar && 
-              n.beatStart < prevBarEnd * beatsPerBar
-            );
-            if (prevNotes.length >= 4) {
-              return prevNotes.map(n => ({
-                string: n.string,
-                fret: n.fret,
-                duration: n.duration,
-                technique: n.technique || 'none' as Technique,
-                velocity: n.velocity,
-                accent: n.accent,
-                isRest: n.isRest
-              } as LickNote));
-            }
-            return motif;
-          })()
-        : motif;
-      phraseMotif = varyMotif(prevMotif, phraseIdx, config.variation);
+
+    if (phraseIdx === 0) {
+      phraseMotif = motif;
+    } else {
+      if (phraseRole === 'response') {
+        const currentChord = chords[phraseBarStart] || chords[0];
+        const resolveNote = currentChord?.notes[0] || keyNote || 'E';
+        const resolveFret = findFretForNote(resolveNote, 2, 0, 21);
+
+        phraseMotif = [...previousPhraseMotif].reverse().map((n, i) => {
+          const isLast = i === previousPhraseMotif.length - 1;
+          return {
+            ...n,
+            fret: isLast ? resolveFret : n.fret,
+            string: isLast ? 2 : n.string,
+            velocity: isLast
+              ? Math.min(1, (n.velocity || 0.7) * 1.1)
+              : Math.min(1, (n.velocity || 0.7) * 0.85),
+            technique: isLast ? 'vibrato' as Technique : ('none' as Technique),
+            duration: isLast ? '2n' : n.duration
+          };
+        });
+      } else if (phraseRole === 'development' && config.useMotifDevelopment) {
+        phraseMotif = varyMotif(previousPhraseMotif, phraseIdx, Math.min(1, config.variation * 1.2));
+      } else {
+        phraseMotif = varyMotif(previousPhraseMotif, phraseIdx, config.variation * 0.6);
+      }
     }
 
-    // Call-Response — базируемся на ТЕКУЩЕМ phraseMotif (после motif dev)
-    if (config.useCallResponse && phraseIdx % 2 === 1) {
-      // Response: реверсируем развитый мотив и разрешаем в тонику аккорда
-      const currentChord = chords[phraseBarStart] || chords[0];
-      const resolveNote = currentChord?.notes[0] || keyNote || 'E';
-      const resolveFret = findFretForNote(resolveNote, 2, 0, 21);
-      
-      phraseMotif = [...phraseMotif].reverse().map((n, i) => {
-        // Последняя нота ответа — разрешение в тонику
-        const isLast = i === phraseMotif.length - 1;
-        return {
-          ...n,
-          fret: isLast ? resolveFret : n.fret,
-          string: isLast ? 2 : n.string,
-          velocity: isLast 
-            ? Math.min(1, (n.velocity || 0.7) * 1.1) // тоника чуть громче
-            : Math.min(1, (n.velocity || 0.7) * 0.85),
-          technique: isLast ? 'vibrato' as Technique : ('none' as Technique),
-          duration: isLast ? '2n' : n.duration
-        };
-      });
-    }
+    previousPhraseMotif = phraseMotif;
 
-    // Стилевые модификации
+    // Стилевые модификации + контур фразы для более живой импровизации
     const styleAdjusted = applyStyleToPhrase(phraseMotif, config.style, phraseIdx);
+    const phraseAnchorFret = phraseIdx > 0
+      ? (allNotes[allNotes.length - 1]?.fret ?? motif[0]?.fret ?? 0)
+      : (motif[0]?.fret ?? 0);
+    const contourAdjusted = styleAdjusted.map((motifNote, i) => {
+      const adjusted = { ...motifNote };
+      const direction = phraseIdx % 2 === 0 ? 1 : -1;
+      const step = 1 + (config.complexity >= 4 ? 2 : 0) + (phraseIdx % 2);
+
+      if (phraseIdx > 0 && i === 0) {
+        adjusted.fret = Math.max(0, Math.min(21, phraseAnchorFret + direction * (1 + (config.complexity > 3 ? 1 : 0))));
+      } else if (phraseIdx > 0 && (i % 3 === 0 || i === styleAdjusted.length - 1)) {
+        adjusted.fret = Math.max(0, Math.min(21, (adjusted.fret ?? 0) + direction * step));
+        if (adjusted.technique === 'none') {
+          adjusted.technique = i % 2 === 0 ? 'slide' : 'hammer';
+        }
+      } else if (phraseIdx > 0 && i % 2 === 0) {
+        adjusted.fret = Math.max(0, Math.min(21, (adjusted.fret ?? 0) + direction * Math.max(1, step - 1)));
+      }
+
+      if (config.useCallResponse && phraseIdx % 2 === 1 && i === styleAdjusted.length - 1) {
+        adjusted.technique = 'vibrato';
+        adjusted.velocity = Math.min(1, (adjusted.velocity || 0.7) + 0.1);
+      }
+
+      return adjusted;
+    });
 
     // Генерируем ноты для фразы
     for (let bar = 0; bar < phraseBars; bar++) {
       const globalBarIdx = phraseBarStart + bar;
       const properties: SyncNote[] = [];
-      
-      // Слоты для нот в такте
-      const notesInBar = Math.max(2, Math.round(4 * (config.complexity / 3)));
+      const notesInBar = Math.max(2, Math.round((config.complexity + 1) * (beatsPerBar === 3 ? 2 : 2.5)));
       const beatStep = beatsPerBar / notesInBar;
+      const densityBias = bars >= 16 ? 0.25 : 0.1;
       
       for (let slot = 0; slot < notesInBar; slot++) {
         const slotBeat = globalBarIdx * beatsPerBar + slot * beatStep;
         if (slotBeat >= totalBeats) break;
         
-        const motifIdx = (slot + bar * 2 + phraseIdx * 8) % styleAdjusted.length;
-        const motifNote = styleAdjusted[motifIdx];
+        const motifIdx = (slot + bar * 2 + phraseIdx * 8) % contourAdjusted.length;
+        const motifNote = contourAdjusted[motifIdx];
         
         if (!motifNote) continue;
 
@@ -705,16 +711,34 @@ const noteName = getNoteFromFret(motifNote.fret ?? 0, motifNote.string);
           }
         }
 
-        const isAccent = slot === 0 || (config.complexity >= 4 && slot % 3 === 0);
+        const isAccent = slot === 0 || (config.complexity >= 4 && slot % 3 === 0) || (config.useCallResponse && phraseIdx % 2 === 1 && slot % 4 === 0);
         const isLastNoteGlobal = globalBarIdx === bars - 1 && slot === notesInBar - 1;
+        const shouldRest = Math.random() < densityBias * (config.complexity <= 2 ? 0.18 : 0.08);
+        const durationPool = config.complexity >= 4 ? ['16n', '8n', '8n.'] : ['8n', '4n'];
+        const phraseDuration = durationPool[(slot + phraseIdx + bar) % durationPool.length];
+
+        if (shouldRest && !isLastNoteGlobal) {
+          properties.push({
+            string: targetString,
+            fret: null,
+            isRest: true,
+            beatStart: slotBeat,
+            beatDuration: beatStep * 0.9,
+            duration: '8n',
+            technique: 'none' as Technique,
+            accent: false,
+            velocity: 0.2
+          });
+          continue;
+        }
 
         properties.push({
           string: targetString,
           fret: Math.max(0, Math.min(21, targetFret)),
           isRest: false,
           beatStart: slotBeat,
-          beatDuration: isLastNoteGlobal ? 2 : beatStep * 0.9,
-          duration: isLastNoteGlobal ? '2n' : '8n',
+          beatDuration: isLastNoteGlobal ? 2 : (bars >= 16 ? beatStep * (slot % 2 === 0 ? 1.05 : 0.95) : beatStep * 0.95),
+          duration: isLastNoteGlobal ? '2n' : phraseDuration,
           technique: isLastNoteGlobal ? 'vibrato' as Technique : (motifNote.technique || 'none' as Technique),
           accent: isAccent,
           velocity: isAccent ? 0.9 : (0.5 + Math.random() * 0.3)
@@ -729,6 +753,18 @@ const noteName = getNoteFromFret(motifNote.fret ?? 0, motifNote.string);
 };
 
 /** Создает начальный мотив */
+function getPhraseRole(phraseIdx: number, config: ExtendedSoloConfig): 'statement' | 'response' | 'development' {
+  if (phraseIdx === 0) return 'statement';
+
+  if (config.useCallResponse) {
+    return phraseIdx % 2 === 1 ? 'response' : (phraseIdx % 3 === 2 ? 'development' : 'statement');
+  }
+
+  if (phraseIdx % 3 === 1) return 'response';
+  if (phraseIdx % 3 === 2) return 'development';
+  return 'statement';
+}
+
 function generateMotif(
   scale: string[],
   mode: string,
@@ -1405,6 +1441,7 @@ export const generateSynchronizedSolo = (
   const selectedStyle = rhythmStyles[Math.floor(Math.random() * rhythmStyles.length)];
   const durPool = selectedStyle.durations;
   
+  const phraseSeed = Math.floor(Math.random() * 1000);
   let melodicPatterns: { steps: number[] }[];
 
   
@@ -1424,7 +1461,7 @@ export const generateSynchronizedSolo = (
     ];
   }
   
-  const selectedMelody = melodicPatterns[Math.floor(Math.random() * melodicPatterns.length)];
+  const selectedMelody = melodicPatterns[(phraseSeed + bars) % melodicPatterns.length];
   let patternIdx = 0;
 
   const durationMap: Record<string, number> = {
@@ -1476,18 +1513,18 @@ export const generateSynchronizedSolo = (
       
       // Выбираем ноту
       let noteStr = '';
-      if (isStrongBeat && Math.random() > 0.4) {
+      const useChordTone = isStrongBeat && Math.random() > 0.3;
+      if (useChordTone) {
         noteStr = activeChordNotes[Math.floor(Math.random() * activeChordNotes.length)];
         const foundIdx = safeScale.indexOf(noteStr);
         if (foundIdx !== -1) lastScaleIdx = foundIdx;
       } else {
-        const step = selectedMelody.steps[patternIdx % selectedMelody.steps.length];
+        const step = selectedMelody.steps[(patternIdx + barIdx + phraseSeed) % selectedMelody.steps.length];
         patternIdx++;
         
         let finalStep = step;
-        if (Math.random() > 0.8) {
-          finalStep += (Math.random() > 0.5 ? 1 : -1);
-        }
+        const variation = ((phraseSeed + barIdx + notesInBar) % 3) - 1;
+        finalStep += variation;
         
         lastScaleIdx = (lastScaleIdx + finalStep + safeScale.length) % safeScale.length;
         noteStr = safeScale[lastScaleIdx];
@@ -1511,10 +1548,11 @@ export const generateSynchronizedSolo = (
       
       // Техника
       let technique: Technique = 'none';
+      const techRoll = (barIdx + patternIdx + phraseSeed) % 4;
       if (durVal >= 1.0) {
-        technique = Math.random() > 0.5 ? 'vibrato' : 'bend';
+        technique = techRoll === 0 ? 'vibrato' : 'bend';
       } else if (durVal <= 0.25) {
-        technique = Math.random() > 0.5 ? 'hammer' : 'pull';
+        technique = techRoll === 2 ? 'hammer' : 'pull';
       }
       
       // Небольшая пауза иногда (но не в начале такта и не если мало нот)

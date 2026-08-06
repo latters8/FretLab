@@ -23,7 +23,7 @@ interface EQState {
 // ============================================
 
 const CHANNEL_CONFIG: { key: string; label: string; color: string; defaultDb: number }[] = [
-  { key: 'chords',  label: 'CHORDS',  color: '#00bcd4', defaultDb: -12 },
+  { key: 'chords',  label: 'CHORDS',  color: '#00bcd4', defaultDb: -6 },
   { key: 'guitar',  label: 'GUITAR',  color: '#00FF9D', defaultDb: 6 },
   { key: 'bass',    label: 'BASS',    color: '#ff9800', defaultDb: 0 },
   { key: 'drums',   label: 'DRUMS',   color: '#e94560', defaultDb: 0 },
@@ -37,7 +37,7 @@ const EQ_BANDS: { key: 'low' | 'mid' | 'high'; label: string; freq: string; colo
 ];
 
 const DEFAULT_CHANNELS: Record<string, ChannelState> = {
-  chords: { volume: -12, mute: false, solo: false },
+  chords: { volume: -6, mute: false, solo: false },
   guitar: { volume: 6, mute: false, solo: false },
   bass: { volume: 0, mute: false, solo: false },
   drums: { volume: 0, mute: false, solo: false },
@@ -167,6 +167,8 @@ const StudioMixer: React.FC = () => {
   return (
     <div style={{
       width: '100%',
+      maxWidth: 'none',
+      margin: '0 auto',
       background: '#0d0e14',
       borderRadius: '8px',
       border: '1px solid rgba(255,255,255,0.08)',
@@ -194,6 +196,8 @@ const StudioMixer: React.FC = () => {
       {/* ===== CHANNEL STRIPS ===== */}
       <div style={{
         display: 'flex',
+        justifyContent: 'stretch',
+        flexWrap: 'wrap',
         gap: '6px',
         padding: '12px 12px 8px',
         overflowX: 'auto',
@@ -204,9 +208,9 @@ const StudioMixer: React.FC = () => {
           
           return (
             <div key={ch.key} style={{
-              flex: '1 0 0',
+              flex: '1 1 0',
               minWidth: '72px',
-              maxWidth: '96px',
+              maxWidth: 'none',
               background: 'rgba(255,255,255,0.02)',
               borderRadius: '8px',
               border: '1px solid rgba(255,255,255,0.05)',

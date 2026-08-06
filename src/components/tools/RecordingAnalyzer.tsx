@@ -70,6 +70,7 @@ const RecordingAnalyzer: React.FC = () => {
   return (
     <div
       style={{
+        width: '100%',
         background: 'var(--bg-panel)',
         padding: '20px',
         borderRadius: 'var(--radius)',
@@ -77,13 +78,14 @@ const RecordingAnalyzer: React.FC = () => {
         display: 'flex',
         flexDirection: 'column',
         gap: '16px',
+        boxSizing: 'border-box',
       }}
     >
       {/* ЗАГОЛОВОК И КНОПКА ЗАПИСИ */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px' }}>🎧</span>
-          <span
+<span
             style={{
               fontSize: '12px',
               fontWeight: 800,
@@ -92,7 +94,7 @@ const RecordingAnalyzer: React.FC = () => {
               letterSpacing: '0.5px',
             }}
           >
-            Recording Analyzer
+            Recording Analyzer — соответствие сыгранной фразы выбранной тональности
           </span>
         </div>
         <button

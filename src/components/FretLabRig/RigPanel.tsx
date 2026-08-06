@@ -6,15 +6,51 @@
  * - Педали: Noise Gate, Tube Drive, Amp EQ, Cabinet IR, Modulation,
  *   Delay, Reverb, Master
  * - Modulation: Chorus / Flanger / Phaser / Tremolo / Vibrato
- * - FFT-визуализация
+ * - FFT-визуализация + индикатор уровня входного сигнала (RMS)
  * - Загрузка IR (.wav / .aif / .aiff) + автозагрузка IR по умолчанию
- * - START / STOP
+ * - START / STOP с прогрессом, inline-ошибками, индикацией устройства
  *
  * Использует синглтон `fretLabRig` (src/services/FretLabRig.ts).
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { fretLabRig, FretLabRig } from '../../services/FretLabRig';
+import { Button } from '../ui/Button';
+import { Spinner } from '../ui/Spinner';
+import TunerPedal from './TunerPedal';
 import './RigPanel.css';
+
+type RigError =
+  | { kind: 'permission'; message: string }
+  | { kind: 'no-device'; message: string }
+  | { kind: 'context'; message: string }
+  | { kind: 'unknown'; message: string };
+
+/** Преобразует DOMException из getUserMedia в понятный тип ошибки. */
+function classifyMediaError(err: unknown): RigError {
+  if (err instanceof Error) {
+    const name = (err as Error & { name?: string }).name ?? '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') {
+      return {
+        kind: 'permission',
+        message: 'Доступ к микрофону запрещён. Разрешите его в адресной строке браузера и нажмите START ещё раз.',
+      };
+    }
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+      return {
+        kind: 'no-device',
+        message: 'Микрофон не найден. Подключите аудио-интерфейс или микрофон и попробуйте снова.',
+      };
+    }
+    if (name === 'NotReadableError' || name === 'AbortError') {
+      return {
+        kind: 'context',
+        message: 'Микрофон уже используется другим приложением. Закройте его и попробуйте снова.',
+      };
+    }
+    return { kind: 'unknown', message: err.message || 'Не удалось запустить риг.' };
+  }
+  return { kind: 'unknown', message: 'Неизвестная ошибка при запуске рига.' };
+}
 
 // ============================================
 // 🎚️ КОНФИГУРАЦИЯ ПЕДАЛЕЙ
@@ -47,6 +83,12 @@ interface PedalConfig {
 
 const PEDALS: PedalConfig[] = [
   {
+    id: 'tuner',
+    title: 'Tuner',
+    className: 'tuner',
+    knobs: [],
+  },
+  {
     id: 'gate',
     title: 'Noise Gate',
     className: 'gate',
@@ -66,6 +108,17 @@ const PEDALS: PedalConfig[] = [
       { label: 'Tube', param: 'tubeAmount', min: 0, max: 100, step: 1, def: 30 },
       { label: 'Tone', param: 'driveTone', min: 0, max: 100, step: 1, def: 100 },
       { label: 'Level', param: 'driveLevel', min: 0, max: 100, step: 1, def: 100 },
+    ],
+  },
+  {
+    id: 'dist',
+    title: 'High Gain',
+    className: 'dist',
+    knobs: [
+      { label: 'Gain', param: 'dist', min: 0, max: 100, step: 1, def: 40 },
+      { label: 'Tone', param: 'distTone', min: 0, max: 100, step: 1, def: 60 },
+      { label: 'Satur', param: 'distSaturation', min: 0, max: 100, step: 1, def: 50 },
+      { label: 'Level', param: 'distLevel', min: 0, max: 100, step: 1, def: 100 },
     ],
   },
   {
@@ -256,9 +309,15 @@ const KnobControl: React.FC<KnobProps> = ({ config }) => {
 
 export const RigPanel: React.FC = () => {
   const [isRunning, setIsRunning] = useState(false);
+  const [isStarting, setIsStarting] = useState(false);
+  const [error, setError] = useState<RigError | null>(null);
+  const [deviceLabel, setDeviceLabel] = useState<string | null>(null);
+  const [audioContextState, setAudioContextState] = useState<AudioContextState | null>(null);
   const [pedalStates, setPedalStates] = useState<Record<string, boolean>>({
+    tuner: true,
     gate: true,
     drive: true,
+    dist: false,
     eq: true,
     cab: true,
     mod: false,
@@ -266,9 +325,8 @@ export const RigPanel: React.FC = () => {
     reverb: true,
     master: true,
   });
-  const [irName, setIrName] = useState('IR-meza.wav');
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef<number | null>(null);
+const [irName, setIrName] = useState('IR-meza.wav');
+const [peakLevel, setPeakLevel] = useState(0);
   const [collapsed, setCollapsed] = useState(false);
 
   // ─── START / STOP ───
@@ -276,44 +334,59 @@ export const RigPanel: React.FC = () => {
     if (isRunning) {
       fretLabRig.stop();
       setIsRunning(false);
+      setPeakLevel(0);
+      setDeviceLabel(null);
+      setAudioContextState(null);
       return;
     }
+    setError(null);
+    setIsStarting(true);
     try {
       await fretLabRig.init();
       await fretLabRig.start();
       setIsRunning(true);
+      // Снимаем мету устройства и состояние контекста сразу после старта
+      setDeviceLabel(fretLabRig.getInputDeviceLabel());
+      setAudioContextState(fretLabRig.getAudioContextState());
     } catch (err) {
       console.error('[RigPanel] Start failed:', err);
-      alert('Разрешите доступ к микрофону');
+      setError(classifyMediaError(err));
+    } finally {
+      setIsStarting(false);
     }
   };
 
-  // ─── FFT ВИЗУАЛИЗАЦИЯ ───
+  // ─── Периодический опрос audio context state (для 'suspended' после suspend вне рига) ───
   useEffect(() => {
     if (!isRunning) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    if (!canvas || !ctx) return;
+    const id = setInterval(() => {
+      const s = fretLabRig.getAudioContextState();
+      if (s && s !== audioContextState) setAudioContextState(s);
+    }, 2000);
+    return () => clearInterval(id);
+  }, [isRunning, audioContextState]);
 
-    const render = () => {
-      rafRef.current = requestAnimationFrame(render);
-      const data = fretLabRig.getFrequencyData();
-      const w = canvas.width;
-      const h = canvas.height;
-      ctx.fillStyle = '#080808';
-      ctx.fillRect(0, 0, w, h);
-      if (data.length === 0) return;
-      const barW = w / data.length;
-      for (let i = 0; i < data.length; i++) {
-        const bh = (data[i] / 255) * h;
-        ctx.fillStyle = '#4ade80';
-        ctx.fillRect(i * barW, h - bh, barW - 0.5, bh);
-      }
+  // ─── Попытка возобновить контекст, если браузер его заблокировал ───
+  const handleResume = async () => {
+    await fretLabRig.resumeContext();
+    setAudioContextState(fretLabRig.getAudioContextState());
+  };
+
+  // ─── КОМПАКТНЫЙ UV-МЕТР (лёгкий, только RMS + сглаживание) ───
+  useEffect(() => {
+    if (!isRunning) return;
+    let raf = 0;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const level = fretLabRig.getInputLevelRMS();
+      setPeakLevel((prev) => {
+        // быстрый подъём, медленный спад
+        const next = level > prev ? level : prev * 0.92;
+        return Math.max(0, Math.min(1, next));
+      });
     };
-    render();
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-    };
+    tick();
+    return () => cancelAnimationFrame(raf);
   }, [isRunning]);
 
   // ─── ПЕДАЛИ ───
@@ -354,97 +427,195 @@ export const RigPanel: React.FC = () => {
       <div className="rig-top">
         <div className="rig-title">
           <span className="rig-title-icon">🎸</span>
-          <span>FRETLAB RIG</span>
-          <span className="rig-status">128-sample buffer • ~3 ms • AudioWorklet</span>
+          <div className="rig-title-text">
+            <span className="rig-title-name">FretLab Rig</span>
+            <span className="rig-status">
+              {isRunning ? (
+                <>
+                  <span className="rig-led on" aria-hidden="true" />
+                  Active{deviceLabel ? ` · ${deviceLabel}` : ''}
+                  {!collapsed && ' · AudioWorklet · 128 samples'}
+                </>
+              ) : (
+                <>
+                  <span className="rig-led" aria-hidden="true" />
+                  {collapsed
+                    ? 'Stopped — нажмите ▲ для настроек'
+                    : 'Stopped · AudioWorklet · 128 samples'}
+                </>
+              )}
+            </span>
+          </div>
         </div>
         <div className="rig-controls">
-          <button
-            className={`rig-start ${isRunning ? 'active' : ''}`}
+          <Button
+            variant={isRunning ? 'danger' : 'primary'}
+            size="md"
             onClick={handleToggle}
+            disabled={isStarting}
+            loading={isStarting}
+            aria-label={isRunning ? 'Stop rig' : 'Start rig'}
+            iconLeft={isStarting ? undefined : isRunning ? '⏹' : '▶'}
           >
-            {isRunning ? '⏹ STOP' : '▶ START'}
-          </button>
-          <button
-            className="rig-collapse-btn"
+            {isStarting ? 'Starting…' : isRunning ? 'Stop' : 'Start'}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? 'Expand rig' : 'Collapse rig'}
+            aria-pressed={collapsed}
             title={collapsed ? 'Развернуть риг' : 'Свернуть риг'}
           >
-            {collapsed ? '▲' : '▼'}
-          </button>
+            {collapsed ? '▲ Expand' : '▼ Collapse'}
+          </Button>
         </div>
       </div>
 
-      {/* COLLAPSED: only strip */}
-      {collapsed && (
-        <div className="rig-collapsed-strip">
-          <span className={`rig-led ${isRunning ? 'on' : ''}`} />
-          <span className="rig-collapsed-text">
-            {isRunning ? 'Rig active — нажмите ▲ для настроек' : 'Rig stopped — нажмите ▲'}
+      {/* ERROR BANNER */}
+      {error && !isRunning && (
+        <div
+          role="alert"
+          className={`rig-error rig-error--${error.kind}`}
+        >
+          <span className="rig-error-icon" aria-hidden="true">
+            {error.kind === 'permission' ? '🔒' :
+             error.kind === 'no-device' ? '🎤' :
+             error.kind === 'context' ? '⚠️' : '❌'}
+          </span>
+          <div className="rig-error-text">
+            <strong>
+              {error.kind === 'permission' ? 'Нет доступа к микрофону' :
+               error.kind === 'no-device' ? 'Микрофон не найден' :
+               error.kind === 'context' ? 'Микрофон занят' :
+               'Ошибка запуска'}
+            </strong>
+            <span>{error.message}</span>
+          </div>
+          <button
+            className="rig-error-dismiss"
+            onClick={() => setError(null)}
+            aria-label="Dismiss error"
+            title="Закрыть"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* SUSPENDED CONTEXT WARNING */}
+      {isRunning && audioContextState === 'suspended' && (
+        <div role="alert" className="rig-warning">
+          <span aria-hidden="true">⏸</span>
+          <span>
+            Браузер приостановил аудио (autoplay policy). Нажмите{' '}
+            <button className="rig-warning-btn" onClick={handleResume}>
+              Resume
+            </button>{' '}
+            чтобы продолжить.
           </span>
         </div>
       )}
 
-      {/* EXPANDED: canvas + board */}
+      {/* EXPANDED: UV meter + board */}
       {!collapsed && (
         <>
-          <canvas ref={canvasRef} className="rig-viz" width={900} height={140} />
+          {/* Компактный LED UV-метр в стиле 500-серии (ряд с педалями) */}
+          <div className="rig-uvmeter" aria-label="Input level meter">
+            <div className="rig-uvmeter-label">IN</div>
+            <div className="rig-uvmeter-cells">
+              {Array.from({ length: 16 }).map((_, i) => (
+                <span
+                  key={i}
+                  className={`rig-uv-cell ${peakLevel * 16 > i ? 'on' : ''} ${i < 10 ? 'green' : i < 13 ? 'yellow' : 'red'}`}
+                />
+              ))}
+            </div>
+            <div className="rig-uvmeter-num">{Math.round(peakLevel * 100)}</div>
+            {!isRunning && (
+              <span className="rig-uvmeter-hint">— нажмите Start для измерения</span>
+            )}
+          </div>
 
           <div className="rig-board">
-            {PEDALS.map((pedal) => (
-              <div
-                key={pedal.id}
-                className={`rig-pedal ${pedalStates[pedal.id] ? 'on' : ''} ${pedal.className}`}
-                data-pedal={pedal.id}
-              >
-                <div className="rig-screw tl" />
-                <div className="rig-screw tr" />
-                <div className="rig-screw bl" />
-                <div className="rig-screw br" />
-                <div className="rig-led" />
-                <h3>{pedal.title}</h3>
-
-                {pedal.select && (
-                  <select
-                    className="rig-mod-select"
-                    defaultValue={pedal.select.def}
-                    onChange={(e) => handleModTypeChange(pedal, Number(e.target.value))}
+            {PEDALS.map((pedal) => {
+              if (pedal.id === 'tuner') {
+                return (
+                  <div
+                    key={pedal.id}
+                    className={`rig-pedal ${pedalStates[pedal.id] ? 'on' : ''} ${pedal.className}`}
+                    data-pedal={pedal.id}
                   >
-                    {pedal.select.options.map((opt, i) => (
-                      <option key={opt} value={i}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                )}
-
-                {pedal.ir && (
-                  <>
-                    <label className="rig-ir-file">
-                      <input
-                        type="file"
-                        accept=".wav,.ir,.aif,.aiff"
-                        style={{ display: 'none' }}
-                        onChange={handleIRChange}
-                      />
-                      📁 Load IR
-                    </label>
-                    <div className="rig-ir-name">{irName}</div>
-                  </>
-                )}
-
-                {pedal.knobs.length > 0 && (
-                  <div className="rig-knobs">
-                    {pedal.knobs.map((knob) => (
-                      <KnobControl key={knob.param} config={knob} />
-                    ))}
+                    <div className="rig-screw tl" />
+                    <div className="rig-screw tr" />
+                    <div className="rig-screw bl" />
+                    <div className="rig-screw br" />
+                    <div className="rig-led" />
+                    <h3>{pedal.title}</h3>
+                    <TunerPedal isRunning={isRunning} active={pedalStates[pedal.id]} onRequestStart={handleToggle} />
+                    <button className="rig-bypass" onClick={() => togglePedal(pedal.id)}>
+                      {pedalStates[pedal.id] ? 'On' : 'Off'}
+                    </button>
                   </div>
-                )}
+                );
+              }
 
-                <button className="rig-bypass" onClick={() => togglePedal(pedal.id)}>
-                  {pedalStates[pedal.id] ? 'On' : 'Off'}
-                </button>
-              </div>
-            ))}
+              return (
+                <div
+                  key={pedal.id}
+                  className={`rig-pedal ${pedalStates[pedal.id] ? 'on' : ''} ${pedal.className}`}
+                  data-pedal={pedal.id}
+                >
+                  <div className="rig-screw tl" />
+                  <div className="rig-screw tr" />
+                  <div className="rig-screw bl" />
+                  <div className="rig-screw br" />
+                  <div className="rig-led" />
+                  <h3>{pedal.title}</h3>
+
+                  {pedal.select && (
+                    <select
+                      className="rig-mod-select"
+                      defaultValue={pedal.select.def}
+                      onChange={(e) => handleModTypeChange(pedal, Number(e.target.value))}
+                    >
+                      {pedal.select.options.map((opt, i) => (
+                        <option key={opt} value={i}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {pedal.ir && (
+                    <>
+                      <label className="rig-ir-file">
+                        <input
+                          type="file"
+                          accept=".wav,.ir,.aif,.aiff"
+                          style={{ display: 'none' }}
+                          onChange={handleIRChange}
+                        />
+                        📁 Load IR
+                      </label>
+                      <div className="rig-ir-name">{irName}</div>
+                    </>
+                  )}
+
+                  {pedal.knobs.length > 0 && (
+                    <div className="rig-knobs">
+                      {pedal.knobs.map((knob) => (
+                        <KnobControl key={knob.param} config={knob} />
+                      ))}
+                    </div>
+                  )}
+
+                  <button className="rig-bypass" onClick={() => togglePedal(pedal.id)}>
+                    {pedalStates[pedal.id] ? 'On' : 'Off'}
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </>
       )}

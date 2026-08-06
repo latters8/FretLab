@@ -55,6 +55,20 @@ class Allpass {
   process(x) { const y = this.a * x + this.x1 - this.a * this.y1; this.x1 = x; this.y1 = y; return y; }
 }
 
+// Precompute a fixed 1024-sample waveshaper curve for high-gain distortion.
+function makeDistCurve() {
+  const N = 1024;
+  const curve = new Float32Array(N);
+  for (let i = 0; i < N; i++) {
+    const x = (i / (N - 1)) * 2 - 1;
+    const k = 3.5;
+    curve[i] = Math.tanh(x * k);
+  }
+  return curve;
+}
+const DIST_CURVE = makeDistCurve();
+const DIST_CURVE_LEN = DIST_CURVE.length;
+
 class GuitarProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
     return [
@@ -68,6 +82,11 @@ class GuitarProcessor extends AudioWorkletProcessor {
       {name:'tubeAmount',defaultValue:30,minValue:0,maxValue:100},
       {name:'driveTone',defaultValue:100,minValue:0,maxValue:100},
       {name:'driveLevel',defaultValue:100,minValue:0,maxValue:100},
+      {name:'distEnabled',defaultValue:0,minValue:0,maxValue:1},
+      {name:'dist',defaultValue:40,minValue:0,maxValue:100},
+      {name:'distTone',defaultValue:60,minValue:0,maxValue:100},
+      {name:'distLevel',defaultValue:100,minValue:0,maxValue:100},
+      {name:'distSaturation',defaultValue:50,minValue:0,maxValue:100},
       {name:'eqEnabled',defaultValue:1,minValue:0,maxValue:1},
       {name:'bass',defaultValue:0,minValue:-12,maxValue:12},
       {name:'mid',defaultValue:0,minValue:-12,maxValue:12},
@@ -94,6 +113,7 @@ class GuitarProcessor extends AudioWorkletProcessor {
       {name:'reverbMix',defaultValue:15,minValue:0,maxValue:100},
       {name:'reverbPreDelay',defaultValue:0,minValue:0,maxValue:100},
       {name:'reverbDamping',defaultValue:0,minValue:0,maxValue:100},
+{name:'masterEnabled',defaultValue:1,minValue:0,maxValue:1},
       {name:'masterGain',defaultValue:100,minValue:0,maxValue:200},
       {name:'masterTone',defaultValue:50,minValue:0,maxValue:100},
       {name:'masterDrive',defaultValue:0,minValue:0,maxValue:100},
@@ -108,6 +128,7 @@ class GuitarProcessor extends AudioWorkletProcessor {
     this.eqHigh = new Biquad('highshelf',4000,0.7,0,this.sr);
     this.eqPres = new Biquad('highshelf',6000,0.7,0,this.sr);
     this.driveLP = new OnePole(this.sr);
+    this.distLP = new OnePole(this.sr);
     this.cabLP = new OnePole(this.sr);
     this.cabAirEq = new Biquad('highshelf',8000,0.7,0,this.sr);
     this.delayLP = new OnePole(this.sr);
@@ -136,14 +157,19 @@ class GuitarProcessor extends AudioWorkletProcessor {
       new Allpass(this.sr), new Allpass(this.sr), new Allpass(this.sr),
     ];
     this.phaserFb = 0;
-    this.irBuf = null;
+this.irBuf = null;
     this.irLen = 0;
     this.irState = null;
+    this.irPos = 0;
     this.port.onmessage = (e) => {
       if (e.data.type === 'ir') {
-        this.irBuf = new Float32Array(e.data.buffer);
+        // Cap IR length to 1024 taps for real-time performance.
+        const src = e.data.buffer;
+        const len = Math.min(src.length, 1024);
+        this.irBuf = new Float32Array(src.subarray(0, len));
         this.irLen = this.irBuf.length;
         this.irState = new Float32Array(this.irLen);
+        this.irPos = 0;
       }
     };
   }
@@ -156,9 +182,13 @@ class GuitarProcessor extends AudioWorkletProcessor {
     const gateDepth=p.gateDepth[0]/100;
     const attCoeff=1-Math.exp(-1/(gateAtt*this.sr)), relCoeff=1-Math.exp(-1/(gateRel*this.sr));
 
-    const driveOn=p.driveEnabled[0]>0.5, drive=p.drive[0]/100, tube=p.tubeAmount[0]/100;
+const driveOn=p.driveEnabled[0]>0.5, drive=p.drive[0]/100, tube=p.tubeAmount[0]/100;
     const driveToneFreq=800*Math.pow(20,Math.max(0,Math.min(1,p.driveTone[0]/100)));
     const driveLevel=0.2+(p.driveLevel[0]/100)*0.8;
+
+    const distOn=p.distEnabled[0]>0.5, dist=p.dist[0]/100, distSat=p.distSaturation[0]/100;
+    const distToneFreq=800*Math.pow(20,Math.max(0,Math.min(1,p.distTone[0]/100)));
+    const distLevel=0.3+(p.distLevel[0]/100)*0.7;
 
     const eqOn=p.eqEnabled[0]>0.5, bass=p.bass[0], mid=p.mid[0], treble=p.treble[0], presence=p.presence[0];
 
@@ -184,7 +214,8 @@ class GuitarProcessor extends AudioWorkletProcessor {
     const preSamples=Math.floor((p.reverbPreDelay[0]/100)*0.1*this.sr);
     const dampFreq=20000-18000*Math.max(0,Math.min(1,p.reverbDamping[0]/100));
 
-    const master=p.masterGain[0]/100;
+const masterOn=p.masterEnabled[0]>0.5;
+    const master=masterOn?(p.masterGain[0]/100):1;
     const mTone=p.masterTone[0]/100;
     const mDrv=p.masterDrive[0]/100;
     const mLim=p.masterLimit[0]/100;
@@ -194,7 +225,8 @@ class GuitarProcessor extends AudioWorkletProcessor {
     if (eqOn) { this.eqLow.set(150,0.7,bass,this.sr); this.eqMid.set(800,1.0,mid,this.sr); this.eqHigh.set(4000,0.7,treble,this.sr); this.eqPres.set(6000,0.7,presence,this.sr); }
     for (let c of this.comb) { c.fb = 0.7 + rDecay * 0.28; c.lp.setLP(dampFreq); }
     if (cabOn) { this.cabLP.setLP(cabToneFreq); this.cabAirEq.set(8000,0.7,cabAir*6,this.sr); }
-    if (driveOn) this.driveLP.setLP(driveToneFreq);
+if (driveOn) this.driveLP.setLP(driveToneFreq);
+    if (distOn) this.distLP.setLP(distToneFreq);
     this.delayLP.setLP(dToneFreq);
     this.masterLo.set(250,0.7,loGain,this.sr);
     this.masterHi.set(4000,0.7,hiGain,this.sr);
@@ -211,7 +243,7 @@ class GuitarProcessor extends AudioWorkletProcessor {
         x*=(1-gateDepth*(1-this.gateEnv));
       }
 
-      // ─── TUBE DRIVE (tone lowpass + level) ───
+// ─── TUBE DRIVE (tone lowpass + level) ───
       if (driveOn) {
         const gain=1+drive*20;
         let d=Math.tanh(x*gain)+tube*0.3*Math.sin(x*gain*Math.PI*0.5)+tube*0.05*Math.sin(x*Math.PI);
@@ -221,15 +253,36 @@ class GuitarProcessor extends AudioWorkletProcessor {
         x=d;
       }
 
+      // ─── HIGH GAIN DIST (waveshaper + tone + saturation + level) ───
+      if (distOn) {
+        const preGain=1+dist*45;
+        let s=x*preGain;
+        const idx=Math.max(0,Math.min(DIST_CURVE_LEN-1,Math.floor((s+1)*0.5*(DIST_CURVE_LEN-1))));
+        let d=DIST_CURVE[idx];
+        // extra preamp saturation
+d+=distSat*0.25*Math.tanh(x*preGain*2);
+        d=this.distLP.process(d);
+        d*=distLevel;
+        x=d;
+      }
+
       // ─── AMP EQ (bass/mid/treble/presence) ───
       if (eqOn) { x=this.eqLow.process(x); x=this.eqMid.process(x); x=this.eqHigh.process(x); x=this.eqPres.process(x); }
 
-      // ─── CABINET IR (wet/dry + level + tone + air) ───
+// ─── CABINET IR (optimized O(1) circular-buffer FIR) ───
       let amp=x;
       if (cabOn && this.irBuf) {
-        this.irState[this.irLen-1]=x;
-        let c=0; for(let k=0;k<this.irLen;k++) c+=this.irBuf[k]*this.irState[this.irLen-1-k];
-        for(let k=this.irLen-1;k>0;k--) this.irState[k]=this.irState[k-1];
+        // write current sample into ring buffer
+        this.irState[this.irPos]=x;
+        // accumulate convolution using reversed taps (in-place, O(1) per sample)
+        let c=0;
+        const ir=this.irBuf, st=this.irState, len=this.irLen;
+        let pos=this.irPos;
+        for (let k=0;k<len;k++) {
+          c+=ir[k]*st[pos];
+          pos=(pos-1+len)%len;
+        }
+        this.irPos=(this.irPos+1)%len;
         let wet=c*cabGain;
         wet=this.cabLP.process(wet);
         wet=this.cabAirEq.process(wet);
@@ -275,12 +328,15 @@ class GuitarProcessor extends AudioWorkletProcessor {
         }
       }
 
-      // ─── DELAY (tone on feedback) ───
-      const dRead=this.delayBuf[(this.delayIdx-dSamples+this.delayBuf.length)%this.delayBuf.length];
-      const dToned=this.delayLP.process(dRead);
-      this.delayBuf[this.delayIdx]=amp+dToned*dFb;
-      this.delayIdx=(this.delayIdx+1)%this.delayBuf.length;
-      let wet=amp*(1-dMix)+dToned*dMix;
+// ─── DELAY (tone on feedback) ───
+      let wet=amp;
+      if (delayOn) {
+        const dRead=this.delayBuf[(this.delayIdx-dSamples+this.delayBuf.length)%this.delayBuf.length];
+        const dToned=this.delayLP.process(dRead);
+        this.delayBuf[this.delayIdx]=amp+dToned*dFb;
+        this.delayIdx=(this.delayIdx+1)%this.delayBuf.length;
+        wet=amp*(1-dMix)+dToned*dMix;
+      }
 
       // ─── REVERB (predelay + damping) ───
       if (reverbOn) {

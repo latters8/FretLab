@@ -31,6 +31,11 @@ export interface RigParamDescriptor {
   tubeAmount: number;
   driveTone: number;
   driveLevel: number;
+  distEnabled: number;
+  dist: number;
+  distTone: number;
+  distLevel: number;
+  distSaturation: number;
   eqEnabled: number;
   bass: number;
   mid: number;
@@ -56,7 +61,8 @@ export interface RigParamDescriptor {
   reverbDecay: number;
   reverbMix: number;
   reverbPreDelay: number;
-  reverbDamping: number;
+reverbDamping: number;
+  masterEnabled: number;
   masterGain: number;
   masterTone: number;
   masterDrive: number;
@@ -72,8 +78,13 @@ export const RIG_DEFAULTS: RigParamDescriptor = {
   driveEnabled: 1,
   drive: 20,
   tubeAmount: 30,
-  driveTone: 100,
+driveTone: 100,
   driveLevel: 100,
+  distEnabled: 0,
+  dist: 40,
+  distTone: 60,
+  distLevel: 100,
+  distSaturation: 50,
   eqEnabled: 1,
   bass: 0,
   mid: 0,
@@ -100,6 +111,7 @@ export const RIG_DEFAULTS: RigParamDescriptor = {
   reverbMix: 15,
   reverbPreDelay: 0,
   reverbDamping: 0,
+  masterEnabled: 1,
   masterGain: 100,
   masterTone: 50,
   masterDrive: 0,
@@ -122,8 +134,10 @@ export class FretLabRig {
   private analyser: AnalyserNode | null = null;
   private stream: MediaStream | null = null;
   private freqData: Uint8Array | null = null;
+  private timeData: Float32Array | null = null;
 
   private started = false;
+  private bypassMode = false; // true = mic → analyser → destination (без worklet)
   private params: RigParamDescriptor = { ...RIG_DEFAULTS };
   private pendingIR: Float32Array | null = null;
   private defaultIRLoaded = false;
@@ -150,7 +164,7 @@ export class FretLabRig {
     return { ...this.params };
   }
 
-  // ─── Инициализация / старт ───
+// ─── Инициализация / старт ───
 
   /**
    * Инициализирует AudioContext и AudioWorklet.
@@ -167,17 +181,18 @@ export class FretLabRig {
     const blob = new Blob([GUITAR_RIG_PROCESSOR_CODE], { type: 'application/javascript' });
     await this.ctx.audioWorklet.addModule(URL.createObjectURL(blob));
 
-    this.proc = new AudioWorkletNode(this.ctx, 'guitar-processor', {
+this.proc = new AudioWorkletNode(this.ctx, 'guitar-processor', {
       channelCount: 1,
+      channelCountMode: 'explicit',
       outputChannelCount: [1],
     });
 
-    this.analyser = this.ctx.createAnalyser();
-    this.analyser.fftSize = 2048;
+this.analyser = this.ctx.createAnalyser();
+    this.analyser.fftSize = 1024;
     this.freqData = new Uint8Array(new ArrayBuffer(this.analyser.frequencyBinCount));
 
-    // Синхронизация текущих параметров
-    this._syncAllParams();
+    // ⚠️ Параметры НЕ синхронизируем здесь — AudioContext может быть suspended
+    // и setValueAtTime не гарантирует применения. Синхронизация в start() после resume.
 
     // Автозагрузка IR по умолчанию из public/ir
     if (!this.defaultIRLoaded) {
@@ -191,8 +206,9 @@ export class FretLabRig {
     }
   }
 
-  /**
+/**
    * Открывает микрофон и подключает цепочку: mic → worklet → analyser → destination.
+   * Если bypassMode=true, подключает mic → analyser → destination напрямую (без worklet).
    */
   async start(): Promise<void> {
     if (this.started) return;
@@ -200,7 +216,7 @@ export class FretLabRig {
     if (!this.ctx || this.ctx.state === 'closed') {
       await this.init();
     }
-    if (!this.ctx || !this.proc || !this.analyser) return;
+    if (!this.ctx || !this.analyser) return;
 
     if (this.ctx.state === 'suspended') await this.ctx.resume();
 
@@ -213,8 +229,25 @@ export class FretLabRig {
     });
 
     this.source = this.ctx.createMediaStreamSource(this.stream);
-    this.source.connect(this.proc);
-    this.proc.connect(this.analyser).connect(this.ctx.destination);
+
+    if (this.bypassMode || !this.proc) {
+      // ⚡ Bypass: mic → analyser → destination (без DSP)
+      this.source.connect(this.analyser);
+      this.analyser.connect(this.ctx.destination);
+      console.log('[FretLabRig] Started in BYPASS mode (no DSP)');
+    } else {
+      // ✅ Normal: mic → worklet → analyser → destination
+      this._syncAllParams();
+      this.source.connect(this.proc!);
+      this.proc!.connect(this.analyser).connect(this.ctx.destination);
+
+      // 🔁 Дублируем синхронизацию через 100ms — гарантия применения
+      setTimeout(() => {
+        if (this.started && this.ctx?.state === 'running') {
+          this._syncAllParams();
+        }
+      }, 100);
+    }
 
     this.started = true;
   }
@@ -255,14 +288,20 @@ export class FretLabRig {
 
   // ─── Параметры ───
 
-  setParam<K extends RigParamKey>(key: K, value: RigParamDescriptor[K]): void {
+setParam<K extends RigParamKey>(key: K, value: RigParamDescriptor[K]): void {
     this.params[key] = value;
     const proc = this.proc;
     const ctx = this.ctx;
     if (!proc || !ctx || ctx.state === 'closed') return;
 
-    const param = (proc.parameters as unknown as Map<string, AudioParam>).get(key as string);
-    if (param) param.setValueAtTime(value as number, ctx.currentTime);
+    try {
+      const param = (proc.parameters as unknown as Map<string, AudioParam>).get(key as string);
+      if (param) {
+        param.setValueAtTime(value as number, ctx.currentTime);
+      }
+    } catch (err) {
+      console.warn(`[FretLabRig] setParam error for ${key}:`, err);
+    }
   }
 
   setParams(partial: Partial<RigParamDescriptor>): void {
@@ -371,16 +410,108 @@ export class FretLabRig {
     return this.freqData;
   }
 
+  /**
+   * RMS-уровень входного сигнала (0..1), вычисленный по байтовым данным
+   * частотного анализатора. Удобно для отображения индикатора "есть сигнал".
+   * Возвращает 0 если риг не запущен или данных нет.
+   */
+  getInputLevel(): number {
+    const data = this.getFrequencyData();
+    if (data.length === 0) return 0;
+    let sumSquares = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = data[i] / 255;
+      sumSquares += v * v;
+    }
+    return Math.sqrt(sumSquares / data.length);
+  }
+
+/**
+   * Включает/выключает bypass-режим (mic → analyser → destination без worklet).
+   * Работает только при следующем старте.
+   */
+  setBypass(bypass: boolean): void {
+    this.bypassMode = bypass;
+    console.log(`[FretLabRig] Bypass mode: ${bypass ? 'ON' : 'OFF'}`);
+  }
+
+  getBypass(): boolean {
+    return this.bypassMode;
+  }
+
+  /**
+   * Возвращает time-domain данные (сырой сигнал) для более точного RMS.
+   */
+getTimeDomainData(): Float32Array {
+    if (!this.analyser) return new Float32Array(0);
+    if (!this.timeData) {
+      this.timeData = new Float32Array(this.analyser.fftSize);
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.analyser.getFloatTimeDomainData(this.timeData as any);
+    return this.timeData;
+  }
+
+  /**
+   * RMS по time-domain данным (точнее, чем по частотам).
+   */
+  getInputLevelRMS(): number {
+    const data = this.getTimeDomainData();
+    if (data.length === 0) return 0;
+    let sumSquares = 0;
+    for (let i = 0; i < data.length; i++) {
+      sumSquares += data[i] * data[i];
+    }
+    return Math.sqrt(sumSquares / data.length);
+  }
+
+  /** Метка активного входного аудио-устройства (например, "USB Microphone"). */
+  getInputDeviceLabel(): string | null {
+    const track = this.stream?.getAudioTracks?.()[0];
+    if (!track) return null;
+    return track.label || null;
+  }
+
+  /** Состояние AudioContext: 'suspended' | 'running' | 'closed' | null. */
+  getAudioContextState(): AudioContextState | null {
+    return this.ctx?.state ?? null;
+  }
+
+  /** Попытка возобновить контекст, если браузер заблокировал autoplay. */
+  async resumeContext(): Promise<void> {
+    if (this.ctx && this.ctx.state === 'suspended') {
+      await this.ctx.resume();
+    }
+  }
+
   // ─── Приватное ───
 
-  private _syncAllParams(): void {
-    (Object.keys(this.params) as RigParamKey[]).forEach((key) => {
-      const proc = this.proc;
-      const ctx = this.ctx;
-      if (!proc || !ctx || ctx.state === 'closed') return;
-      const param = (proc.parameters as unknown as Map<string, AudioParam>).get(key as string);
-      if (param) param.setValueAtTime(this.params[key] as number, ctx.currentTime);
-    });
+private _syncAllParams(): void {
+    try {
+      (Object.keys(this.params) as RigParamKey[]).forEach((key) => {
+        const proc = this.proc;
+        const ctx = this.ctx;
+        if (!proc || !ctx || ctx.state === 'closed') return;
+        const param = (proc.parameters as unknown as Map<string, AudioParam>).get(key as string);
+        if (param) {
+          param.setValueAtTime(this.params[key] as number, ctx.currentTime);
+        } else {
+          // Fallback: если параметр не найден через AudioParamMap,
+          // отправляем через port.postMessage
+          try {
+            proc.port.postMessage({
+              type: 'param',
+              key,
+              value: this.params[key],
+            });
+          } catch {
+            /* noop */
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[FretLabRig] _syncAllParams error:', err);
+    }
   }
 }
 

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { BACKING_TRACK_SEEDS } from '../../data/BackingTrackSeeds';
-
+import { Button } from '../ui/Button';
 
 interface PlayerProps {
   height?: string | number;
@@ -10,10 +10,10 @@ interface PlayerProps {
   controls?: boolean;
 }
 
-const Player: React.FC<PlayerProps> = ({ 
-  height = '420px', 
-  autoplay = true, 
-  controls = true 
+const Player: React.FC<PlayerProps> = ({
+  height = '360px',
+  autoplay = true,
+  controls = true
 }) => {
   const { isPlaying, currentTrack, setCurrentTrack } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -32,8 +32,6 @@ const Player: React.FC<PlayerProps> = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [height]);
 
-
-
   const youtubeSeeds = useMemo(() => BACKING_TRACK_SEEDS.filter((s) => s.platform === 'youtube'), []);
 
   const pickNextFromSeeds = (excludeId?: string | null) => {
@@ -44,27 +42,24 @@ const Player: React.FC<PlayerProps> = ({
     return pick;
   };
 
-
-  // Базовая синхронизация Play/Pause (работает стабильно, если пользователь нажал Play в самом плеере хотя бы раз)
+  // Sync Play/Pause with the YouTube iframe
   useEffect(() => {
     if (!iframeRef.current || currentTrack?.platform !== 'youtube') return;
     try {
-      const message = isPlaying 
-        ? '{"event":"command","func":"playVideo","args":""}' 
+      const message = isPlaying
+        ? '{"event":"command","func":"playVideo","args":""}'
         : '{"event":"command","func":"pauseVideo","args":""}';
       iframeRef.current.contentWindow?.postMessage(message, '*');
     } catch (error) {
-      console.error("FretLab Player Error:", error);
+      console.error('[Player] sync error:', error);
     }
   }, [isPlaying, currentTrack]);
-
 
   const handleUrlSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!urlInput.trim()) return;
 
     const input = urlInput.trim();
-
     const ytVideoMatch = input.match(/(?:youtu\.be\/|youtube\.com\/(?:.*v=|.*embed\/|.*\/))([^&?\s]{11})/);
     const ytListMatch = input.match(/[?&]list=([^&?\s]+)/);
     const rutubeMatch = input.match(/rutube\.ru\/video\/([a-zA-Z0-9_-]+)/);
@@ -76,21 +71,17 @@ const Player: React.FC<PlayerProps> = ({
       if (ytVideoMatch && ytListMatch) trackId = `${ytVideoMatch[1]}&list=${ytListMatch[1]}`;
       else if (ytListMatch) trackId = `videoseries?list=${ytListMatch[1]}`;
       else if (ytVideoMatch) trackId = ytVideoMatch[1];
-      
       setCurrentTrack({ platform: 'youtube', id: trackId, title: 'YouTube Stream' });
-      setUrlInput(''); 
-    } 
-    else if (rutubeMatch) {
+      setUrlInput('');
+    } else if (rutubeMatch) {
       setCurrentTrack({ platform: 'rutube', id: rutubeMatch[1], title: 'RUTUBE Stream' });
       setUrlInput('');
-    } 
-    else if (isVk && vkIdMatch) {
+    } else if (isVk && vkIdMatch) {
       const trackId = `${vkIdMatch[1]}_${vkIdMatch[2]}`;
       setCurrentTrack({ platform: 'vk', id: trackId, title: 'VK Video Stream' });
       setUrlInput('');
-    } 
-    else {
-      alert("Invalid link! Please paste a valid link from YouTube, RUTUBE, or VK Video.");
+    } else {
+      alert('Invalid link! Please paste a valid link from YouTube, RUTUBE, or VK Video.');
     }
   };
 
@@ -103,6 +94,12 @@ const Player: React.FC<PlayerProps> = ({
     window.open(url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleNext = () => {
+    const next = pickNextFromSeeds(currentTrack?.platform === 'youtube' ? currentTrack.id : null);
+    if (!next) return;
+    setCurrentTrack({ platform: 'youtube', id: next.id, title: 'YouTube Stream' });
+  };
+
   const getEmbedUrl = (trackId: string, platform: string = 'youtube') => {
     if (platform === 'rutube') {
       return `https://rutube.ru/play/embed/${trackId}`;
@@ -111,17 +108,14 @@ const Player: React.FC<PlayerProps> = ({
       const [oid, vid] = trackId.split('_');
       return `https://vk.com/video_ext.php?oid=${oid}&id=${vid}&hd=2&autoplay=${autoplay ? 1 : 0}`;
     }
-    
-    // YouTube Default: Нативные контролы ВКЛЮЧЕНЫ (controls=1)
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     const params = new URLSearchParams({
-      enablejsapi: '1', 
-      autoplay: autoplay ? '1' : '0', 
+      enablejsapi: '1',
+      autoplay: autoplay ? '1' : '0',
       controls: controls ? '1' : '0',
-      fs: '1', 
+      fs: '1',
       origin: origin
     });
-
     if (trackId.startsWith('videoseries?')) {
       return `https://www.youtube.com/embed/${trackId}&${params.toString()}`;
     } else if (trackId.includes('&list=')) {
@@ -132,69 +126,96 @@ const Player: React.FC<PlayerProps> = ({
   };
 
   return (
-    <div style={{ background: 'var(--bg-panel)', width: '100%', height: playerHeight, display: 'flex', flexDirection: 'column', borderBottom: '1px solid var(--border-color)', overflow: 'hidden' }}>
-      
-      <div style={{ padding: '12px 16px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-secondary)', padding: '6px 12px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+    <div style={{
+      background: 'var(--bg-panel)', width: '100%', height: playerHeight,
+      display: 'flex', flexDirection: 'column',
+      borderBottom: '1px solid var(--border-color)', overflow: 'hidden'
+    }}>
+
+      {/* ── Toolbar ── */}
+      <div style={{
+        padding: '12px 16px',
+        background: 'var(--bg-primary)',
+        borderBottom: '1px solid var(--border-color)',
+        display: 'flex', gap: '12px', alignItems: 'center',
+        flexWrap: 'wrap',
+      }}>
+
+        {/* Platform search buttons */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          background: 'var(--bg-secondary)',
+          padding: '6px 10px',
+          borderRadius: 'var(--radius-full)',
+          border: '1px solid var(--border-color)',
+        }}>
           <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginRight: '4px' }}>SEARCH:</span>
-          
-          <button type="button" onClick={() => handlePlatformSearch('youtube')} title="Search on YouTube" style={{ width: '24px', height: '24px', background: '#FF0000', color: '#FFF', border: 'none', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '9px', cursor: 'pointer', transition: '0.2s', padding: 0 }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePlatformSearch('youtube')}
+            aria-label="Искать на YouTube"
+            style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#FF0000', color: '#fff', borderColor: '#FF0000', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
+          >
             YT
-          </button>
+          </Button>
 
-          {/* 🔥 ИСПРАВЛЕНО: Убрана окантовка (border: 'none') */}
-          <button type="button" onClick={() => handlePlatformSearch('rutube')} title="Search on RUTUBE" style={{ width: '24px', height: '24px', background: '#0A1128', color: '#FFF', border: '#8a0a26', borderRadius: '7px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '9px', cursor: 'pointer', transition: '0.2s', padding: 0 }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePlatformSearch('rutube')}
+            aria-label="Искать на RUTUBE"
+            style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#0A1128', color: '#fff', borderColor: '#8a0a26', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
+          >
             RU
-          </button>
+          </Button>
 
-          <button type="button" onClick={() => handlePlatformSearch('vk')} title="Search on VK Video" style={{ width: '24px', height: '24px', background: '#0077FF', color: '#FFF', border: 'none', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '9px', cursor: 'pointer', transition: '0.2s', padding: 0 }} onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.1)'} onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handlePlatformSearch('vk')}
+            aria-label="Искать на VK Видео"
+            style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#0077FF', color: '#fff', borderColor: '#0077FF', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
+          >
             VK
-          </button>
+          </Button>
         </div>
 
-        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px', flex: 1, minWidth: '200px', flexWrap: 'wrap' }}>
-          <input 
-            type="text" 
+        {/* URL input + controls */}
+        <form onSubmit={handleUrlSubmit} style={{ display: 'flex', gap: '8px', flex: 1, flexWrap: 'wrap' }}>
+          <input
+            type="text"
             value={urlInput}
             onChange={e => setUrlInput(e.target.value)}
             placeholder="🔗 Paste link..."
-            style={{ flex: 1, minWidth: '120px', background: 'var(--bg-root)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', outline: 'none', transition: '0.2s' }}
-            onFocus={e => e.currentTarget.style.borderColor = 'var(--accent)'}
-            onBlur={e => e.currentTarget.style.borderColor = 'var(--border-color)'}
+            className="fl-input"
+            aria-label="Ссылка на видео"
+            style={{ flex: 1, minWidth: '120px', borderRadius: 'var(--radius-full)' }}
           />
-          <button
-            type="button"
-            onClick={() => {
-              const next = pickNextFromSeeds(currentTrack?.platform === 'youtube' ? currentTrack.id : null);
-              if (!next) return;
-              // переключаем сразу
-              setCurrentTrack({ platform: 'youtube', id: next.id, title: 'YouTube Stream' });
-            }}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleNext}
             disabled={youtubeSeeds.length === 0}
-            style={{
-              background: 'transparent',
-              color: youtubeSeeds.length === 0 ? 'var(--text-muted)' : 'var(--accent)',
-              border: '1px solid var(--border-color)',
-              padding: '0 14px',
-              borderRadius: '20px',
-              fontSize: '12px',
-              fontWeight: 900,
-              cursor: youtubeSeeds.length === 0 ? 'not-allowed' : 'pointer',
-              transition: '0.2s',
-              whiteSpace: 'nowrap'
-            }}
-            title="Random NEXT backing track (seed pool)"
+            aria-label="Следующий бит-трек"
+            style={{ color: youtubeSeeds.length === 0 ? 'var(--text-muted)' : 'var(--accent)', borderRadius: 'var(--radius-full)', padding: '0 14px', whiteSpace: 'nowrap' }}
           >
             NEXT
-          </button>
-          <button type="submit" style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: '0 24px', borderRadius: '20px', fontSize: '12px', fontWeight: 900, cursor: 'pointer', transition: '0.2s' }}>
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            aria-label="Загрузить видео"
+            style={{ borderRadius: 'var(--radius-full)', padding: '0 24px' }}
+          >
             LOAD
-          </button>
+          </Button>
         </form>
-
       </div>
 
+      {/* ── Embed area ── */}
       <div style={{ flex: 1, position: 'relative', backgroundColor: '#000' }}>
         {currentTrack && ['youtube', 'rutube', 'vk'].includes(currentTrack.platform) ? (
           <iframe
@@ -209,14 +230,20 @@ const Player: React.FC<PlayerProps> = ({
             style={{ display: 'block' }}
           />
         ) : (
-          <div aria-label="No track selected" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: 'var(--text-muted)', fontSize: '14px', fontWeight: 800, textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase' }}>
+          <div style={{
+            position: 'absolute', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: 'var(--text-muted)', fontSize: '14px', fontWeight: 800,
+            textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase',
+          }}>
             <span style={{ fontSize: '42px', display: 'block', marginBottom: '16px', opacity: 0.5 }}>🎵</span>
-            Awaiting Media Stream<br/>
-            <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--text-secondary)', textTransform: 'none', marginTop: '8px', display: 'block' }}>Search a platform or paste any link</span>
+            Awaiting Media Stream<br />
+            <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--text-secondary)', textTransform: 'none', marginTop: '8px', display: 'block' }}>
+              Search a platform or paste any link
+            </span>
           </div>
         )}
       </div>
-
     </div>
   );
 };

@@ -9,6 +9,7 @@ import TablatureDisplay from './TablatureDisplay';
 import AnimatedTipBlock from '../tips/AnimatedTipBlock';
 import * as Tone from 'tone';
 import { audioManager } from '../../services/AudioManager';
+import { Button } from '../ui/Button';
 
 const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
 
@@ -86,8 +87,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
     setLocalActiveStep(-1);
   };
 
-  const handleGenerate = (e?: React.MouseEvent) => {
-    if (e) (e.currentTarget as HTMLButtonElement).blur(); 
+  const handleGenerate = () => {
     if (isPlayingAudio) stopPlayback();
 
     setIsGenerating(true);
@@ -105,8 +105,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
   };
 
   // 🎸 Воспроизведение через Tone.Part + AudioManager (как в SoloGenerator)
-  const playLickAudio = async (e?: React.MouseEvent) => {
-    if (e) (e.currentTarget as HTMLButtonElement).blur(); 
+  const playLickAudio = async () => {
     if (!currentLick || isPlayingAudio) return;
 
     stopPlayback();
@@ -213,16 +212,27 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
           )}
 
           <div style={{ display: 'flex', gap: '6px' }}>
-            {!isPlayingAudio ? (
-              <button onClick={playLickAudio} disabled={isGenerating || !currentLick} style={{ background: 'var(--accent)', color: '#000', border: 'none', padding: `${effectiveCompact ? '8px 20px' : '6px 16px'}`, borderRadius: '4px', fontWeight: 900, fontSize: `${effectiveCompact ? '13px' : '11px'}`, cursor: 'pointer', minWidth: effectiveCompact ? '80px' : 'auto' }}>▶ PLAY</button>
-            ) : (
-              <button onClick={(e) => { (e.currentTarget as HTMLButtonElement).blur(); stopPlayback(); }} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: `${effectiveCompact ? '8px 20px' : '6px 16px'}`, borderRadius: '4px', fontWeight: 900, fontSize: `${effectiveCompact ? '13px' : '11px'}`, cursor: 'pointer', minWidth: effectiveCompact ? '80px' : 'auto' }}>⏹ STOP</button>
-            )}
-          </div>
+            <Button
+              variant={isPlayingAudio ? 'danger' : 'primary'}
+              size={effectiveCompact ? 'md' : 'sm'}
+              onClick={isPlayingAudio ? stopPlayback : playLickAudio}
+              disabled={!isPlayingAudio && (isGenerating || !currentLick)}
+              aria-label={isPlayingAudio ? 'Остановить воспроизведение' : 'Воспроизвести'}
+            >
+              {isPlayingAudio ? '⏹ STOP' : '▶ PLAY'}
+            </Button>
 
-          <button onClick={handleGenerate} disabled={isGenerating || isPlayingAudio} style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', padding: `${effectiveCompact ? '8px 18px' : '6px 14px'}`, borderRadius: '4px', fontSize: `${effectiveCompact ? '13px' : '11px'}`, fontWeight: 800, cursor: 'pointer', minWidth: effectiveCompact ? '100px' : 'auto' }}>
-            🎲 RE-GENERATE
-          </button>
+            <Button
+              variant="secondary"
+              size={effectiveCompact ? 'md' : 'sm'}
+              onClick={handleGenerate}
+              loading={isGenerating}
+              disabled={isGenerating || isPlayingAudio}
+              aria-label="Сгенерировать новую фразу"
+            >
+              🎲 RE-GENERATE
+            </Button>
+          </div>
         </div>
       </div>
 

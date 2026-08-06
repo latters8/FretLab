@@ -20,8 +20,8 @@ const CircleOfFifths: React.FC = () => {
       if (w <= 400) setSize(170);
       else if (w <= 480) setSize(220);
       else if (w <= 768) setSize(250);
-      else if (w <= 1024) setSize(260);
-      else setSize(300);
+      else if (w <= 1024) setSize(220);
+      else setSize(220);
     };
     handleResize();
     window.addEventListener('resize', handleResize);
@@ -50,7 +50,7 @@ const CircleOfFifths: React.FC = () => {
   const FONT_SIZE_CENTER = Math.max(20, Math.min(32, SIZE * 0.11));
 
   return (
-    <div style={{ 
+<div style={{ 
       background: 'var(--bg-panel)', 
       borderRadius: 'var(--radius)', 
       border: '1px solid var(--border-color)', 
@@ -58,7 +58,7 @@ const CircleOfFifths: React.FC = () => {
       alignItems: 'center', 
       justifyContent: 'center', 
       overflow: 'hidden', 
-      height: '340px',
+      height: 'auto',
       flexShrink: 0,
       padding: '8px'
     }}>

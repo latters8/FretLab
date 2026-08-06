@@ -36,6 +36,10 @@ const ToolBox: React.FC = () => {
     return () => {
       synthRef.current?.dispose();
       loopRef.current?.dispose();
+      // ⚠️ FIX: раньше при уходе со страницы во время работы метронома
+      // Transport оставался в состоянии "started" навсегда — луп и синтезатор
+      // удалялись, а глобальный Tone.Transport продолжал тикать в фоне.
+      Tone.Transport.stop();
     };
   }, []);
 

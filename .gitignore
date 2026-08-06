@@ -65,3 +65,38 @@ config.local.json
 # FretLab Generated Output & Temp Files
 output/
 *.rpp
+# Madar / Graphify
+out/
+graphify-out/
+*.graph.json
+*.log
+madar-*.log
+madar-mcp.log
+madar-data/
+madar-cache/
+.DS_Store
+
+# Docker
+Dockerfile.madar
+docker-compose.yml
+.dockerignore
+
+# VS Code MCP
+.vscode/mcp.json
+.vscode/*.local
+.vscode/*.json.local
+
+# Misc temp / build artifacts
+tsc
+vendor-react
+vendor.
+vite
+scripts/
+
+# Глобальные пользовательские файлы (не коммитить)
+!.vscode/extensions.json
+*.local
+*.private.*
+.env
+.env.local
+.env.*.local

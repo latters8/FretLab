@@ -72,7 +72,7 @@ class AudioManager {
       guitar: new Tone.Volume(6), // +6 dB по умолчанию для гитары
       bass: new Tone.Volume(0),
       drums: new Tone.Volume(0),
-      chords: new Tone.Volume(-12), // Дефолтно приглушаем аккорды
+      chords: new Tone.Volume(-6), // Дефолтно приглушаем аккорды, но не слишком сильно
     };
 
     // Подключаем все каналы в мастер-шину
@@ -336,7 +336,7 @@ class AudioManager {
   // ============================================
   // 🎸 ВОСПРОИЗВЕДЕНИЕ ГИТАРЫ (ИСПРАВЛЕНО)
   // ============================================
-  public playGuitarNote(noteOrFreq: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity: number = 0.7) {
+  public playGuitarNote(noteOrFreq: string | number, duration: Tone.Unit.Time, time?: Tone.Unit.Time, velocity: number = 0.85) {
     const t = time || Tone.now();
     
     // Если сэмплер загружен
@@ -359,7 +359,7 @@ class AudioManager {
     freq: number,
     duration: number,
     startTime?: number,
-    velocity: number = 0.7
+    velocity: number = 0.85
   ): void {
     const ctx = this.getAudioContext();
     // ✅ FIX: Используем Tone.now() вместо ctx.currentTime (рассинхрон!)
@@ -374,7 +374,7 @@ class AudioManager {
       osc1.type = 'triangle';
       osc1.frequency.setValueAtTime(freq, time);
       gain1.gain.setValueAtTime(0, time);
-      gain1.gain.linearRampToValueAtTime(velocity * 0.6, time + 0.01);
+      gain1.gain.linearRampToValueAtTime(velocity * 0.95, time + 0.01);
       gain1.gain.exponentialRampToValueAtTime(0.001, time + duration);
       osc1.connect(gain1);
       gain1.connect(destinationNode);
@@ -387,7 +387,7 @@ class AudioManager {
       osc2.type = 'sawtooth';
       osc2.frequency.setValueAtTime(freq * 2, time);
       gain2.gain.setValueAtTime(0, time);
-      gain2.gain.linearRampToValueAtTime(velocity * 0.15, time + 0.01);
+      gain2.gain.linearRampToValueAtTime(velocity * 0.3, time + 0.01);
       gain2.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.8);
       osc2.connect(gain2);
       gain2.connect(destinationNode);
@@ -400,7 +400,7 @@ class AudioManager {
       osc3.type = 'sine';
       osc3.frequency.setValueAtTime(freq * 1.25, time);
       gain3.gain.setValueAtTime(0, time);
-      gain3.gain.linearRampToValueAtTime(velocity * 0.1, time + 0.01);
+      gain3.gain.linearRampToValueAtTime(velocity * 0.2, time + 0.01);
       gain3.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.6);
       osc3.connect(gain3);
       gain3.connect(destinationNode);

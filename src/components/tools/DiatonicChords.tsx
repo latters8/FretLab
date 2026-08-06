@@ -66,10 +66,10 @@ const DiatonicChords: React.FC = () => {
 
   return (
     <>
-      <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '24px', border: '1px solid var(--border-color)', boxShadow: '0 8px 24px rgba(0,0,0,0.2)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 'var(--radius)', padding: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         
         <div>
-            <div style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '12px', textAlign: 'center' }}>
+            <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px', textAlign: 'center' }}>
             {isArpeggioOrAltered ? '💡 Suggested Harmony' : '🎹 Diatonic Harmony'} <span style={{ color: 'var(--accent)' }}>({keyNote} {mode.replace('_', ' ')})</span>
             </div>
             
@@ -102,7 +102,7 @@ const DiatonicChords: React.FC = () => {
               return (
                 <div key={i} style={{ 
                     display: 'flex', alignItems: 'center', background: isTonic ? 'var(--bg-hover)' : 'var(--bg-primary)', 
-                    padding: '12px 16px', borderRadius: '8px', border: `1px solid ${isTonic ? 'var(--accent)' : 'var(--border-color)'}`,
+                    padding: '8px 12px', borderRadius: '6px', border: `1px solid ${isTonic ? 'var(--accent)' : 'var(--border-color)'}`,
                     boxShadow: isTonic ? 'inset 3px 0 0 var(--accent)' : 'none', justifyContent: 'space-between'
                   }}>
                   
@@ -124,9 +124,9 @@ const DiatonicChords: React.FC = () => {
                     }}
                     style={{
                       background: 'var(--accent)', color: '#000', border: 'none',
-                      padding: '6px 16px', borderRadius: '12px', fontSize: '11px',
+                      padding: '4px 10px', borderRadius: '10px', fontSize: '10px',
                       fontWeight: 900, cursor: 'pointer', transition: 'transform 0.2s',
-                      boxShadow: '0 4px 12px rgba(0,255,157,0.3)'
+                      boxShadow: '0 2px 8px rgba(0,255,157,0.2)'
                     }}
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}

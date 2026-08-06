@@ -1,6 +1,6 @@
 // src/components/PracticeDashboard.tsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type React from 'react';
 import { useMusic } from '../context/MusicContext';
 import { playChordByName, playScale } from '../utils/audioEngine';
@@ -53,6 +53,20 @@ const PracticeDashboard: React.FC = () => {
     setTimeout(() => setIsPlayingAudio(false), 2500);
   };
 
+  // ⚠️ FIX: раньше на каждый клик "Play Tab" создавался новый AudioContext,
+  // который никогда не закрывался. Держим один на весь компонент, закрываем
+  // при unmount (симметрично фиксу в ChordDictionary.tsx).
+  const tabAudioCtxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (tabAudioCtxRef.current) {
+        tabAudioCtxRef.current.close();
+        tabAudioCtxRef.current = null;
+      }
+    };
+  }, []);
+
   // 🔥 ВОСПРОИЗВЕДЕНИЕ ТАБА
   const playTabAudio = (tabData: any) => {
     if (isPlayingAudio || !tabData) return;
@@ -60,7 +74,11 @@ const PracticeDashboard: React.FC = () => {
     
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      const ctx = new AudioContextClass();
+      if (!tabAudioCtxRef.current) {
+        tabAudioCtxRef.current = new AudioContextClass();
+      }
+      const ctx = tabAudioCtxRef.current;
+      if (ctx.state === 'suspended') ctx.resume();
       const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
       
       let startTime = ctx.currentTime + 0.1;

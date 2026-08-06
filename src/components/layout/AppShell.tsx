@@ -18,12 +18,13 @@ import { RigPanel } from '../FretLabRig/RigPanel';
 import { useMusic } from '../../context/MusicContext';
 import { IconButton } from '../ui/IconButton';
 
-type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'practice' | 'gameroom';
+type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'rig' | 'practice' | 'gameroom';
 
 const MODULES = {
   engine: { icon: '🎸', title: 'Fretboard Engine', description: 'Interactive fretboard with playback' },
   dictionary: { icon: '📖', title: 'Chord Dictionary', description: 'Explore chords and voicings' },
   autotab: { icon: '🎼', title: 'Solo Generator', description: 'AI-powered solo generation' },
+  rig: { icon: '🎛️', title: 'FretLab Rig', description: 'Guitar processor with pedals' },
   practice: { icon: '🏋️', title: 'Practice Dashboard', description: 'Track your progress' },
   gameroom: { icon: '🎮', title: 'Game Room', description: 'Take a break with open-source games' },
 } as const;
@@ -70,8 +71,12 @@ const AppShell: React.FC = () => {
         switchModule('engine');
         break;
 
-      case 'OPEN_PRACTICE':
+case 'OPEN_PRACTICE':
         switchModule('practice');
+        break;
+
+      case 'OPEN_RIG':
+        switchModule('rig');
         break;
 
       case 'SEARCH_BACKING':
@@ -102,9 +107,9 @@ const AppShell: React.FC = () => {
 
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '5') {
+if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '6') {
         e.preventDefault();
-        const modules: ModuleType[] = ['engine', 'dictionary', 'autotab', 'practice', 'gameroom'];
+        const modules: ModuleType[] = ['engine', 'dictionary', 'autotab', 'rig', 'practice', 'gameroom'];
         const index = parseInt(e.key) - 1;
         if (index < modules.length) {
           setActiveModule(modules[index]);
@@ -146,14 +151,21 @@ const AppShell: React.FC = () => {
       case 'engine':
         return (
           <main className="center-column">
-            <Player />
-            <div className="fretboard-scroll-wrapper">
-              <Fretboard />
+            <div className="engine-page-layout">
+<div className="engine-page-layout__main">
+                <Player />
+                <div className="fretboard-scroll-wrapper">
+                  <Fretboard />
+                </div>
+                <Tablature />
+              </div>
+              <aside className="engine-page-layout__side">
+                <CircleOfFifths />
+                <DiatonicChords />
+              </aside>
             </div>
-            <Tablature />
+            {/* ⏺ RECORD — в самом низу главной страницы, на всю ширину */}
             <div className="tools-section">
-              <CircleOfFifths />
-              <DiatonicChords />
               <ToolBox />
             </div>
           </main>
@@ -170,6 +182,13 @@ const AppShell: React.FC = () => {
         return (
           <main className="center-column">
             <SoloGenerator />
+          </main>
+        );
+
+case 'rig':
+        return (
+          <main className="center-column">
+            <RigPanel />
           </main>
         );
 
@@ -208,6 +227,11 @@ const seoByModule: Record<ModuleType, { title: string; description: string; keyw
       description: 'Генерация гитарных соло с помощью AI. Создавай уникальные соло-партии с автоматической табулатурой и DAW-микшером.',
       keywords: 'ai генератор соло, генератор табов, гитарное соло онлайн, ai музыка, solo generator, tab generator',
     },
+rig: {
+      title: 'Гитарный процессор FretLab Rig',
+      description: 'Мощный гитарный процессор с педалями: тюнер, дисторшн, эквалайзер, кабинет IR, модуляция, дилей и ревербератор. Обрабатывай звук гитары в реальном времени онлайн.',
+      keywords: 'гитарный процессор, педали эффектов онлайн, гитарные эффекты, дисторшн, дилей, ревербератор, тюнер, cabinet ir, guitar rig',
+    },
     practice: {
       title: 'Тренировки для гитариста',
       description: 'Ежедневные тренировки для гитариста: гаммы, аккорды, ритм. Отслеживай прогресс обучения игре на гитаре.',
@@ -231,12 +255,7 @@ const seoByModule: Record<ModuleType, { title: string; description: string; keyw
         ogTitle={`${currentSeo.title} | FretLab`}
         ogDescription={currentSeo.description}
       />
-      <Header onAIAction={handleAIAction} />
-
-      {/* 🎸 Унифицированный гитарный процессор — на всех страницах */}
-      <div className="rig-panel-slot">
-        <RigPanel />
-      </div>
+<Header onAIAction={handleAIAction} />
 
       <div className="app-main">
         <div className="app-layout">
@@ -248,11 +267,12 @@ const seoByModule: Record<ModuleType, { title: string; description: string; keyw
             {renderNavIcon('engine')}
             {renderNavIcon('dictionary')}
             {renderNavIcon('autotab')}
+            {renderNavIcon('rig')}
             {renderNavIcon('practice')}
             {renderNavIcon('gameroom')}
             <div className="sidebar-footer desktop-only">
               <span className="version-text">v2.0.0</span>
-              <span className="shortcut-text">Ctrl+1-5</span>
+              <span className="shortcut-text">Ctrl+1-6</span>
             </div>
           </aside>
         </div>
