@@ -366,9 +366,25 @@ class AudioManager {
     const time = startTime ?? Tone.now() + 0.05;
 
     try {
-      const destinationNode = Tone.getContext().rawContext.createGain();
-      Tone.connect(destinationNode as any, this.channels.guitar);
-      
+      // ⚠️ FIX: раньше здесь создавался промежуточный destinationNode (GainNode)
+      // на КАЖДЫЙ вызов, подключался к this.channels.guitar и никогда не
+      // отключался — безусловная утечка на каждую ноту, сыгранную через
+      // фолбэк-путь (когда guitarSampler ещё не загружен). Убрали лишний узел:
+      // гейны нот подключаем напрямую к channels.guitar.
+      //
+      // Плюс: раньше this.oscillators чистился только вручную через stopAll(),
+      // который EarTrainer вообще не вызывает — осцилляторы копились в массиве
+      // навсегда и не собирались GC. Теперь каждый осциллятор сам вычищает
+      // себя из массива по событию onended.
+      const registerOsc = (osc: OscillatorNode) => {
+        this.oscillators.push(osc);
+        osc.onended = () => {
+          osc.disconnect();
+          const idx = this.oscillators.indexOf(osc);
+          if (idx !== -1) this.oscillators.splice(idx, 1);
+        };
+      };
+
       const osc1 = ctx.createOscillator();
       const gain1 = ctx.createGain();
       osc1.type = 'triangle';
@@ -377,10 +393,10 @@ class AudioManager {
       gain1.gain.linearRampToValueAtTime(velocity * 0.95, time + 0.01);
       gain1.gain.exponentialRampToValueAtTime(0.001, time + duration);
       osc1.connect(gain1);
-      gain1.connect(destinationNode);
+      Tone.connect(gain1 as any, this.channels.guitar);
       osc1.start(time);
       osc1.stop(time + duration + 0.05);
-      this.oscillators.push(osc1);
+      registerOsc(osc1);
 
       const osc2 = ctx.createOscillator();
       const gain2 = ctx.createGain();
@@ -390,10 +406,10 @@ class AudioManager {
       gain2.gain.linearRampToValueAtTime(velocity * 0.3, time + 0.01);
       gain2.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.8);
       osc2.connect(gain2);
-      gain2.connect(destinationNode);
+      Tone.connect(gain2 as any, this.channels.guitar);
       osc2.start(time);
       osc2.stop(time + duration * 0.8 + 0.05);
-      this.oscillators.push(osc2);
+      registerOsc(osc2);
 
       const osc3 = ctx.createOscillator();
       const gain3 = ctx.createGain();
@@ -403,10 +419,10 @@ class AudioManager {
       gain3.gain.linearRampToValueAtTime(velocity * 0.2, time + 0.01);
       gain3.gain.exponentialRampToValueAtTime(0.001, time + duration * 0.6);
       osc3.connect(gain3);
-      gain3.connect(destinationNode);
+      Tone.connect(gain3 as any, this.channels.guitar);
       osc3.start(time);
       osc3.stop(time + duration * 0.6 + 0.05);
-      this.oscillators.push(osc3);
+      registerOsc(osc3);
     } catch (err) {
       console.error('Ошибка воспроизведения гитарной ноты:', err);
     }
