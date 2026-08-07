@@ -272,6 +272,16 @@ export const useEarTrainingAudio = () => {
     return buffer;
   }, [isRecording]);
 
+  // ⚠️ FIX: раньше cleanup-эффект имел deps [], поэтому его замыкание видело
+  // recordedUrl таким, каким он был при ПЕРВОМ рендере (всегда null) — строка
+  // revokeObjectURL(recordedUrl) в реальности никогда не срабатывала для
+  // настоящего blob URL. Держим актуальное значение в рефе, синхронизируем
+  // на каждый рендер, и используем реф внутри cleanup.
+  const recordedUrlRef = useRef<string | null>(null);
+  useEffect(() => {
+    recordedUrlRef.current = recordedUrl;
+  }, [recordedUrl]);
+
   // --- Очистка при размонтировании ---
   useEffect(() => {
     return () => {
@@ -283,10 +293,9 @@ export const useEarTrainingAudio = () => {
       if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
         audioCtxRef.current.close();
       }
-      if (recordedUrl) URL.revokeObjectURL(recordedUrl);
+      if (recordedUrlRef.current) URL.revokeObjectURL(recordedUrlRef.current);
       if (audioElementRef.current) audioElementRef.current.src = '';
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
