@@ -11,7 +11,7 @@ interface SEOHeadProps {
 
 const BASE_URL = 'https://latters8.github.io/FretLab';
 const SITE_NAME = 'FretLab';
-const DEFAULT_DESCRIPTION = 'Профессиональная интерактивная гитарная платформа с AI-генерацией соло, DAW-микшером, тюнером и игровой комнатой для гитаристов.';
+const DEFAULT_DESCRIPTION = 'Профессиональная интерактивная гитарная платформа с AI-генерацией соло, гриф с нотами и интервалами для импровизации, советы по игре, тренировка слуха, DAW-микшером, тюнером и игровой комнатой для гитаристов.';
 const DEFAULT_KEYWORDS = 'гитара онлайн, обучение гитаре, AI генератор соло, guitar learning, гитарный тюнер, DAW онлайн, fretboard, табулатуры, аккорды, музыкальная теория, fretlab';
 const DEFAULT_OG_IMAGE = `${BASE_URL}/hero.png`;
 
