@@ -51,8 +51,8 @@ const SoloGenerator: React.FC = () => {
   // 🆕 ФАЗА 3: Новые состояния для расширенного соло
   const [soloStyle, setSoloStyle] = useState<SoloStyle>('rock');
   const [soloBars, setSoloBars] = useState<number>(4);
-  const [useCallResponse, setUseCallResponse] = useState<boolean>(true);
-  const [useMotifDev, setUseMotifDev] = useState<boolean>(true);
+const [useCallResponse, setUseCallResponse] = useState<boolean>(false);
+  const [useMotifDev, setUseMotifDev] = useState<boolean>(false);
   const [soloComplexity, setSoloComplexity] = useState<number>(3);
   const [soloVariation, setSoloVariation] = useState<number>(0.3);
   
