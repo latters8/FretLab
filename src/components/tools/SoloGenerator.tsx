@@ -49,12 +49,10 @@ const SoloGenerator: React.FC = () => {
   const [playbackProgress, setPlaybackProgress] = useState(0);
   
   // 🆕 ФАЗА 3: Новые состояния для расширенного соло
-  const [soloStyle, setSoloStyle] = useState<SoloStyle>('rock');
-  const [soloBars, setSoloBars] = useState<number>(4);
-const [useCallResponse, setUseCallResponse] = useState<boolean>(false);
-  const [useMotifDev, setUseMotifDev] = useState<boolean>(false);
+const [soloStyle, setSoloStyle] = useState<SoloStyle>('rock');
+const [soloBars, setSoloBars] = useState<number>(4);
   const [soloComplexity, setSoloComplexity] = useState<number>(3);
-  const [soloVariation, setSoloVariation] = useState<number>(0.3);
+  const [soloVariation, setSoloVariation] = useState<number>(0.9);
   
   // 🆕 ФАЗА 2: Interactive mode
   const [isInteractiveMode, setIsInteractiveMode] = useState<boolean>(false);
@@ -532,15 +530,16 @@ const [useCallResponse, setUseCallResponse] = useState<boolean>(false);
 
     const beatsPerBar = timeSignature?.beats || 4;
 
-    // 🆕 Используем generateExtendedSolo если >4 тактов или включены опции
-    const useExtended = soloBars > 4 || useCallResponse || useMotifDev || soloComplexity > 3;
+// 🆕 Всегда используем generateExtendedSolo (плотные ноты → звук).
+    // useCallResponse/useMotifDev отключены (false), а variation=0.9 даёт
+    // разнообразие. generateSynchronizedSolo для обычных ладов генерирует
+    // слишком мало нот, из-за чего звук пропадал.
+    const useExtended = true;
     
     if (useExtended) {
-      const extendedConfig: ExtendedSoloConfig = {
+const extendedConfig: ExtendedSoloConfig = {
         bars: soloBars,
         style: soloStyle,
-        useCallResponse,
-        useMotifDevelopment: useMotifDev,
         complexity: soloComplexity as 1 | 2 | 3 | 4 | 5,
         variation: soloVariation,
       };

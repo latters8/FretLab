@@ -555,8 +555,6 @@ export type SoloStyle = 'blues' | 'jazz' | 'fusion' | 'metal' | 'funk' | 'countr
 export interface ExtendedSoloConfig {
   bars: number;                // количество тактов (8, 16, 32, 64)
   style: SoloStyle;
-  useCallResponse: boolean;    // структура вопрос-ответ
-  useMotifDevelopment: boolean; // развитие мотива
   complexity: 1 | 2 | 3 | 4 | 5; // 1=просто, 5=сложно
   variation: number;           // 0-1, насколько сильно меняется каждая следующая фраза
 }
@@ -607,7 +605,7 @@ export const generateExtendedSolo = (
     durationBeats: beatsPerBar
   }));
 
-  // === Генерация нот ===
+// === Генерация нот ===
   const allNotes: SyncNote[] = [];
   const motif = generateMotif(safeScale, mode, keyNote, config.style, config.complexity);
   let previousPhraseMotif = motif;
@@ -618,37 +616,11 @@ export const generateExtendedSolo = (
     
     if (phraseBars <= 0) break;
 
-    const phraseRole = getPhraseRole(phraseIdx, config);
+    // Простая вариация мотива — БЕЗ call-response и motif development
     let phraseMotif = motif;
-
-    if (phraseIdx === 0) {
-      phraseMotif = motif;
-    } else {
-      if (phraseRole === 'response') {
-        const currentChord = chords[phraseBarStart] || chords[0];
-        const resolveNote = currentChord?.notes[0] || keyNote || 'E';
-        const resolveFret = findFretForNote(resolveNote, 2, 0, 21);
-
-        phraseMotif = [...previousPhraseMotif].reverse().map((n, i) => {
-          const isLast = i === previousPhraseMotif.length - 1;
-          return {
-            ...n,
-            fret: isLast ? resolveFret : n.fret,
-            string: isLast ? 2 : n.string,
-            velocity: isLast
-              ? Math.min(1, (n.velocity || 0.7) * 1.1)
-              : Math.min(1, (n.velocity || 0.7) * 0.85),
-            technique: isLast ? 'vibrato' as Technique : ('none' as Technique),
-            duration: isLast ? '2n' : n.duration
-          };
-        });
-      } else if (phraseRole === 'development' && config.useMotifDevelopment) {
-        phraseMotif = varyMotif(previousPhraseMotif, phraseIdx, Math.min(1, config.variation * 1.2));
-      } else {
-        phraseMotif = varyMotif(previousPhraseMotif, phraseIdx, config.variation * 0.6);
-      }
+    if (phraseIdx > 0) {
+      phraseMotif = varyMotif(previousPhraseMotif, phraseIdx, config.variation * 0.6);
     }
-
     previousPhraseMotif = phraseMotif;
 
     // Стилевые модификации + контур фразы для более живой импровизации
@@ -670,11 +642,6 @@ export const generateExtendedSolo = (
         }
       } else if (phraseIdx > 0 && i % 2 === 0) {
         adjusted.fret = Math.max(0, Math.min(21, (adjusted.fret ?? 0) + direction * Math.max(1, step - 1)));
-      }
-
-      if (config.useCallResponse && phraseIdx % 2 === 1 && i === styleAdjusted.length - 1) {
-        adjusted.technique = 'vibrato';
-        adjusted.velocity = Math.min(1, (adjusted.velocity || 0.7) + 0.1);
       }
 
       return adjusted;
@@ -711,7 +678,7 @@ const noteName = getNoteFromFret(motifNote.fret ?? 0, motifNote.string);
           }
         }
 
-        const isAccent = slot === 0 || (config.complexity >= 4 && slot % 3 === 0) || (config.useCallResponse && phraseIdx % 2 === 1 && slot % 4 === 0);
+const isAccent = slot === 0 || (config.complexity >= 4 && slot % 3 === 0);
         const isLastNoteGlobal = globalBarIdx === bars - 1 && slot === notesInBar - 1;
         const shouldRest = Math.random() < densityBias * (config.complexity <= 2 ? 0.18 : 0.08);
         const durationPool = config.complexity >= 4 ? ['16n', '8n', '8n.'] : ['8n', '4n'];
@@ -751,19 +718,6 @@ const noteName = getNoteFromFret(motifNote.fret ?? 0, motifNote.string);
 
   return { bars, totalBeats, chords, notes: allNotes };
 };
-
-/** Создает начальный мотив */
-function getPhraseRole(phraseIdx: number, config: ExtendedSoloConfig): 'statement' | 'response' | 'development' {
-  if (phraseIdx === 0) return 'statement';
-
-  if (config.useCallResponse) {
-    return phraseIdx % 2 === 1 ? 'response' : (phraseIdx % 3 === 2 ? 'development' : 'statement');
-  }
-
-  if (phraseIdx % 3 === 1) return 'response';
-  if (phraseIdx % 3 === 2) return 'development';
-  return 'statement';
-}
 
 function generateMotif(
   scale: string[],
