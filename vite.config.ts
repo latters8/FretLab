@@ -22,24 +22,15 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        // ✅ Правильный способ разделения чанков
+        // ✅ Выделяем только React+react-dom в отдельный чанк.
+        // Для остальных node_modules возвращаем undefined — Rollup сам разобьёт
+        // их на оптимальные чанки без циклических зависимостей.
         manualChunks(id: string) {
-          if (id.includes('node_modules')) {
-            // Разделяем зависимости
-            if (id.includes('react')) {
-              return 'vendor-react';
-            }
-            return 'vendor';
+          if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
+            return 'vendor-react';
           }
         },
       },
-    },
-  },
-  
-  // 🔧 Разрешаем импорты
-  resolve: {
-    alias: {
-      '@': '/src',
     },
   },
 });
