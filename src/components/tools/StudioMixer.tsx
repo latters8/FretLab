@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type React from 'react';
 import { audioManager } from '../../services/AudioManager';
+import { useTranslation } from '../../context/LocaleContext';
 
 // ============================================
 // 🎛️ ТИПЫ
@@ -47,6 +48,7 @@ const DEFAULT_CHANNELS: Record<string, ChannelState> = {
 const DEFAULT_EQ: EQState = { low: 0, mid: 0, high: 0 };
 
 const StudioMixer: React.FC = () => {
+  const { t } = useTranslation();
   const [channels, setChannels] = useState<Record<string, ChannelState>>(DEFAULT_CHANNELS);
   const [eq, setEq] = useState<EQState>(DEFAULT_EQ);
 
@@ -186,10 +188,10 @@ const StudioMixer: React.FC = () => {
         justifyContent: 'space-between',
       }}>
         <span style={{ fontSize: '13px', fontWeight: 800, color: 'rgba(255,255,255,0.4)', letterSpacing: '1px', textTransform: 'uppercase' }}>
-          🎛️ Studio Mixer
+{t.studioMixer.title}
         </span>
         <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.2)', letterSpacing: '0.5px' }}>
-          MASTER
+          {t.studioMixer.master}
         </span>
       </div>
 
@@ -236,7 +238,7 @@ const StudioMixer: React.FC = () => {
                   cursor: 'pointer',
                 }}
                 onMouseDown={(e) => handleVuMouseDown(ch.key, e)}
-                title={`Click/drag to adjust volume: ${state.volume} dB`}
+title={`${t.studioMixer.volumeTitle}: ${state.volume} dB`}
               >
                 <div style={{
                   position: 'absolute',
@@ -287,7 +289,7 @@ const StudioMixer: React.FC = () => {
                 lineHeight: 1.2,
                 whiteSpace: 'nowrap',
               }}>
-                {ch.key === 'master' ? 'MSTR' : ch.key.toUpperCase()}
+{ch.key === 'master' ? t.studioMixer.mstr : ch.key.toUpperCase()}
               </span>
 
               {/* M / S buttons — крупнее */}
@@ -351,7 +353,7 @@ const StudioMixer: React.FC = () => {
           marginBottom: '10px',
           textAlign: 'center',
         }}>
-          ⚡ Equalizer
+{t.studioMixer.equalizer}
         </div>
 
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>

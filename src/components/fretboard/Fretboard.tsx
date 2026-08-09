@@ -3,6 +3,7 @@ import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { playNote } from '../../utils/audioEngine';
 import { Button } from '../ui/Button';
+import { useTranslation } from '../../context/LocaleContext';
 
 const TUNINGS: Record<string, string[]> = {
   'Standard E': ['E', 'A', 'D', 'G', 'B', 'E'],
@@ -28,6 +29,13 @@ const MODE_LABELS: Record<string, string> = {
   maj7_arp: 'Maj7 Arp.', min7_arp: 'Min7 Arp.', dom7_arp: 'Dom7 Arp.', dom9_arp: 'Dom9 Arp.', altered: 'Altered',
 };
 
+const MODE_LABELS_RU: Record<string, string> = {
+  major: 'Мажор', minor: 'Минор', dorian: 'Дорийский', phrygian: 'Фригийский',
+  lydian: 'Лидийский', mixolydian: 'Миксолидийский', aeolian: 'Эолийский', locrian: 'Локрийский',
+  harmonic_minor: 'Гарм. мин.', melodic_minor: 'Мел. мин.', pentatonic: 'Пентатоника', blues: 'Блюз',
+  maj7_arp: 'Бол. 7', min7_arp: 'Мин. 7', dom7_arp: 'Дом. 7', dom9_arp: 'Дом. 9', altered: 'Альтеред',
+};
+
 type DisplayMode = 'notes' | 'intervals' | 'caged' | 'clean';
 
 const DISPLAY_MODES: { value: DisplayMode; label: string }[] = [
@@ -38,7 +46,9 @@ const DISPLAY_MODES: { value: DisplayMode; label: string }[] = [
 ];
 
 const Fretboard: React.FC = () => {
+  const { t, locale } = useTranslation();
   const { keyNote, mode, getScaleNotes, setKeyNote, setMode } = useMusic();
+  const modeLabels = locale === 'ru' ? MODE_LABELS_RU : MODE_LABELS;
   const scaleNotes = getScaleNotes();
   const [tuningName, setTuningName] = useState<string>('Standard E');
   const [material, setMaterial] = useState<keyof typeof MATERIALS>('glass');
@@ -138,7 +148,7 @@ padding: isMobile ? '12px' : '16px',
         gap: '8px',
       }}>
         <span className="fl-section-label" style={{ color: 'var(--accent)', fontSize: '13px', letterSpacing: '1px' }}>
-          Fretboard Engine
+          {t.fretboard.title}
         </span>
       </div>
 
@@ -150,7 +160,7 @@ padding: isMobile ? '12px' : '16px',
             value={keyNote}
             onChange={(e) => setKeyNote(e.target.value)}
             className="fl-select"
-            aria-label="Клавиша"
+            aria-label={t.fretboard.key}
           >
             {ALL_NOTES.map(n => <option key={n} value={n}>{n}</option>)}
           </select>
@@ -160,11 +170,11 @@ padding: isMobile ? '12px' : '16px',
             onChange={(e) => setMode(e.target.value as any)}
             className="fl-select"
             style={{ maxWidth: isMobile ? '120px' : '160px' }}
-            aria-label="Режим"
+            aria-label={t.fretboard.mode}
           >
             <optgroup label="Гаммы">
               {['major', 'minor', 'dorian', 'phrygian', 'lydian', 'mixolydian', 'aeolian', 'locrian', 'harmonic_minor', 'melodic_minor', 'pentatonic', 'blues'].map(m => (
-                <option key={m} value={m}>{MODE_LABELS[m]}</option>
+                <option key={m} value={m}>{modeLabels[m]}</option>
               ))}
             </optgroup>
             <optgroup label="Арпеджио">
@@ -199,7 +209,7 @@ padding: isMobile ? '12px' : '16px',
             value={tuningName}
             onChange={(e) => setTuningName(e.target.value)}
             className="fl-select"
-            aria-label="Настройка"
+            aria-label={t.fretboard.tuning}
           >
             {Object.keys(TUNINGS).map(t => <option key={t} value={t}>{t}</option>)}
           </select>
@@ -208,7 +218,7 @@ padding: isMobile ? '12px' : '16px',
             value={material}
             onChange={(e) => setMaterial(e.target.value as any)}
             className="fl-select"
-            aria-label="Накладка грифа"
+            aria-label={t.fretboard.neck}
           >
             {Object.keys(MATERIALS).map(m => <option key={m} value={m}>{m.charAt(0).toUpperCase() + m.slice(1)} Neck</option>)}
           </select>
@@ -217,7 +227,7 @@ padding: isMobile ? '12px' : '16px',
             value={fretColor}
             onChange={(e) => setFretColor(e.target.value as any)}
             className="fl-select"
-            aria-label="Цвет ладов"
+            aria-label={t.fretboard.frets}
           >
             <option value="dark">Dark Frets</option>
             <option value="light">Light Frets</option>
@@ -337,8 +347,8 @@ padding: isMobile ? '12px' : '16px',
                           <button
                             type="button"
                             onClick={() => handleNoteClick(note)}
-                            aria-label={`Нота ${note}${isRoot ? ' (тоника)' : ''}`}
-                            title={`${note}${isRoot ? ' (тоника)' : ''}`}
+                            aria-label={`${note}${isRoot ? ` ${t.fretboard.tonic}` : ''}`}
+                            title={`${note}${isRoot ? ` ${t.fretboard.tonic}` : ''}`}
                             style={{
                               display: 'flex', alignItems: 'center', justifyContent: 'center',
                               border: 'none', cursor: 'pointer',

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useMusic } from '../../context/MusicContext';
+import { useTranslation } from '../../context/LocaleContext';
 import ChordDictionaryModal from './ChordDictionaryModal';
 
 type FilterType = 'DIA' | '7TH' | '9TH' | 'ALT';
@@ -11,6 +12,7 @@ const ENHARMONIC_MAP: Record<string, string> = { 'Db': 'C#', 'Eb': 'D#', 'Gb': '
 const normalize = (note: string) => ENHARMONIC_MAP[note] || note;
 
 const DiatonicChords: React.FC = () => {
+  const { t } = useTranslation();
   const { getDiatonicChords, mode, keyNote, setKeyNote, setMode } = useMusic();
   
   // 🔥 ИСПРАВЛЕНО: По умолчанию DIA (трезвучия), а не 7TH
@@ -70,7 +72,7 @@ const DiatonicChords: React.FC = () => {
         
         <div>
             <div style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--text-muted)', fontWeight: 800, letterSpacing: '1px', marginBottom: '8px', textAlign: 'center' }}>
-            {isArpeggioOrAltered ? '💡 Suggested Harmony' : '🎹 Diatonic Harmony'} <span style={{ color: 'var(--accent)' }}>({keyNote} {mode.replace('_', ' ')})</span>
+{isArpeggioOrAltered ? t.diatonic.suggested : t.diatonic.title} <span style={{ color: 'var(--accent)' }}>({keyNote} {mode.replace('_', ' ')})</span>
             </div>
             
             {!isArpeggioOrAltered && (
@@ -109,7 +111,7 @@ const DiatonicChords: React.FC = () => {
                   <div 
                     onClick={() => handlePlayOverChord(c.chord)}
                     style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', transition: '0.2s' }}
-                    title={`Click to map ${c.chord} notes on Fretboard`}
+title={t.diatonic.playOver}
                     onMouseEnter={e => e.currentTarget.style.opacity = '0.7'}
                     onMouseLeave={e => e.currentTarget.style.opacity = '1'}
                   >
@@ -131,7 +133,7 @@ const DiatonicChords: React.FC = () => {
                     onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
                     onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
                   >
-                    SHOW
+{t.common.show}
                   </button>
 
                 </div>

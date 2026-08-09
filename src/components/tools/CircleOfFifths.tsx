@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useMusic } from '../../context/MusicContext';
+import { useTranslation } from '../../context/LocaleContext';
 
 const KEYS_MAJOR = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'Db', 'Ab', 'Eb', 'Bb', 'F'];
 const KEYS_MINOR = ['Am', 'Em', 'Bm', 'F#m', 'C#m', 'G#m', 'D#m', 'Bbm', 'Fm', 'Cm', 'Gm', 'Dm'];
@@ -11,6 +12,7 @@ const normalize = (note: string) => ENHARMONIC_MAP[note] || note;
 const isEnharmonic = (n1: string, n2: string) => normalize(n1) === normalize(n2);
 
 const CircleOfFifths: React.FC = () => {
+  const { t } = useTranslation();
   const { keyNote, mode, setKeyNote, setMode } = useMusic();
   const [size, setSize] = useState(300);
 
@@ -210,9 +212,9 @@ const CircleOfFifths: React.FC = () => {
             fontWeight: 800, 
             letterSpacing: '1.5px', 
             marginTop: '4px',
-            opacity: 0.8
+opacity: 0.8
           }}>
-            TONIC
+            {t.circleOfFifths.tonic}
           </div>
         </div>
 

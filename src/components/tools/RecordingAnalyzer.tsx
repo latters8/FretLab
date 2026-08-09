@@ -1,8 +1,10 @@
 // src/components/tools/RecordingAnalyzer.tsx
 import React, { useRef, useEffect } from 'react';
 import { useRecordingAnalyzer } from '../../hooks/useRecordingAnalyzer';
+import { useTranslation } from '../../context/LocaleContext';
 
 const RecordingAnalyzer: React.FC = () => {
+  const { t } = useTranslation();
   const { isRecording, startRecording, stopRecording, noteEvents, summary, getAudioData } =
     useRecordingAnalyzer();
 
@@ -94,7 +96,7 @@ const RecordingAnalyzer: React.FC = () => {
               letterSpacing: '0.5px',
             }}
           >
-            Recording Analyzer — соответствие сыгранной фразы выбранной тональности
+{t.recordingAnalyzer.title} — {t.recordingAnalyzer.subtitle}
           </span>
         </div>
         <button
@@ -115,7 +117,7 @@ const RecordingAnalyzer: React.FC = () => {
             boxShadow: isRecording ? 'none' : '0 0 12px var(--accent)',
           }}
         >
-          {isRecording ? '⏹ STOP' : '⏺ RECORD'}
+{isRecording ? t.recordingAnalyzer.stop : t.recordingAnalyzer.record}
         </button>
       </div>
 
@@ -158,10 +160,8 @@ const RecordingAnalyzer: React.FC = () => {
           }}
         >
           <span style={{ fontSize: '24px' }}>🎸</span>
-          <span>
-            Нажми <strong style={{ color: 'var(--accent)' }}>RECORD</strong> и сыграй фразу —
-            <br />
-            разберём интонацию, лад и ритм
+<span>
+            {t.recordingAnalyzer.waitingHint1}{' '}<strong style={{ color: 'var(--accent)' }}>{t.recordingAnalyzer.record}</strong>{' '}{t.recordingAnalyzer.waitingHint2}
           </span>
         </div>
       )}
@@ -171,9 +171,9 @@ const RecordingAnalyzer: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Сводные метрики */}
           <div style={{ display: 'flex', gap: '8px' }}>
-            <Metric label="Ноты" value={String(summary.totalNotes)} />
-            <Metric label="В ладу" value={`${summary.inScalePercent}%`} />
-            <Metric label="Интонация" value={`±${summary.avgAbsCents.toFixed(0)}¢`} />
+<Metric label={t.recordingAnalyzer.notes} value={String(summary.totalNotes)} />
+            <Metric label={t.recordingAnalyzer.inKey} value={`${summary.inScalePercent}%`} />
+            <Metric label={t.recordingAnalyzer.intonation} value={`±${summary.avgAbsCents.toFixed(0)}¢`} />
           </div>
 
           {/* Советы */}
@@ -209,7 +209,7 @@ const RecordingAnalyzer: React.FC = () => {
                   letterSpacing: '0.5px',
                 }}
               >
-                Распознанные ноты
+{t.recordingAnalyzer.recognizedNotes}
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
                 {noteEvents.map((ev, i) => (
@@ -249,7 +249,7 @@ const RecordingAnalyzer: React.FC = () => {
               cursor: 'pointer',
             }}
           >
-            🔁 Записать ещё раз
+{t.common.reRecord}
           </button>
         </div>
       )}

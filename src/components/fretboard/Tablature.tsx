@@ -10,6 +10,7 @@ import AnimatedTipBlock from '../tips/AnimatedTipBlock';
 import * as Tone from 'tone';
 import { audioManager } from '../../services/AudioManager';
 import { Button } from '../ui/Button';
+import { useTranslation } from '../../context/LocaleContext';
 
 const OPEN_FREQS = [329.63, 246.94, 196.00, 146.83, 110.00, 82.41];
 
@@ -18,6 +19,7 @@ interface TablatureProps {
 }
 
 const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
+  const { t } = useTranslation();
   const { mode, keyNote, getScaleNotes, bpm, timeSignature } = useMusic();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -198,8 +200,8 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
       
       <div style={{ padding: effectiveCompact ? '10px 16px' : '16px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: effectiveCompact ? '11px' : '12px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🎲 AI Phrase Builder</span>
-          <span style={{ fontSize: effectiveCompact ? '13px' : '14px', fontWeight: 900, color: 'var(--accent)' }}>{currentLick ? currentLick.name : 'Генерация...'}</span>
+<span style={{ fontSize: effectiveCompact ? '11px' : '12px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px' }}>🎲 {t.tablature.title}</span>
+          <span style={{ fontSize: effectiveCompact ? '13px' : '14px', fontWeight: 900, color: 'var(--accent)' }}>{currentLick ? currentLick.name : t.tablature.generatingPhrase}</span>
         </div>
 
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', width: effectiveCompact ? '100%' : 'auto', marginTop: effectiveCompact ? '8px' : '0' }}>
@@ -216,10 +218,10 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
               variant={isPlayingAudio ? 'danger' : 'primary'}
               size={effectiveCompact ? 'md' : 'sm'}
               onClick={isPlayingAudio ? stopPlayback : playLickAudio}
-              disabled={!isPlayingAudio && (isGenerating || !currentLick)}
-              aria-label={isPlayingAudio ? 'Остановить воспроизведение' : 'Воспроизвести'}
+disabled={!isPlayingAudio && (isGenerating || !currentLick)}
+              aria-label={isPlayingAudio ? t.tablature.stopPlayback : t.tablature.playGenerated}
             >
-              {isPlayingAudio ? '⏹ STOP' : '▶ PLAY'}
+              {isPlayingAudio ? t.tablature.stop : t.tablature.play}
             </Button>
 
             <Button
@@ -228,9 +230,9 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
               onClick={handleGenerate}
               loading={isGenerating}
               disabled={isGenerating || isPlayingAudio}
-              aria-label="Сгенерировать новую фразу"
+              aria-label={t.tablature.generateNew}
             >
-              🎲 RE-GENERATE
+              {t.tablature.regenerate}
             </Button>
           </div>
         </div>
@@ -242,7 +244,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
 
       {tips.length > 0 && !effectiveCompact && (
         <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border-color)', background: 'var(--bg-primary)' }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>💡 Совет:</div>
+<div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '8px' }}>{t.tablature.tips}</div>
           <AnimatedTipBlock tips={tips} />
         </div>
       )}

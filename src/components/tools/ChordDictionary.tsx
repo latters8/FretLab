@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
+import { useTranslation } from '../../context/LocaleContext';
 
 const ROOTS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
@@ -44,6 +45,7 @@ interface Props {
 }
 
 const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
+  const { t } = useTranslation();
   const [selectedRoot, setSelectedRoot] = useState('C');
   const [selectedSuffix, setSelectedSuffix] = useState('');
   const [activeCategory, setActiveCategory] = useState<keyof typeof CHORD_CATEGORIES>('Major');
@@ -148,8 +150,8 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
       <div style={{ padding: isMobile ? '14px 16px' : '18px 24px', background: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
         <span style={{ fontSize: '20px' }}>📖</span>
         <div style={{ display: 'flex', flexDirection: 'column' }}>
-          <span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>Interactive Chord Dictionary</span>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>Explore professional guitar voicings</span>
+<span style={{ fontSize: '14px', fontWeight: 800, color: 'var(--text-primary)' }}>{t.chordDictionary.interactive}</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t.chordDictionary.explore}</span>
         </div>
       </div>
 
@@ -160,7 +162,7 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
       <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', flex: 1, overflow: 'hidden', overflowY: isMobile ? 'auto' : 'hidden' }} className="dictionary-layout">
         <div style={{ width: isMobile ? '100%' : '260px', borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', background: 'var(--bg-primary)', padding: isMobile ? '16px' : '20px', display: 'flex', flexDirection: 'column', gap: '16px', overflowY: isMobile ? 'visible' : 'auto', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>1. Select Root Note</div>
+<div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>{t.chordDictionary.selectRoot}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
               {ROOTS.map(root => (
                 <button
@@ -175,7 +177,7 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
           </div>
 
           <div>
-            <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>2. Category</div>
+<div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '10px' }}>{t.chordDictionary.category}</div>
             {/* 🔥 ИЗМЕНЕНО: на мобильном категории — горизонтальная лента чипов
                 (scroll-x), а не вертикальный список на всю ширину — экономит
                 высоту экрана в пользу самой диаграммы аккорда ниже. */}
@@ -198,7 +200,7 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
         </div>
 
         <div style={{ width: isMobile ? '100%' : '300px', borderRight: isMobile ? 'none' : '1px solid var(--border-color)', borderBottom: isMobile ? '1px solid var(--border-color)' : 'none', padding: isMobile ? '16px' : '20px', overflowY: isMobile ? 'visible' : 'auto', display: 'flex', flexDirection: 'column', gap: '8px', flexShrink: 0 }}>
-          <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>3. Select Extensions</div>
+<div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>{t.chordDictionary.selectExtensions}</div>
           {/* 🔥 ИЗМЕНЕНО: на мобильном — тоже горизонтальная лента чипов вместо
               списка широких строк (тот же приём, что и для категорий). */}
           <div style={{ display: 'flex', flexDirection: isMobile ? 'row' : 'column', gap: '8px', overflowX: isMobile ? 'auto' : 'visible', WebkitOverflowScrolling: 'touch' }}>
@@ -227,14 +229,14 @@ const ChordDictionary: React.FC<Props> = ({ targetChord }) => {
           {voicings.map((voicing, vIdx) => (
             <div key={vIdx} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-color)', padding: '20px', borderRadius: '12px', width: '100%', maxWidth: '340px', display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', fontWeight: 800, color: 'var(--text-secondary)', borderBottom: '1px solid var(--border-color)', paddingBottom: '8px' }}>
-                <span>Pos: {voicing.name}</span>
-                <button 
+<span>{t.chordDictionary.pos} {voicing.name}</span>
+                <button
                   onClick={() => playChordAudio(voicing.frets)}
                   style={{ background: 'var(--bg-secondary)', color: 'var(--accent)', border: '1px solid var(--accent)', padding: '4px 12px', borderRadius: '20px', fontSize: '11px', fontWeight: 800, cursor: 'pointer', display: 'flex', gap: '4px', alignItems: 'center', transition: '0.2s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent)'; e.currentTarget.style.color = '#000'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; e.currentTarget.style.color = 'var(--accent)'; }}
                 >
-                  🔊 LISTEN
+{t.chordDictionary.listen}
                 </button>
               </div>
 

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
-import { generateSynchronizedSolo, generateExtendedSolo, getSuggestedNotesForChord, getPhraseSuggestions, predictNextNote, type SyncSoloData, type SoloStyle, type ExtendedSoloConfig, type SuggestionNote, type PhraseSuggestion } from '../../services/AIEngine';
+import { generateSynchronizedSolo, getSuggestedNotesForChord, getPhraseSuggestions, predictNextNote, type SyncSoloData, type SuggestionNote, type PhraseSuggestion } from '../../services/AIEngine';
 import { generateTips, type Tip } from '../../utils/tipsGenerator';
 import TablatureDisplay from '../fretboard/TablatureDisplay';
 import AnimatedTipBlock from '../tips/AnimatedTipBlock';
@@ -23,20 +23,6 @@ import {
 
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-const SOLO_STYLES: { value: SoloStyle; label: string; icon: string }[] = [
-  { value: 'blues', label: 'Blues', icon: '🎸' },
-  { value: 'rock', label: 'Rock', icon: '🤘' },
-  { value: 'jazz', label: 'Jazz', icon: '🎷' },
-  { value: 'fusion', label: 'Fusion', icon: '🌌' },
-  { value: 'metal', label: 'Metal', icon: '⚡' },
-  { value: 'funk', label: 'Funk', icon: '🕺' },
-  { value: 'country', label: 'Country', icon: '🤠' },
-  { value: 'pop', label: 'Pop', icon: '🎤' },
-  { value: 'classical', label: 'Classical', icon: '🎻' },
-];
-
-const BAR_OPTIONS = [4, 8, 16, 32, 64];
-
 const SoloGenerator: React.FC = () => {
   const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm, setTimeSignature } = useMusic();
 
@@ -46,13 +32,7 @@ const SoloGenerator: React.FC = () => {
   const [isLoopOn, setIsLoopOn] = useState(false);
   const [isChordsOn] = useState(true);
   const [isSoloOn] = useState(true);
-  const [playbackProgress, setPlaybackProgress] = useState(0);
-  
-  // 🆕 ФАЗА 3: Новые состояния для расширенного соло
-const [soloStyle, setSoloStyle] = useState<SoloStyle>('rock');
-const [soloBars, setSoloBars] = useState<number>(4);
-  const [soloComplexity, setSoloComplexity] = useState<number>(3);
-  const [soloVariation, setSoloVariation] = useState<number>(0.9);
+const [playbackProgress, setPlaybackProgress] = useState(0);
   
   // 🆕 ФАЗА 2: Interactive mode
   const [isInteractiveMode, setIsInteractiveMode] = useState<boolean>(false);
@@ -528,65 +508,29 @@ const [soloBars, setSoloBars] = useState<number>(4);
       return chord;
     });
 
-    const beatsPerBar = timeSignature?.beats || 4;
+const beatsPerBar = timeSignature?.beats || 4;
 
-// 🆕 Всегда используем generateExtendedSolo (плотные ноты → звук).
-    // useCallResponse/useMotifDev отключены (false), а variation=0.9 даёт
-    // разнообразие. generateSynchronizedSolo для обычных ладов генерирует
-    // слишком мало нот, из-за чего звук пропадал.
-    const useExtended = true;
-    
-    if (useExtended) {
-const extendedConfig: ExtendedSoloConfig = {
-        bars: soloBars,
-        style: soloStyle,
-        complexity: soloComplexity as 1 | 2 | 3 | 4 | 5,
-        variation: soloVariation,
-      };
-      
-      const newSolo = generateExtendedSolo(
-        safeScale, 
-        keyNote || 'C', 
-        mode || 'major', 
-        timeSignature || { beats: 4, noteValue: 4 }, 
-        chordsForGeneration,
-        extendedConfig
-      );
-      setSoloData(newSolo);
-      try {
-        const chordNames = newSolo.chords.map(c => c.name);
-        setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
-      } catch (err) {}
-      
-      // Генерируем басовую линию для extended
-      const totalBeatsForBass = soloBars * beatsPerBar;
-      // Extend progression to match soloBars
-      const extendedProg: { name: string; notes: string[] }[] = [];
-      for (let i = 0; i < soloBars; i++) {
-        extendedProg.push(targetProgression[i % targetProgression.length]);
-      }
-      const bassLine = generateBassLine(extendedProg, beatsPerBar, totalBeatsForBass);
-      setBassNotes(bassLine);
-    } else {
-      const newSolo = generateSynchronizedSolo(
-        safeScale, 
-        keyNote || 'C', 
-        mode || 'major', 
-        timeSignature || { beats: 4, noteValue: 4 }, 
-        chordsForGeneration,
-        false
-      );
+    // 🎸 Используем generateSynchronizedSolo — оригинальный генератор БЕЗ
+    // motif/call-response (никаких следов "solo engine"). Каждый такт получает
+    // минимум нот, звук не пропадает.
+    const newSolo = generateSynchronizedSolo(
+      safeScale, 
+      keyNote || 'C', 
+      mode || 'major', 
+      timeSignature || { beats: 4, noteValue: 4 }, 
+      chordsForGeneration,
+      false
+    );
 
-      setSoloData(newSolo);
-      try {
-        const chordNames = newSolo.chords.map(c => c.name);
-        setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
-      } catch (err) {}
+    setSoloData(newSolo);
+    try {
+      const chordNames = newSolo.chords.map(c => c.name);
+      setTips(generateTips(newSolo as any, keyNote || 'C', mode || 'major', chordNames, bpm || 120));
+    } catch (err) {}
 
-      const totalBeatsForBass = 4 * beatsPerBar;
-      const bassLine = generateBassLine(targetProgression, beatsPerBar, totalBeatsForBass);
-      setBassNotes(bassLine);
-    }
+    const totalBeatsForBass = 4 * beatsPerBar;
+    const bassLine = generateBassLine(targetProgression, beatsPerBar, totalBeatsForBass);
+    setBassNotes(bassLine);
 
     setIsGenerating(false);
   };
@@ -855,7 +799,7 @@ const togglePlayBtn = async (e: React.MouseEvent) => {
   const SVG_WIDTH = trackWidth;
   const SVG_HEIGHT = 520;
   const TRACK_MARGIN_X = 20;
-  const totalBars = progression.length || soloBars || 4;
+const totalBars = progression.length || 4;
   const BAR_WIDTH = Math.max(80, (SVG_WIDTH - TRACK_MARGIN_X * 2) / Math.max(totalBars, 4));
   const BEAT_WIDTH = BAR_WIDTH / (timeSignature?.beats || 4);
   const CHORD_Y = 25;

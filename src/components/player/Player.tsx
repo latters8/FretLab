@@ -3,6 +3,7 @@ import type React from 'react';
 import { useMusic } from '../../context/MusicContext';
 import { BACKING_TRACK_SEEDS } from '../../data/BackingTrackSeeds';
 import { Button } from '../ui/Button';
+import { useTranslation } from '../../context/LocaleContext';
 
 interface PlayerProps {
   height?: string | number;
@@ -15,6 +16,7 @@ const Player: React.FC<PlayerProps> = ({
   autoplay = true,
   controls = true
 }) => {
+  const { t } = useTranslation();
   const { isPlaying, currentTrack, setCurrentTrack } = useMusic();
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const [urlInput, setUrlInput] = useState('');
@@ -81,7 +83,7 @@ const Player: React.FC<PlayerProps> = ({
       setCurrentTrack({ platform: 'vk', id: trackId, title: 'VK Video Stream' });
       setUrlInput('');
     } else {
-      alert('Invalid link! Please paste a valid link from YouTube, RUTUBE, or VK Video.');
+      alert(t.player.invalidLink);
     }
   };
 
@@ -155,7 +157,7 @@ const Player: React.FC<PlayerProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => handlePlatformSearch('youtube')}
-            aria-label="Искать на YouTube"
+            aria-label={`${t.player.searchOn} YouTube`}
             style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#FF0000', color: '#fff', borderColor: '#FF0000', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
           >
             YT
@@ -165,7 +167,7 @@ const Player: React.FC<PlayerProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => handlePlatformSearch('rutube')}
-            aria-label="Искать на RUTUBE"
+            aria-label={`${t.player.searchOn} RUTUBE`}
             style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#0A1128', color: '#fff', borderColor: '#8a0a26', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
           >
             RU
@@ -175,7 +177,7 @@ const Player: React.FC<PlayerProps> = ({
             variant="ghost"
             size="sm"
             onClick={() => handlePlatformSearch('vk')}
-            aria-label="Искать на VK Видео"
+            aria-label={`${t.player.searchOn} VK`}
             style={{ padding: '0 8px', minWidth: 0, fontSize: '11px', fontWeight: 900, background: '#0077FF', color: '#fff', borderColor: '#0077FF', borderRadius: 'var(--radius-sm)', minHeight: '28px' }}
           >
             VK
@@ -188,7 +190,7 @@ const Player: React.FC<PlayerProps> = ({
             type="text"
             value={urlInput}
             onChange={e => setUrlInput(e.target.value)}
-            placeholder="🔗 Paste link..."
+            placeholder={t.player.placeholder}
             className="fl-input"
             aria-label="Ссылка на видео"
             style={{ flex: 1, minWidth: '120px', borderRadius: 'var(--radius-full)' }}
@@ -237,9 +239,9 @@ const Player: React.FC<PlayerProps> = ({
             textAlign: 'center', letterSpacing: '1px', textTransform: 'uppercase',
           }}>
             <span style={{ fontSize: '42px', display: 'block', marginBottom: '16px', opacity: 0.5 }}>🎵</span>
-            Awaiting Media Stream<br />
+            {t.player.awaiting}<br />
             <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--text-secondary)', textTransform: 'none', marginTop: '8px', display: 'block' }}>
-              Search a platform or paste any link
+              {t.player.awaitingHint}
             </span>
           </div>
         )}

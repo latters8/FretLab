@@ -17,19 +17,12 @@ import SEOHead from '../SEOHead';
 import { RigPanel } from '../FretLabRig/RigPanel';
 import { useMusic } from '../../context/MusicContext';
 import { IconButton } from '../ui/IconButton';
+import { useTranslation } from '../../context/LocaleContext';
 
 type ModuleType = 'engine' | 'dictionary' | 'autotab' | 'rig' | 'practice' | 'gameroom';
 
-const MODULES = {
-  engine: { icon: '🎸', title: 'Fretboard Engine', description: 'Interactive fretboard with playback' },
-  dictionary: { icon: '📖', title: 'Chord Dictionary', description: 'Explore chords and voicings' },
-  autotab: { icon: '🎼', title: 'Solo Generator', description: 'AI-powered solo generation' },
-  rig: { icon: '🎛️', title: 'FretLab Rig', description: 'Guitar processor with pedals' },
-  practice: { icon: '🏋️', title: 'Practice Dashboard', description: 'Track your progress' },
-  gameroom: { icon: '🎮', title: 'Game Room', description: 'Take a break with open-source games' },
-} as const;
-
 const AppShell: React.FC = () => {
+  const { t } = useTranslation();
   const [activeModule, setActiveModule] = useState<ModuleType>('engine');
   const [aiTargetChord, setAiTargetChord] = useState<string | null>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
@@ -128,9 +121,18 @@ if ((e.ctrlKey || e.metaKey) && e.key >= '1' && e.key <= '6') {
     setActiveModule(module);
   };
 
+  const NAV_MODULES: Record<ModuleType, { icon: string; title: string }> = {
+    engine: { icon: '🎸', title: t.nav.fretboard },
+    dictionary: { icon: '📖', title: t.nav.dictionary },
+    autotab: { icon: '🎼', title: t.nav.autotab },
+    rig: { icon: '🎛️', title: t.nav.rig },
+    practice: { icon: '🏋️', title: t.nav.practice },
+    gameroom: { icon: '🎮', title: t.nav.gameroom },
+  };
+
   const renderNavIcon = (module: ModuleType) => {
     const isActive = activeModule === module;
-    const config = MODULES[module];
+    const config = NAV_MODULES[module];
 
     return (
       <IconButton
