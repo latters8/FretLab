@@ -11,6 +11,7 @@ import StudioMixer from './StudioMixer';
 import RecordingAnalyzer from './RecordingAnalyzer';
 import PhraseSuggestionOverlay from './PhraseSuggestionOverlay';
 import { Button } from '../ui/Button';
+import { useTranslation } from '../../context/LocaleContext';
 import * as Tone from 'tone';
 import { audioManager } from '../../services/AudioManager';
 import {
@@ -24,6 +25,7 @@ import {
 const ALL_NOTES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const SoloGenerator: React.FC = () => {
+  const { t } = useTranslation();
   const { keyNote, mode, bpm, timeSignature, getScaleNotes, getDiatonicChords, setKeyNote, setMode, setBpm, setTimeSignature } = useMusic();
 
   const [soloData, setSoloData] = useState<SyncSoloData | null>(null);
@@ -850,10 +852,10 @@ const totalBars = progression.length || 4;
       
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px', width: '100%' }}>
         <div>
-<h2 style={{ margin: '0 0 6px 0', fontSize: isMobile ? '14px' : '18px', fontWeight: 900, color: 'var(--text-primary)' }}>🎼 AI Studio</h2>
+<h2 style={{ margin: '0 0 6px 0', fontSize: isMobile ? '14px' : '18px', fontWeight: 900, color: 'var(--text-primary)' }}>{t.soloGenerator.studio}</h2>
           <div style={{ display: 'flex', gap: isMobile ? '6px' : '12px', fontSize: isMobile ? '10px' : '12px', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
-            <span>Key: <strong style={{ color: 'var(--accent)' }}>{keyNote} {mode.replace(/_/g, ' ')}</strong></span>
-            <span>Time: <strong>{timeSignature.beats}/{timeSignature.noteValue}</strong></span>
+            <span>{t.soloGenerator.key}: <strong style={{ color: 'var(--accent)' }}>{keyNote} {mode.replace(/_/g, ' ')}</strong></span>
+            <span>{t.soloGenerator.time}: <strong>{timeSignature.beats}/{timeSignature.noteValue}</strong></span>
           </div>
         </div>
 
@@ -880,12 +882,12 @@ const totalBars = progression.length || 4;
             <option value="altered">Altered</option>
           </select>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+<div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={togglePlayBtn} disabled={!soloData || isGenerating} style={{ background: isPlaying ? '#ff4444' : 'var(--accent)', color: isPlaying ? '#fff' : '#000', border: 'none', padding: '8px 18px', borderRadius: '6px', fontWeight: 900, cursor: 'pointer', transition: '0.2s' }}>
-              {isPlaying ? '⏹ STOP' : '▶ PLAY'}
+              {isPlaying ? `⏹ ${t.soloGenerator.stop}` : `▶ ${t.soloGenerator.play}`}
             </button>
             <button onClick={handleLoopToggle} style={{ background: isLoopOn ? 'var(--accent)' : 'transparent', color: isLoopOn ? '#000' : 'var(--text-muted)', border: '1px solid var(--border-color)', padding: '6px 12px', borderRadius: '6px', fontWeight: 800, cursor: 'pointer' }}>
-              🔁 LOOP: {isLoopOn ? 'ON' : 'OFF'}
+              🔁 {t.soloGenerator.loop}: {isLoopOn ? t.soloGenerator.loopOn : t.soloGenerator.loopOff}
             </button>
           </div>
 
@@ -895,9 +897,9 @@ const totalBars = progression.length || 4;
             onClick={handleGenerateClick}
             disabled={isPlaying}
             loading={isGenerating}
-            aria-label={isGenerating ? 'Generating solo' : 'Generate new solo'}
+            aria-label={isGenerating ? t.soloGenerator.generateSolo : t.soloGenerator.generateSolo}
           >
-            {isGenerating ? 'RENDERING' : '🎲 GENERATE'}
+            {isGenerating ? t.soloGenerator.rendering : t.soloGenerator.generate}
           </Button>
         </div>
       </div>
@@ -961,9 +963,9 @@ const totalBars = progression.length || 4;
             transition: '0.2s',
             whiteSpace: 'nowrap'
           }}
-          title="Generate random pattern"
+title={t.soloGenerator.generateRandomPattern}
         >
-          {isRandomizing ? '⏳ ...' : '🎲 Random'}
+          {isRandomizing ? '⏳ ...' : `🎲 ${t.soloGenerator.random}`}
         </button>
 
         <button
@@ -981,9 +983,9 @@ const totalBars = progression.length || 4;
             transition: '0.2s',
             whiteSpace: 'nowrap'
           }}
-          title="Mutate current pattern"
+          title={t.soloGenerator.mutateCurrent}
         >
-          🔄 Mutate
+          🔄 {t.soloGenerator.mutate}
         </button>
 
         <button
@@ -1001,9 +1003,9 @@ const totalBars = progression.length || 4;
             transition: '0.2s',
             whiteSpace: 'nowrap'
           }}
-          title="Generate 5 random patterns and pick one"
+          title={t.soloGenerator.generateFivePick}
         >
-          🎲 5x
+          🎲 {t.soloGenerator.fiveX}
         </button>
 
         {randomHistory.length > 0 && (
@@ -1048,13 +1050,13 @@ const totalBars = progression.length || 4;
           {drumPattern.isRandom ? '🎲 Random' : drumPattern.description?.substring(0, 30) + (drumPattern.description?.length > 30 ? '...' : '')}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>TEMPO</span>
+<div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>{t.soloGenerator.tempo}</span>
           <input type="number" value={bpm} onChange={e => setBpm(Number(e.target.value))} style={{ width: '60px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '4px', color: '#fff', textAlign: 'center', fontWeight: 900 }} />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>Takt</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 800 }}>{t.soloGenerator.takt}</span>
           <select
             value={timeSignature.beats}
             onChange={(e) => setTimeSignature({ ...timeSignature, beats: Number(e.target.value) })}
@@ -1406,8 +1408,8 @@ const totalBars = progression.length || 4;
                     color: 'var(--text-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
-                  }}>
-                    🎸 Choose chord
+}}>
+                    🎸 {t.soloGenerator.chooseChord}
                   </div>
                   
                   {diatonicChords.map((opt, oIdx) => {
@@ -1462,8 +1464,8 @@ const totalBars = progression.length || 4;
                     color: 'var(--text-muted)',
                     textTransform: 'uppercase',
                     letterSpacing: '0.5px'
-                  }}>
-                    ✨ Suggested
+}}>
+                    ✨ {t.soloGenerator.suggested}
                   </div>
                   
                   {getSuggestedChords(progression[editingBarIndex]?.name || '').map((suggestion, sIdx) => {
@@ -1520,16 +1522,16 @@ const totalBars = progression.length || 4;
                       fontWeight: 600
                     }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
+onMouseLeave={e => { e.currentTarget.style.background = 'var(--bg-secondary)'; }}
                   >
-                    ✕ Close
+                    ✕ {t.soloGenerator.close}
                   </div>
                 </div>
               )}
             </>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '320px', color: 'var(--text-muted)', fontWeight: 800, fontSize: '13px' }}>
-              {isGenerating ? '⏳ ВЫЧИСЛЕНИЕ ПРОГРЕССИИ И ГЕНЕРАЦИЯ ФРАЗ...' : '🎸 СЕТКА ПУСТА. НАЖМИТЕ GENERATE ДЛЯ СОЗДАНИЯ 4-ТАКТНОГО СОЛО'}
+{isGenerating ? `⏳ ${t.soloGenerator.generating}` : `🎸 ${t.soloGenerator.emptyGrid}`}
             </div>
           )}
         </div>
@@ -1545,7 +1547,7 @@ const totalBars = progression.length || 4;
 
       {tips.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', width: '100%' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>💡 Советы к соло:</div>
+<div style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '12px' }}>💡 {t.soloGenerator.tips}:</div>
           <AnimatedTipBlock tips={tips} />
         </div>
       )}

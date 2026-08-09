@@ -16,6 +16,8 @@ import { audioManager } from '../../services/AudioManager';
 import { useEarTrainingAudio } from '../../hooks/useEarTrainingAudio';
 import type { DetectedNote } from '../../hooks/useEarTrainingAudio';
 import { useMusicTheory } from '../../context/MusicContext';
+import { useTranslation } from '../../context/LocaleContext';
+import type { LocaleDict } from '../../locales/ru';
 import { CHORD_DB, generateFallbackVoicing, type Voicing } from '../../services/ChordDatabase';
 import ChordDictionaryModal from './ChordDictionaryModal';
 
@@ -249,11 +251,31 @@ export function generateTargetNotes(mode: TrainingMode, keyNote: string, scale: 
 // ОЦЕНКА И ФИДБЕК
 // ============================================================
 
+// Вспомогательный replace для плейсхолдеров вида {name}
+function fmt(template: string, vars: Record<string, string | number>): string {
+  return template.replace(/\{(\w+)\}/g, (_, key) => String(vars[key] ?? `{${key}}`));
+}
+
 // Сравнение массива сыгранных нот с целевым
 export function evaluatePerformance(
   targetNotes: TargetNote[],
-  playedNotes: DetectedNote[]
+  playedNotes: DetectedNote[],
+  t?: LocaleDict
 ): { result: Feedback[]; score: number; tuningTips: string[]; theoryTips: string[] } {
+  // Локаль по умолчанию — русский (fallback), если t не передан
+  const et = t?.earTrainer ?? {
+    tuningSharp: 'Кажется, гитара немного расстроена. Проверьте строй (завышает на {cents} центов).',
+    tuningFlat: 'Кажется, гитара немного расстроена. Проверьте строй (низит на {cents} центов).',
+    tuningFloat: 'Интонация плавает в среднем на {cents} центов — подтяни строй, особенно на высоких ладах.',
+    tuningOk: 'Строй в порядке — попадаешь в ноты точно (в пределах ±10 центов).',
+    theoryMinorThirdToFourth: 'Вместо терции ({third}) сыграна кварта ({fourth}). Кварта звучит напряжённее — попробуй услышать малую терцию чуть ниже.',
+    theoryThirdToFourth: 'Вместо большой терции ({third}) сыграна кварта ({fourth}). Опусти ноту на полтона.',
+    theoryFourthToThird: 'Вместо кварты ({fourth}) сыграна терция ({third}). Кварта — выше на полтона.',
+    intMinorSecond: 'малая секунда', intMajorSecond: 'большая секунда', intMinorThird: 'малая терция',
+    intMajorThird: 'большая терция', intFourth: 'кварта', intTritone: 'увеличенная кварта', intFifth: 'квинта',
+    intMinorSixth: 'малая секста', intMajorSixth: 'большая секста', intMinorSeventh: 'малая септима',
+    intMajorSeventh: 'большая септима', intOctave: 'октава', semitones: '{count} полутонов',
+  };
   const result: Feedback[] = [];
   const tuningTips: string[] = [];
   const theoryTips: string[] = [];
@@ -298,20 +320,15 @@ export function evaluatePerformance(
   const stableSharp = playedNotes.length > 0 && playedNotes.every((p) => p.cents > 10);
   const stableFlat = playedNotes.length > 0 && playedNotes.every((p) => p.cents < -10);
 
+const et0 = et;
   if (stableSharp && avgAbsCents > 10) {
-    tuningTips.push(
-      `Кажется, гитара немного расстроена. Проверьте строй (завышает на ${avgAbsCents.toFixed(0)} центов).`
-    );
+    tuningTips.push(fmt(et0.tuningSharp, { cents: avgAbsCents.toFixed(0) }));
   } else if (stableFlat && avgAbsCents > 10) {
-    tuningTips.push(
-      `Кажется, гитара немного расстроена. Проверьте строй (низит на ${avgAbsCents.toFixed(0)} центов).`
-    );
+    tuningTips.push(fmt(et0.tuningFlat, { cents: avgAbsCents.toFixed(0) }));
   } else if (avgAbsCents > 10) {
-    tuningTips.push(
-      `Интонация плавает в среднем на ${avgAbsCents.toFixed(0)} центов — подтяни строй, особенно на высоких ладах.`
-    );
+    tuningTips.push(fmt(et0.tuningFloat, { cents: avgAbsCents.toFixed(0) }));
   } else if (playedNotes.length > 0) {
-    tuningTips.push('Строй в порядке — попадаешь в ноты точно (в пределах ±10 центов).');
+    tuningTips.push(et0.tuningOk);
   }
 
   // --- Подсказки по теории (интервалы) ---
@@ -330,18 +347,16 @@ export function evaluatePerformance(
         const playedInt = noteDistance(noteLabel(pb.note, pb.octave), noteLabel(pa.note, pa.octave));
         const absPlayed = Math.abs(playedInt);
 
+        const third = labelForInterval(3, et0);
+        const fourth = labelForInterval(5, et0);
+        const thirdBig = labelForInterval(4, et0);
+
         if (absTarget === 3 && absPlayed === 5) {
-          theoryTips.push(
-            `Вместо терции (${labelForInterval(3)}) сыграна кварта (${labelForInterval(5)}). Кварта звучит напряжённее — попробуй услышать малую терцию чуть ниже.`
-          );
+          theoryTips.push(fmt(et0.theoryMinorThirdToFourth, { third, fourth }));
         } else if (absTarget === 4 && absPlayed === 5) {
-          theoryTips.push(
-            `Вместо большой терции (${labelForInterval(4)}) сыграна кварта (${labelForInterval(5)}). Опусти ноту на полтона.`
-          );
+          theoryTips.push(fmt(et0.theoryThirdToFourth, { third: thirdBig, fourth }));
         } else if (absTarget === 5 && absPlayed === 4) {
-          theoryTips.push(
-            `Вместо кварты (${labelForInterval(5)}) сыграна терция (${labelForInterval(4)}). Кварта — выше на полтона.`
-          );
+          theoryTips.push(fmt(et0.theoryFourthToThird, { fourth, third: thirdBig }));
         }
       }
     }
@@ -360,21 +375,26 @@ function noteDistance(a: string, b: string): number {
   return Math.abs(parse(a) - parse(b));
 }
 
-const INTERVAL_LABELS: Record<number, string> = {
-  1: 'малая секунда',
-  2: 'большая секунда',
-  3: 'малая терция',
-  4: 'большая терция',
-  5: 'кварта',
-  6: 'увеличенная кварта',
-  7: 'квинта',
-  8: 'малая секста',
-  9: 'большая секста',
-  10: 'малая септима',
-  11: 'большая септима',
-  12: 'октава',
-};
-const labelForInterval = (s: number) => INTERVAL_LABELS[s] || `${s} полутонов`;
+// Название интервала из локали (fallback — русский)
+function labelForInterval(s: number, et: Record<string, string>): string {
+  const keyMap: Record<number, string> = {
+    1: 'intMinorSecond',
+    2: 'intMajorSecond',
+    3: 'intMinorThird',
+    4: 'intMajorThird',
+    5: 'intFourth',
+    6: 'intTritone',
+    7: 'intFifth',
+    8: 'intMinorSixth',
+    9: 'intMajorSixth',
+    10: 'intMinorSeventh',
+    11: 'intMajorSeventh',
+    12: 'intOctave',
+  };
+  const key = keyMap[s];
+  if (key && et[key]) return et[key];
+  return fmt(et.semitones, { count: s });
+}
 
 // ============================================================
 // КОМПОНЕНТ
@@ -396,6 +416,7 @@ const MODE_COLORS: Record<TrainingMode, string> = {
 };
 
 const EarTrainer: React.FC = () => {
+  const { t, locale } = useTranslation();
   const { keyNote, getScaleNotes } = useMusicTheory();
   const {
     isRecording,
@@ -418,6 +439,15 @@ const [chordAnswer, setChordAnswer] = useState<string | null>(null);
   const [phase, setPhase] = useState<'idle' | 'listening' | 'recording' | 'done'>('idle');
   const [feedback, setFeedback] = useState<{ result: Feedback[]; score: number; tuningTips: string[]; theoryTips: string[] } | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  const modeLabel = (m: TrainingMode): string => {
+    switch (m) {
+      case 'single': return t.earTrainer.single;
+      case 'tone-change': return t.earTrainer.toneChange;
+      case 'lick': return t.earTrainer.lick;
+      case 'chord': return t.earTrainer.chordQuiz;
+    }
+  };
 
   // --- Генерация и воспроизведение ---
   const handleGenerate = useCallback(async () => {
@@ -476,12 +506,12 @@ const [chordAnswer, setChordAnswer] = useState<string | null>(null);
     [targetChord]
   );
 
-  // Оценка при завершении записи (phase -> done)
+// Оценка при завершении записи (phase -> done)
   const handleEvaluate = useCallback(() => {
     if (targetNotes.length === 0) return;
-    const evalResult = evaluatePerformance(targetNotes, detectedNotes);
+    const evalResult = evaluatePerformance(targetNotes, detectedNotes, t);
     setFeedback(evalResult);
-  }, [targetNotes, detectedNotes]);
+  }, [targetNotes, detectedNotes, t]);
 
   const handlePlayTake = useCallback(() => {
     if (isPlayingBack) stopTake();
@@ -548,7 +578,7 @@ return (
               letterSpacing: '0.5px',
             }}
           >
-            Режим тренировки слуха
+            {t.earTrainer.mode}
           </span>
         </div>
       </div>
@@ -574,7 +604,7 @@ return (
                   boxShadow: active ? `0 0 12px ${color}` : 'none',
                 }}
               >
-                {MODE_LABELS[m]}
+                {modeLabel(m)}
               </button>
             );
           })}
@@ -595,7 +625,7 @@ return (
             cursor: isPlaying || isRecording ? 'not-allowed' : 'pointer',
           }}
         >
-{isPlaying ? '▶ Воспроизведение…' : '🎵🎶 Generate & Listen'}
+{isPlaying ? t.common.playing : t.earTrainer.generateListen}
         </button>
 
         <button
@@ -610,7 +640,7 @@ return (
             cursor: targetNotes.length === 0 || isPlaying ? 'not-allowed' : 'pointer',
           }}
         >
-          {isRecording ? '⏹ Stop & Analyze' : '🎤 Record Answer'}
+          {isRecording ? t.earTrainer.stopAnalyze : t.earTrainer.recordAnswer}
         </button>
 
         {phase === 'done' && recordedUrl && (
@@ -623,7 +653,7 @@ return (
               border: '1px solid var(--accent)',
             }}
           >
-            {isPlayingBack ? '⏸ Stop Take' : '▶ Play My Take'}
+            {isPlayingBack ? t.earTrainer.stopTake : t.earTrainer.playMyTake}
           </button>
         )}
       </div>
@@ -631,11 +661,11 @@ return (
 {/* СТАТУС / ФАЗА */}
 {phase === 'listening' && mode === 'chord' && targetChord && (
         <div style={{ ...styles.statusBox, borderColor: 'var(--color-accent-border)', textAlign: 'center' }}>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent)', marginBottom: '6px' }}>
-            🎹 Что за аккорд прозвучал?
+<div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--accent)', marginBottom: '6px' }}>
+            {t.earTrainer.whatChord}
           </div>
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-            {isPlaying ? '🎧 Слушай…' : 'Прослушай ещё раз, если нужно — нажми Generate, затем выбери вариант:'}
+            {isPlaying ? t.earTrainer.listening : t.earTrainer.listenAgain}
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '8px' }}>
             {chordOptions.map((name) => {
@@ -724,9 +754,9 @@ return (
                 color: chordCorrect ? '#4ade80' : '#ef4444',
               }}
             >
-              {chordCorrect
-                ? `🎉 Верно! Это ${targetChord.name}`
-                : `❌ Неверно. Это был ${targetChord.name} (ноты: ${targetChord.notes.join(' – ')})`}
+{chordCorrect
+                ? `${t.earTrainer.correctChord} ${targetChord.name}`
+                : `${t.earTrainer.wrongChord} ${targetChord.name} (ноты: ${targetChord.notes.join(' – ')})`}
             </div>
           )}
         </div>
@@ -734,20 +764,20 @@ return (
 
       {phase === 'listening' && mode !== 'chord' && targetNotes.length > 0 && (
         <div style={{ ...styles.statusBox, borderColor: 'var(--color-accent-border)' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            🎧 Запомни последовательность (нажми на ноту, чтобы открыть):
+<div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            {t.earTrainer.rememberSequence}
           </div>
           <RevealNoteStrip notes={targetNotes} />
           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '8px' }}>
-            Теперь возьми гитару и нажми <strong style={{ color: 'var(--accent)' }}>Record Answer</strong>.
+            {t.earTrainer.takeGuitarBefore} <strong style={{ color: 'var(--accent)' }}>Record Answer</strong>.
           </div>
         </div>
       )}
 
       {phase === 'recording' && (
         <div style={{ ...styles.statusBox, borderColor: 'rgba(255,68,68,0.4)' }}>
-          <div style={{ fontSize: '13px', fontWeight: 800, color: '#ff4444' }}>
-            ⏺ Идёт запись… Сыграй ноты!
+<div style={{ fontSize: '13px', fontWeight: 800, color: '#ff4444' }}>
+            {t.earTrainer.recording}
           </div>
           {detectedNotes.length > 0 && (
             <div style={{ marginTop: '8px' }}>
@@ -759,8 +789,8 @@ return (
 
       {phase === 'done' && recordedUrl && (
         <div style={{ ...styles.statusBox, borderColor: 'var(--color-accent-border)' }}>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            🎸 Твоя запись сохранена. Нажми <strong style={{ color: 'var(--accent)' }}>Analyze</strong> для оценки.
+<div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '6px' }}>
+            {t.earTrainer.savedTakeBefore} <strong style={{ color: 'var(--accent)' }}>Analyze</strong> {t.earTrainer.savedTakeAfter}
           </div>
           <button
             onClick={handleEvaluate}
@@ -772,7 +802,7 @@ return (
               opacity: detectedNotes.length === 0 ? 0.5 : 1,
             }}
           >
-            📊 Analyze
+            {t.earTrainer.analyze}
           </button>
         </div>
       )}
@@ -781,20 +811,20 @@ return (
       {feedback && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Счёт */}
-          <div style={styles.metricRow}>
-            <Metric label="Попадания" value={`${feedback.score}%`} />
-            <Metric label="Целей" value={String(targetNotes.length)} />
-            <Metric label="Сыграно" value={String(detectedNotes.length)} />
+<div style={styles.metricRow}>
+            <Metric label={t.earTrainer.hits} value={`${feedback.score}%`} />
+            <Metric label={t.earTrainer.targets} value={String(targetNotes.length)} />
+            <Metric label={t.earTrainer.played} value={String(detectedNotes.length)} />
           </div>
 
           {/* Визуальные индикаторы нот */}
           <div>
-            <div style={sectionLabelStyle}>Результат по нотам</div>
+<div style={sectionLabelStyle}>{t.earTrainer.resultByNotes}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {feedback.result.map((f, i) => (
                 <div
                   key={i}
-                  title={f.playedLabel ? `${f.playedLabel} (${f.cents > 0 ? '+' : ''}${f.cents.toFixed(0)}¢)` : 'не сыграно'}
+title={f.playedLabel ? `${f.playedLabel} (${f.cents > 0 ? '+' : ''}${f.cents.toFixed(0)}¢)` : t.earTrainer.notPlayed}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -838,7 +868,7 @@ return (
                   userSelect: 'none',
                 }}
               >
-                💡 Показать подсказки
+{t.earTrainer.showHints}
               </summary>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
                 {feedback.tuningTips.map((tip, i) => (
@@ -860,12 +890,12 @@ return (
             <div style={styles.looperBox}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <span style={{ fontSize: '14px' }}>🔁</span>
-                <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Микро-лупер
+<span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  {t.earTrainer.microLooper}
                 </span>
               </div>
               <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px' }}>
-                Послушай свою фразу со стороны — оцени звукоизвлечение и тайминг.
+                {t.earTrainer.microLooperHint}
               </div>
               <button
                 onClick={handlePlayTake}
@@ -876,7 +906,7 @@ return (
                   color: isPlayingBack ? '#fff' : '#000',
                 }}
               >
-                {isPlayingBack ? '⏹ Stop' : '▶ Play My Take'}
+{isPlayingBack ? t.earTrainer.stopTake : t.earTrainer.playTake}
               </button>
             </div>
           )}
@@ -895,7 +925,7 @@ return (
               cursor: 'pointer',
             }}
           >
-            🔁 Новое задание
+            {t.common.newTask}
           </button>
         </div>
       )}
@@ -904,10 +934,10 @@ return (
 {phase === 'idle' && (
         <div style={styles.emptyState}>
           <span style={{ fontSize: '24px' }}>👂</span>
-          <span>
-            Нажми <strong style={{ color: 'var(--accent)' }}>Generate & Listen</strong>, запомни ноты,
+<span>
+            {t.earTrainer.emptyHint1}
             <br />
-            затем сыграй их нажав кнопку <strong style={{ color: 'var(--accent)' }}>Record Answer</strong>
+            {t.earTrainer.emptyHint2}
           </span>
         </div>
       )}
@@ -952,6 +982,7 @@ const NoteStrip: React.FC<{ notes: { note: string; octave: number; duration?: st
 
 // Полоска нот, скрытая до клика/тача по каждой ноте (для честного запоминания)
 const RevealNoteStrip: React.FC<{ notes: { note: string; octave: number; duration?: string }[] }> = ({ notes }) => {
+  const { t } = useTranslation();
   const [revealed, setRevealed] = useState<boolean[]>(() => notes.map(() => false));
 
   return (
@@ -991,8 +1022,8 @@ const RevealNoteStrip: React.FC<{ notes: { note: string; octave: number; duratio
               cursor: 'pointer',
               userSelect: 'none',
             }}
-            onClick={() => setRevealed((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
-            title="Показать ноту"
+onClick={() => setRevealed((prev) => prev.map((v, idx) => (idx === i ? !v : v)))}
+            title={t.earTrainer.revealNote}
           >
             🎵
           </span>

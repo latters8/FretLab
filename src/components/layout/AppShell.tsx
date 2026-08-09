@@ -213,36 +213,36 @@ case 'dictionary':
     }
   };
 
-  const seoByModule: Record<ModuleType, { title: string; description: string; keywords: string }> = {
+const seoByModule: Record<ModuleType, { title: string; description: string; keywords: string }> = {
     engine: {
-      title: 'Гриф гитары онлайн',
-      description: 'Интерактивный гриф гитары с подсветкой нот и ступеней. Изучай расположение нот на грифе с визуализацией музыкальной теории.',
-      keywords: 'гриф гитары онлайн, ноты на грифе, fretboard, аппликатуры, гаммы на грифе',
+      title: t.seo.engineTitle,
+      description: t.seo.engineDesc,
+      keywords: 'fretboard, guitar, notes, scales, гриф гитары, ноты на грифе',
     },
 dictionary: {
-      title: 'Словарь аккордов для гитары',
-      description: 'Полный словарь гитарных аккордов с аппликатурами и озвучкой. Изучай аккорды для гитары с визуализацией на грифе.',
-      keywords: 'аккорды для гитары, словарь аккордов, аппликатуры аккордов, гитарные аккорды, справочник аккордов',
+      title: t.seo.dictionaryTitle,
+      description: t.seo.dictionaryDesc,
+      keywords: 'chords, guitar chords, аккорды для гитары, аппликатуры',
     },
     autotab: {
-      title: 'AI генератор соло для гитары',
-      description: 'Генерация гитарных соло с помощью AI. Создавай уникальные соло-партии с автоматической табулатурой и DAW-микшером.',
-      keywords: 'ai генератор соло, генератор табов, гитарное соло онлайн, ai музыка, solo generator, tab generator',
+      title: t.seo.autotabTitle,
+      description: t.seo.autotabDesc,
+      keywords: 'ai solo generator, tab generator, гитарное соло онлайн, ai музыка',
     },
     rig: {
-      title: 'Гитарный процессор FretLab Rig',
-      description: 'Мощный гитарный процессор с педалями: тюнер, дисторшн, эквалайзер, кабинет IR, модуляция, дилей и ревербератор. Обрабатывай звук гитары в реальном времени онлайн.',
-      keywords: 'гитарный процессор, педали эффектов онлайн, гитарные эффекты, дисторшн, дилей, ревербератор, тюнер, cabinet ir, guitar rig',
+      title: t.seo.rigTitle,
+      description: t.seo.rigDesc,
+      keywords: 'guitar rig, педали эффектов, гитарный процессор, дисторшн, ревербератор',
     },
     practice: {
-      title: 'Тренировки для гитариста',
-      description: 'Ежедневные тренировки для гитариста: гаммы, аккорды, ритм. Отслеживай прогресс обучения игре на гитаре.',
-      keywords: 'тренировки для гитары, обучение гитаре, практика, уроки гитары онлайн, самоучитель гитары',
+      title: t.seo.practiceTitle,
+      description: t.seo.practiceDesc,
+      keywords: 'guitar practice, тренировки для гитары, обучение гитаре, уроки гитары',
     },
     gameroom: {
-      title: 'Игровая комната для гитаристов',
-      description: 'Коллекция браузерных игр для отдыха между тренировками. Игры для гитаристов и любителей ретро-гейминга.',
-      keywords: 'игры онлайн, браузерные игры, игровая комната, гитаристы, отдых, ретро игры',
+      title: t.seo.gameroomTitle,
+      description: t.seo.gameroomDesc,
+      keywords: 'browser games, игры онлайн, игровая комната, ретро игры',
     },
   };
 

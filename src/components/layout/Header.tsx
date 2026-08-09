@@ -34,15 +34,15 @@ const Header: React.FC<HeaderProps> = ({ onAIAction }) => {
           value={theme}
           onChange={(e) => setTheme(e.target.value)}
         >
-          <option value="default">🎚 Default</option>
-          <option value="nebula">🌌 Nebula</option>
-          <option value="titanium">⚡ Citrine</option>
-          <option value="crimson">🩸 Onyx</option>
+<option value="default">{t.header.themeDefault}</option>
+          <option value="nebula">{t.header.themeNebula}</option>
+          <option value="titanium">{t.header.themeTitanium}</option>
+          <option value="crimson">{t.header.themeCrimson}</option>
         </select>
         <button
           onClick={toggleLocale}
-          aria-label="Switch language"
-          title={locale === 'ru' ? 'Switch to English' : 'Переключить на русский'}
+          aria-label={t.header.switchLang}
+          title={locale === 'ru' ? t.header.switchToEn : t.header.switchToRu}
           style={{
             background: 'var(--bg-secondary)',
             border: '1px solid var(--border-color)',

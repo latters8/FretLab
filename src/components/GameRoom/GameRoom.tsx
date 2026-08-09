@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import type React from 'react';
 import styles from './GameRoom.module.css';
+import { useTranslation } from '../../context/LocaleContext';
+import type { LocaleDict } from '../../locales/ru';
+
+type GameLocale = LocaleDict['gameRoom'];
 
 // ============================================================
 //  ICONS — pixel-art SVG (32×32 viewBox)
@@ -397,16 +401,70 @@ const SECTIONS: SectionDef[] = [
 //  COMPONENT
 // ============================================================
 
+const SECT_LOCALE: Record<string, keyof GameLocale> = {
+  all: 'sectionAll',
+  shooter: 'sectionShooter',
+  racing: 'sectionRacing',
+  battle: 'sectionBattle',
+  arcade: 'sectionArcade',
+  puzzle: 'sectionPuzzle',
+  party: 'sectionParty',
+  sports: 'sectionSports',
+  retro: 'sectionRetro',
+};
+
 const GameRoom: React.FC = () => {
+  const { t } = useTranslation();
+  const gr = t.gameRoom;
   const [activeSection, setActiveSection] = useState('all');
   const [activeGame, setActiveGame] = useState<string | null>(null);
   const [hoveredGame, setHoveredGame] = useState<string | null>(null);
 
-  const activeGameData = activeGame ? GAMES.find(g => g.id === activeGame) : null;
+  const genreOf = (id: string): string => {
+    const map: Record<string, keyof GameLocale> = {
+      shellshockers: 'genreShooter', krunker: 'genreShooter', smashkarts: 'genreRacing',
+      zombsroyale: 'genreBattle', slither: 'genreArcade', paperio: 'genreArcade',
+      diep: 'genreArcade', bloxd: 'genrePuzzle', lolbeans: 'genreQuest',
+      soccer: 'genreSports', rockracing: 'genreRacing', tetris: 'genrePuzzle',
+      skribbl: 'genreParty', hole: 'genreArcade', pool: 'genreSports',
+    };
+    return gr[map[id] ?? 'genreArcade'];
+  };
+
+  const playersOf = (p: string): string => {
+    const map: Record<string, string> = {
+      'Multiplayer': gr.playersMultiplayer,
+      '100 Players': gr.players100,
+      '1v1 / CPU': gr.players1v1,
+      'Single': gr.playersSingle,
+      '2-8 Players': gr.players2to8,
+    };
+    return map[p] ?? p;
+  };
+
+  const descOf = (id: string): string => {
+    const map: Record<string, keyof GameLocale> = {
+      shellshockers: 'descShell', krunker: 'descKrunker', smashkarts: 'descSmashKarts',
+      zombsroyale: 'descZombsroyale', slither: 'descSlither', paperio: 'descPaperio',
+      diep: 'descDiep', bloxd: 'descBloxd', lolbeans: 'descLolbeans',
+      soccer: 'descSoccer', rockracing: 'descRockracing', tetris: 'descTetris',
+      skribbl: 'descSkribbl', hole: 'descHole', pool: 'descPool',
+    };
+    return gr[map[id] ?? 'descTetris'];
+  };
+
+const games = GAMES.map(g => ({
+    ...g,
+    genre: genreOf(g.id),
+    players: playersOf(g.players),
+    description: descOf(g.id),
+  }));
+
+  const activeGameData = activeGame ? games.find(g => g.id === activeGame) : null;
 
   const filteredGames = activeSection === 'all'
-    ? GAMES
-    : GAMES.filter(g => g.section === activeSection);
+    ? games
+    : games.filter(g => g.section === activeSection);
 
   const openGame = (gameId: string) => {
     setActiveGame(gameId);
@@ -445,18 +503,18 @@ const GameRoom: React.FC = () => {
 
   return (
     <div className={styles.gameRoom}>
-      {/* ===== HEADER ===== */}
+{/* ===== HEADER ===== */}
       <header className={styles.grHeader}>
-        <h1>🎮 Game Room</h1>
-        <p>Free no-install browser games to relax 😄</p>
+        <h1>🎮 {gr.title}</h1>
+        <p>{gr.subtitle}</p>
       </header>
 
       {/* ===== SECTION TABS ===== */}
       <div className={styles.grSectionTabs}>
         {SECTIONS.map(sec => {
           const count = sec.key === 'all'
-            ? GAMES.length
-            : GAMES.filter(g => g.section === sec.key).length;
+            ? games.length
+            : games.filter(g => g.section === sec.key).length;
           return (
             <button
               key={sec.key}
@@ -464,7 +522,7 @@ const GameRoom: React.FC = () => {
               onClick={() => setActiveSection(sec.key)}
             >
               <span>{sec.emoji}</span>
-              <span>{sec.label}</span>
+              <span>{gr[SECT_LOCALE[sec.key]]}</span>
               <span className={styles.grSectionCount}>{count}</span>
             </button>
           );
@@ -473,10 +531,10 @@ const GameRoom: React.FC = () => {
 
       {/* ===== RESULTS BAR ===== */}
       <div className={styles.grResultsBar}>
-        <span>{filteredGames.length} game{filteredGames.length !== 1 ? 's' : ''}</span>
+        <span>{gr.gamesCount.replace('{count}', String(filteredGames.length))}</span>
         {activeSection !== 'all' && (
           <span className={styles.grResultsSection}>
-            {SECTIONS.find(s => s.key === activeSection)?.emoji} {SECTIONS.find(s => s.key === activeSection)?.label}
+            {SECTIONS.find(s => s.key === activeSection)?.emoji} {gr[SECT_LOCALE[activeSection]]}
           </span>
         )}
       </div>
@@ -506,10 +564,10 @@ const GameRoom: React.FC = () => {
               {game.mobile && <span className={styles.grCardMobile}>📱</span>}
             </div>
 
-            {hoveredGame === game.id && (
+{hoveredGame === game.id && (
               <div className={styles.grTooltip}>
                 <p>{game.description}</p>
-                <span className={styles.grTooltipHint}>Click to preview</span>
+                <span className={styles.grTooltipHint}>{gr.clickToPreview}</span>
               </div>
             )}
           </div>
@@ -520,15 +578,15 @@ const GameRoom: React.FC = () => {
       {filteredGames.length === 0 && (
         <div className={styles.grNoGames}>
           <div className={styles.grNoGamesIcon}>📭</div>
-          <h3>No games found</h3>
-          <p>Try a different section</p>
+          <h3>{gr.noGamesFound}</h3>
+          <p>{gr.tryDifferentSection}</p>
         </div>
       )}
 
       {/* ===== FOOTER ===== */}
       <footer className={styles.grFooter}>
-        <p>🎮 Free browser games · No install required</p>
-        <p className={styles.grFooterHint}>Click any game for preview · Fullscreen for best controls</p>
+        <p>🎮 {gr.footer}</p>
+        <p className={styles.grFooterHint}>{gr.footerHint}</p>
       </footer>
 
       {/* ===== GAME MODAL ===== */}
@@ -544,7 +602,7 @@ const GameRoom: React.FC = () => {
                   <div className={styles.grModalMeta}>
                     <span className={styles.grModalGenre}>{activeGameData.genre}</span>
                     <span className={styles.grModalPlayers}>👤 {activeGameData.players}</span>
-                    {activeGameData.mobile && <span className={styles.grModalMobile}>📱 Mobile</span>}
+{activeGameData.mobile && <span className={styles.grModalMobile}>📱 {gr.mobile}</span>}
                   </div>
                 </div>
               </div>
@@ -552,14 +610,14 @@ const GameRoom: React.FC = () => {
                 <button
                   className={styles.grModalBtnFullscreen}
                   onClick={openFullscreen}
-                  title="Open in new tab for best controls"
+                  title={gr.fullscreenTitle}
                 >
-                  ⛶ Fullscreen
+                  ⛶ {gr.fullscreen}
                 </button>
                 <button
                   className={styles.grModalBtnClose}
                   onClick={closeGame}
-                  title="Close (Esc)"
+                  title={gr.closeTitle}
                 >
                   ✕
                 </button>
@@ -579,9 +637,9 @@ const GameRoom: React.FC = () => {
               {/* Overlay hint for shooters */}
               {(activeGameData.section === 'shooter' || activeGameData.section === 'battle') && (
                 <div className={styles.grIframeHint}>
-                  <p>🖱️ Mouse controls may be limited in preview</p>
+                  <p>🖱️ {gr.mouseLimited}</p>
                   <button onClick={openFullscreen} className={styles.grIframeHintBtn}>
-                    ⛶ Open Fullscreen
+                    ⛶ {gr.openFullscreen}
                   </button>
                 </div>
               )}
@@ -591,7 +649,7 @@ const GameRoom: React.FC = () => {
             <div className={styles.grModalFooter}>
               <p>{activeGameData.description}</p>
               <button onClick={openFullscreen} className={styles.grModalFooterBtn}>
-                ▶ Play in Fullscreen
+                ▶ {gr.playFullscreen}
               </button>
             </div>
           </div>
