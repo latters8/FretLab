@@ -100,3 +100,32 @@ scripts/
 .env
 .env.local
 .env.*.local
+
+# =========================================
+# 🔥 Python & Machine Learning (Добавлено)
+# =========================================
+# Виртуальные окружения
+venv/
+env/
+.env_python/
+venv.bak/
+
+# Кэш компилятора Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Кэш тестов и инструменты
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter Notebooks (чекпоинты)
+.ipynb_checkpoints
+
+# (Опционально) Игнорирование тяжелых весов моделей
+# Если вы не хотите случайно запушить гигабайты весов ИИ:
+# *.pt
+# *.bin
+# *.safetensors
+# *.gguf
