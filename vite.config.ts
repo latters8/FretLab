@@ -20,15 +20,25 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
     emptyOutDir: true,
+    chunkSizeWarningLimit: 1000, // Скрывает желтые предупреждения до 1 МБ
     rollupOptions: {
       output: {
-        // ✅ Выделяем только React+react-dom в отдельный чанк.
-        // Для остальных node_modules возвращаем undefined — Rollup сам разобьёт
-        // их на оптимальные чанки без циклических зависимостей.
         manualChunks(id: string) {
+          // 1. Изолируем ядро React в отдельный файл
           if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/')) {
             return 'vendor-react';
           }
+          
+          // 2. Изолируем тяжелые библиотеки для работы со звуком и MIDI
+          if (
+            id.includes('node_modules/tone/') || 
+            id.includes('node_modules/midi-writer-js/')
+          ) {
+            return 'vendor-audio';
+          }
+          
+          // Для всех остальных библиотек (например, openai или react-helmet-async) 
+          // возвращаем undefined — Rollup разобьет их на оптимальные чанки сам.
         },
       },
     },
