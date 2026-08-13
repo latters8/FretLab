@@ -207,7 +207,7 @@ const Tablature: React.FC<TablatureProps> = ({ compact = false }) => {
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', width: effectiveCompact ? '100%' : 'auto', marginTop: effectiveCompact ? '8px' : '0' }}>
           {!effectiveCompact && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>SPEED</span>
+              <span style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 800 }}>{t.tablature.speed}</span>
               <input type="range" min="0.5" max="1.8" step="0.1" value={playbackSpeed} onChange={e => setPlaybackSpeed(parseFloat(e.target.value))} style={{ width: '70px', accentColor: 'var(--accent)', cursor: 'pointer' }} />
               <span style={{ fontSize: '11px', color: 'var(--accent)', fontWeight: 900 }}>{playbackSpeed.toFixed(1)}x</span>
             </div>

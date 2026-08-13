@@ -16,6 +16,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { fretLabRig, FretLabRig } from '../../services/FretLabRig';
 import { Button } from '../ui/Button';
 import { Spinner } from '../ui/Spinner';
+import { useTranslation } from '../../context/LocaleContext';
 import TunerPedal from './TunerPedal';
 import './RigPanel.css';
 
@@ -308,6 +309,7 @@ const KnobControl: React.FC<KnobProps> = ({ config }) => {
 // ============================================
 
 export const RigPanel: React.FC = () => {
+  const { t } = useTranslation();
   const [isRunning, setIsRunning] = useState(false);
   const [isStarting, setIsStarting] = useState(false);
   const [error, setError] = useState<RigError | null>(null);
@@ -428,20 +430,20 @@ const [peakLevel, setPeakLevel] = useState(0);
         <div className="rig-title">
           <span className="rig-title-icon">🎸</span>
           <div className="rig-title-text">
-            <span className="rig-title-name">FretLab Rig</span>
+            <span className="rig-title-name">{t.rig.title}</span>
             <span className="rig-status">
               {isRunning ? (
                 <>
                   <span className="rig-led on" aria-hidden="true" />
-                  Active{deviceLabel ? ` · ${deviceLabel}` : ''}
+                  {t.rig.active}{deviceLabel ? ` · ${deviceLabel}` : ''}
                   {!collapsed && ' · AudioWorklet · 128 samples'}
                 </>
               ) : (
                 <>
                   <span className="rig-led" aria-hidden="true" />
                   {collapsed
-                    ? 'Stopped — нажмите ▲ для настроек'
-                    : 'Stopped · AudioWorklet · 128 samples'}
+                    ? `${t.rig.stopped} — ▲`
+                    : `${t.rig.stopped} · AudioWorklet · 128 samples`}
                 </>
               )}
             </span>
@@ -454,10 +456,10 @@ const [peakLevel, setPeakLevel] = useState(0);
             onClick={handleToggle}
             disabled={isStarting}
             loading={isStarting}
-            aria-label={isRunning ? 'Stop rig' : 'Start rig'}
+            aria-label={isRunning ? t.rig.stop : t.rig.start}
             iconLeft={isStarting ? undefined : isRunning ? '⏹' : '▶'}
           >
-            {isStarting ? 'Starting…' : isRunning ? 'Stop' : 'Start'}
+            {isStarting ? t.rig.startInput : isRunning ? t.rig.stop : t.rig.start}
           </Button>
           <Button
             variant="ghost"
@@ -485,10 +487,10 @@ const [peakLevel, setPeakLevel] = useState(0);
           </span>
           <div className="rig-error-text">
             <strong>
-              {error.kind === 'permission' ? 'Нет доступа к микрофону' :
-               error.kind === 'no-device' ? 'Микрофон не найден' :
-               error.kind === 'context' ? 'Микрофон занят' :
-               'Ошибка запуска'}
+              {error.kind === 'permission' ? t.rig.permissionDenied :
+               error.kind === 'no-device' ? t.rig.noDevice :
+               error.kind === 'context' ? t.rig.suspended :
+               t.common.loading}
             </strong>
             <span>{error.message}</span>
           </div>

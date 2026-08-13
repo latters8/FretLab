@@ -77,7 +77,14 @@ const DiatonicChords: React.FC = () => {
             
             {!isArpeggioOrAltered && (
               <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', background: 'var(--bg-primary)', padding: '4px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                  {(['DIA', '7TH', '9TH', 'ALT'] as FilterType[]).map(type => (
+                  {(['DIA', '7TH', '9TH', 'ALT'] as FilterType[]).map(type => {
+                      const labels: Record<FilterType, string> = {
+                        DIA: t.diatonic.dia,
+                        '7TH': t.diatonic.seventhRoman,
+                        '9TH': t.diatonic.ninthRoman,
+                        ALT: t.diatonic.altRoman,
+                      };
+                      return (
                       <button
                           key={type}
                           onClick={() => setActiveFilter(type)}
@@ -89,9 +96,10 @@ const DiatonicChords: React.FC = () => {
                               fontSize: '10px', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s'
                           }}
                       >
-                          {type}
+                          {labels[type]}
                       </button>
-                  ))}
+                      );
+                  })}
               </div>
             )}
         </div>

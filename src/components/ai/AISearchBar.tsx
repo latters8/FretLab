@@ -561,7 +561,7 @@ const AISearchBar: React.FC<AISearchBarProps> = ({ onAction }) => {
       if (opt.action.payload?.key) {
         const normalize = (n: string) => ({ 'Db': 'C#', 'Eb': 'D#', 'Gb': 'F#', 'Ab': 'G#', 'Bb': 'A#' }[n] || n);
         setKeyNote(normalize(opt.action.payload.key));
-        if (opt.action.payload?.mode) setMode(opt.action.payload.mode);
+        if (opt.action.payload?.mode) setMode(opt.action.payload.mode as any);
       }
       if (onAction) onAction({ type: 'OPEN_AUTOTAB' });
       setIsOpen(false);

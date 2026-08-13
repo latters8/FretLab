@@ -1,4 +1,4 @@
-import fs from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
 import MidiWriter from 'midi-writer-js';
 
@@ -474,13 +474,17 @@ const GENERATORS: Record<string, PatternFn> = {
   'LeadGuitar': generateLeadGuitar,
 };
 
-export function ensureMidiFilesExist(tracks: TrackBlueprint[]) {
-  if (!fs.existsSync(MIDI_DIR)) {
-    fs.mkdirSync(MIDI_DIR, { recursive: true });
+export async function ensureMidiFilesExist(tracks: TrackBlueprint[]) {
+  // Создаём папку, если её нет (recursive mkdir не падает, если папка уже существует)
+  try {
+    await fs.access(MIDI_DIR);
+  } catch {
+    await fs.mkdir(MIDI_DIR, { recursive: true });
     console.log(`📁 Создана папка для MIDI: ${MIDI_DIR}`);
   }
 
-  tracks.forEach((track) => {
+  // for...of вместо forEach — чтобы правильно дожидаться await внутри цикла
+  for (const track of tracks) {
     try {
       const filePath = path.join(MIDI_DIR, track.midiFile);
       console.log(`🎵 Генерация: ${track.midiFile} (${track.instrument}, ${track.length} тактов)`);
@@ -504,11 +508,11 @@ export function ensureMidiFilesExist(tracks: TrackBlueprint[]) {
       const writer = new MidiWriter.Writer(midiTrack);
       const uint8 = writer.buildFile();
       const buffer = Buffer.from(uint8.buffer, uint8.byteOffset, uint8.byteLength);
-      fs.writeFileSync(filePath, buffer);
+      await fs.writeFile(filePath, buffer);
       console.log(`✅ Сохранён: ${filePath}`);
       
     } catch (err) {
       console.error(`❌ Ошибка генерации ${track.midiFile}:`, err);
     }
-  });
+  }
 }

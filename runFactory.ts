@@ -1,84 +1,128 @@
-import fs from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
+import fs from 'node:fs/promises';
 import path from 'node:path';
-// Добавили ./src/ в пути импортов
+import { fileURLToPath } from 'node:url';
 import { calculatePitchShift } from './src/utils/chordMath.ts';
 import { buildRppContent } from './src/utils/rppBuilder.ts';
 import { ensureMidiFilesExist } from './src/utils/midiGenerator.ts';
+import type { Blueprint, Track } from './src/services/aiGenerator.ts';
 
-export type TrackBlueprint = {
-  instrument: string;
-  midiFile: string;
-  position: number;
-  length: number;
-  chord?: string;
-};
+// ---------- Конфигурация (через env, с фоллбеками) ----------
 
-export type Blueprint = {
-  tracks: TrackBlueprint[];
-};
-
-// Базовая тональность всех наших исходных MIDI (по умолчанию 'C')
-const PROJECT_BASE_KEY = 'C'; 
 const ROOT_DIR = process.cwd();
-const OUTPUT_DIR = path.join(ROOT_DIR, 'output');
-const BLUEPRINT_PATH = path.join(ROOT_DIR, 'blueprint.json');
+const OUTPUT_DIR = path.resolve(process.env.OUTPUT_DIR || path.join(ROOT_DIR, 'output'));
+const BLUEPRINT_PATH = path.resolve(process.env.BLUEPRINT_PATH || path.join(ROOT_DIR, 'blueprint.json'));
+const PROJECT_BASE_KEY = process.env.PROJECT_BASE_KEY || 'C';
 
-async function runFactory() {
-  try {
-    // 1. Проверяем наличие папки output, создаем если её нет
-    if (!fs.existsSync(OUTPUT_DIR)) {
-      fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    }
+// ---------- Типы ----------
 
-    // 2. Читаем blueprint.json из корня проекта
-    if (!fs.existsSync(BLUEPRINT_PATH)) {
-      throw new Error(`Файл не найден. Убедитесь, что blueprint.json лежит здесь: ${BLUEPRINT_PATH}`);
-    }
-    
-    const blueprintRaw = fs.readFileSync(BLUEPRINT_PATH, 'utf-8');
-    const blueprint: Blueprint = JSON.parse(blueprintRaw);
-
-    console.log('🏭 FretLab Factory запущена. Анализ треков...');
-
-    // 3. Проверяем и генерируем недостающие MIDI-файлы
-    ensureMidiFilesExist(blueprint.tracks);
-
-    // 4. Проходимся по трекам и вычисляем питч-шифт
-    const processedTracks = blueprint.tracks.map((track) => {
-      let pitchShift = 0;
-
-      // ЗАЩИТА: Меняем тональность только если это НЕ барабаны и указан аккорд
-      if (track.instrument !== 'Drums' && track.chord) {
-        pitchShift = calculatePitchShift(PROJECT_BASE_KEY, track.chord);
-        console.log(`🎸 [${track.instrument}]: аккорд ${track.chord} -> сдвиг ${pitchShift} полутонов.`);
-      } else if (track.instrument === 'Drums') {
-        console.log(`🥁 [Drums]: пропуск сдвига (защита перкуссии).`);
-      }
-
-      // Возвращаем трек с добавленным параметром transpose
-      return {
-        ...track,
-        transpose: pitchShift
-      };
-    });
-
-    // 5. Генерируем текстовый код RPP файла
-    const rppString = buildRppContent(processedTracks);
-
-    // 6. Уникальное имя файла (решает проблему EBUSY и блокировок)
-    const timestamp = Date.now();
-    const fileName = `project_${timestamp}.rpp`;
-    const filePath = path.join(OUTPUT_DIR, fileName);
-
-    // 7. Запись файла на диск
-    fs.writeFileSync(filePath, rppString, 'utf-8');
-    
-    console.log(`✅ Успех! Мультитрек сохранен: ${filePath}`);
-
-  } catch (error) {
-    console.error('❌ Ошибка при сборке проекта:', error);
-  }
+export interface ProcessedTrack extends Track {
+  transpose: number;
 }
 
-// Запуск фабрики
-runFactory();
+export interface FactoryResult {
+  filePath: string;
+  tracks: ProcessedTrack[];
+}
+
+// ---------- Основная функция ----------
+
+export async function runFactory(): Promise<FactoryResult> {
+  // 1. Создаём папку output (синхронно — однократно при старте, до асинхронных операций)
+  if (!existsSync(OUTPUT_DIR)) {
+    mkdirSync(OUTPUT_DIR, { recursive: true });
+    console.log(`📁 Создана папка: ${OUTPUT_DIR}`);
+  }
+
+  // 2. Читаем blueprint.json
+  let blueprintRaw: string;
+  try {
+    blueprintRaw = await fs.readFile(BLUEPRINT_PATH, 'utf-8');
+  } catch {
+    throw new Error(`Файл не найден: ${BLUEPRINT_PATH}`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(blueprintRaw);
+  } catch {
+    throw new Error(`Ошибка парсинга ${BLUEPRINT_PATH}: невалидный JSON.`);
+  }
+
+  if (
+    !parsed ||
+    typeof parsed !== 'object' ||
+    !Array.isArray((parsed as Record<string, unknown>).tracks)
+  ) {
+    throw new Error('Неверная структура blueprint: ожидается объект с полем "tracks" (массив).');
+  }
+
+  const { tracks } = parsed as Blueprint;
+
+  if (tracks.length === 0) {
+    throw new Error('Blueprint пуст: массив tracks не содержит треков.');
+  }
+
+  // Проверяем, что каждый трек имеет обязательные поля
+  tracks.forEach((track, index) => {
+    const label = `Трек ${index + 1}`;
+    if (!track.instrument) throw new Error(`${label}: отсутствует поле "instrument".`);
+    if (!track.midiFile) throw new Error(`${label}: отсутствует поле "midiFile".`);
+    if (typeof track.position !== 'number' || track.position < 0) {
+      throw new Error(`${label}: невалидное поле "position".`);
+    }
+    if (typeof track.length !== 'number' || track.length <= 0) {
+      throw new Error(`${label}: невалидное поле "length".`);
+    }
+  });
+
+  console.log('🏭 FretLab Factory запущена. Анализ треков...');
+
+  // 3. Генерируем недостающие MIDI-файлы
+  await ensureMidiFilesExist(tracks);
+
+  // 4. Вычисляем питч-шифт для каждого трека
+  const processedTracks: ProcessedTrack[] = tracks.map((track) => {
+    let pitchShift = 0;
+
+    if (track.instrument !== 'Drums' && track.chord) {
+      pitchShift = calculatePitchShift(PROJECT_BASE_KEY, track.chord);
+      console.log(`🎸 [${track.instrument}]: аккорд ${track.chord} -> сдвиг ${pitchShift} полутонов.`);
+    } else if (track.instrument === 'Drums') {
+      console.log(`🥁 [Drums]: пропуск сдвига (защита перкуссии).`);
+    }
+
+    return { ...track, transpose: pitchShift };
+  });
+
+  // 5. Генерируем RPP
+  const rppString = buildRppContent(processedTracks);
+
+  // 6. Уникальное имя файла (таймштамп + случайный суффикс, чтобы избежать коллизий)
+  const timestamp = Date.now();
+  const randomSuffix = Math.random().toString(36).slice(2, 8);
+  const fileName = `project_${timestamp}_${randomSuffix}.rpp`;
+  const filePath = path.join(OUTPUT_DIR, fileName);
+
+  await fs.writeFile(filePath, rppString, 'utf-8');
+
+  console.log(`✅ Успех! Мультитрек сохранён: ${filePath}`);
+
+  return { filePath, tracks: processedTracks };
+}
+
+// ---------- Запуск только при прямом вызове из консоли ----------
+
+const isMainModule = (() => {
+  if (!process.argv[1]) return false;
+  const entry = path.resolve(process.argv[1]);
+  const self = path.resolve(fileURLToPath(import.meta.url));
+  return process.platform === 'win32' ? entry.toLowerCase() === self.toLowerCase() : entry === self;
+})();
+
+if (isMainModule) {
+  runFactory().catch((error) => {
+    console.error('❌ Ошибка при сборке проекта:', error);
+    process.exitCode = 1;
+  });
+}

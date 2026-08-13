@@ -2,11 +2,25 @@
 
 export type VideoPlatform = 'youtube' | 'rutube' | 'vk';
 
+export interface AIActionPayload {
+  key?: string;
+  mode?: string;
+  bpm?: number;
+  query?: string;
+  chord?: string;
+  [key: string]: unknown;
+}
+
+export interface AIAction {
+  type: string;
+  payload?: AIActionPayload;
+}
+
 export interface TrackOption {
   id: string;
   title: string;
   icon?: string;
-  action?: { type: string; payload?: any };
+  action?: AIAction;
   key?: string;
   mode?: string;
   bpm?: number;
@@ -14,7 +28,7 @@ export interface TrackOption {
 
 export interface AIResponse {
   text: string;
-  action?: { type: string; payload?: any };
+  action?: AIAction;
   options?: TrackOption[];
   platformOptions?: { platform: VideoPlatform; label: string; icon: string }[];
   searchQuery?: string;
@@ -392,7 +406,7 @@ export const generateSmartLick = (
   keyNote: string, 
   mode: string,
   bpm: number = 120,
-  ..._extraArgs: any[]
+  ..._extraArgs: unknown[]
 ): Lick => {
   const safeScaleNotes = (scaleNotes && scaleNotes.length > 0) ? scaleNotes : ['C', 'D', 'E', 'G', 'A'];
   
@@ -1018,6 +1032,7 @@ export const getPhraseSuggestions = (
 ): PhraseSuggestion[] => {
   const suggestions: PhraseSuggestion[] = [];
   const chordRoot = chord.name.replace(/[^A-G#b]/g, '');
+  const chordNotes = chord.notes || []; // 🔥 FIX: защита от undefined notes
   const scale = getScaleForChordInternal(chordRoot, mode);
   
   // Простая фраза 1: арпеджио вверх
@@ -1026,10 +1041,10 @@ export const getPhraseSuggestions = (
     name: 'Arpeggio Up',
     description: 'Play chord tones ascending',
     difficulty: 'beginner',
-    notes: chord.notes.map((note, i) => ({
+    notes: chordNotes.map((note, i) => ({
       string: 2,
       fret: findFretForNote(note, 2, 0, 21),
-      duration: i === chord.notes.length - 1 ? '2n' : '8n',
+      duration: i === chordNotes.length - 1 ? '2n' : '8n',
       technique: 'none' as Technique,
       velocity: 0.8
     })),
@@ -1151,8 +1166,11 @@ export const generateSynchronizedSolo = (
   const beatsPerBar = timeSignature.beats;
   const totalBeats = bars * beatsPerBar;
   
+  // 🔥 FIX: Не мутируем входной массив — работаем с локальной копией
+  const localProgression = [...(progressionChords || [])];
+
   // 🔥 FIX: Если progressionChords пустой — создаём фоллбэк из 4 тактов на I
-  if (!progressionChords || progressionChords.length === 0) {
+  if (localProgression.length === 0) {
     const rootNote = keyNote || 'C';
     const rootIdx = ALL_NOTES.indexOf(rootNote);
     const fallbackNotes = rootIdx !== -1
@@ -1160,7 +1178,7 @@ export const generateSynchronizedSolo = (
       : [rootNote];
     
     for (let i = 0; i < bars; i++) {
-      progressionChords.push({
+      localProgression.push({
         name: rootNote,
         notes: fallbackNotes
       });
@@ -1171,8 +1189,8 @@ export const generateSynchronizedSolo = (
   const chords: SyncChord[] = [];
   
   for (let i = 0; i < bars; i++) {
-    const safeIdx = i % progressionChords.length;
-    const chordObj = progressionChords[safeIdx];
+    const safeIdx = i % localProgression.length;
+    const chordObj = localProgression[safeIdx];
     if (!chordObj) {
       // Абсолютный фоллбэк если и это не сработало
       chords.push({

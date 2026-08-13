@@ -151,7 +151,7 @@ const Player: React.FC<PlayerProps> = ({
           borderRadius: 'var(--radius-full)',
           border: '1px solid var(--border-color)',
         }}>
-          <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginRight: '4px' }}>SEARCH:</span>
+          <span style={{ fontSize: '10px', fontWeight: 800, color: 'var(--text-muted)', letterSpacing: '1px', marginRight: '4px' }}>{t.player.search}:</span>
 
           <Button
             variant="ghost"
@@ -192,7 +192,7 @@ const Player: React.FC<PlayerProps> = ({
             onChange={e => setUrlInput(e.target.value)}
             placeholder={t.player.placeholder}
             className="fl-input"
-            aria-label="Ссылка на видео"
+            aria-label={t.player.pasteLink}
             style={{ flex: 1, minWidth: '120px', borderRadius: 'var(--radius-full)' }}
           />
           <Button
@@ -200,19 +200,19 @@ const Player: React.FC<PlayerProps> = ({
             size="sm"
             onClick={handleNext}
             disabled={youtubeSeeds.length === 0}
-            aria-label="Следующий бит-трек"
+            aria-label={t.player.next}
             style={{ color: youtubeSeeds.length === 0 ? 'var(--text-muted)' : 'var(--accent)', borderRadius: 'var(--radius-full)', padding: '0 14px', whiteSpace: 'nowrap' }}
           >
-            NEXT
+            {t.player.next}
           </Button>
           <Button
             variant="primary"
             size="sm"
             type="submit"
-            aria-label="Загрузить видео"
+            aria-label={t.player.load}
             style={{ borderRadius: 'var(--radius-full)', padding: '0 24px' }}
           >
-            LOAD
+            {t.player.load}
           </Button>
         </form>
       </div>

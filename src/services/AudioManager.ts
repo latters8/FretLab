@@ -42,6 +42,10 @@ class AudioManager {
 // 📋 Очередь отложенных EQ команд (накапливаем до старта контекста)
   private pendingEQ: { band: 'low' | 'mid' | 'high'; value: number }[] = [];
 
+  // 🔇 Защита от залипания mute-операции: кэшируем «хорошую» громкость до rampTo(-Infinity)
+  private lastKnownMasterVolume: number = 0;
+  private masterMuteTimer: number | null = null;
+
   private constructor() {
     // 🎛️ Инициализация EQ фильтров (на мастер-канале)
     this.eqLow = new Tone.BiquadFilter({
@@ -93,6 +97,9 @@ class AudioManager {
   public setVolume(channel: 'master' | 'guitar' | 'bass' | 'drums' | 'chords', db: number) {
     if (this.channels[channel]) {
       this.channels[channel].volume.rampTo(db, 0.05);
+      if (channel === 'master') {
+        this.lastKnownMasterVolume = db;
+      }
     }
   }
 
@@ -499,18 +506,21 @@ public playMetronome(time: Tone.Unit.Time, isAccent: boolean = false) {
     try { this.drumRide.triggerRelease(Tone.now()); } catch(_) {}
     try { this.drumTom.triggerRelease(Tone.now()); } catch(_) {}
 
-    // 🔥 Аварийное глушение master-канала: прибиваем уже запланированные 
+    // 🔥 Аварийное глушение master-канала: прибиваем уже запланированные
     // через Web Audio API ноты кратковременным отключением звука
     // (rampTo -Infinity, потом обратно к 0 через 100ms)
+    // ⚠️ FIX: не читаем currentVol после rampTo(-Infinity) — иначе при повторных
+    // вызовах stopAll в течение 100мс rampTo вернёт громкость к -Infinity и звук
+    // залипнет навсегда. Кэшируем «хорошую» громкость заранее в setMasterVolume.
     try {
       const masterVol = this.channels.master;
       if (masterVol) {
-        const currentVol = masterVol.volume.value;
+        const restoreVol = this.lastKnownMasterVolume ?? 0; // 0 dB — дефолт в Tone
         masterVol.volume.rampTo(-Infinity, 0.01);
-        // Возвращаем громкость после паузы, чтобы звук не остался выключенным
-        setTimeout(() => {
+        this.masterMuteTimer && clearTimeout(this.masterMuteTimer);
+        this.masterMuteTimer = window.setTimeout(() => {
           try {
-            masterVol.volume.rampTo(currentVol, 0.05);
+            masterVol.volume.rampTo(restoreVol, 0.05);
           } catch(_) {}
         }, 100);
       }
