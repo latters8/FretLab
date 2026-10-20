@@ -204,6 +204,77 @@ export const CHORD_LIBRARY: Record<string, ChordDefinition> = {
   "Bdim7": { name: "Bdim7", notes: ["B", "D", "F", "Ab"], intervals: [0, 3, 6, 9], quality: 'diminished' },
 };
 
+const CHORD_ROOTS = ['C', 'C#', 'Db', 'D', 'D#', 'Eb', 'E', 'F', 'F#', 'Gb', 'G', 'G#', 'Ab', 'A', 'A#', 'Bb', 'B'];
+const CHORD_FAMILIES: {
+  suffix: string;
+  intervals: number[];
+  degrees: number[];
+  quality: ChordDefinition['quality'];
+}[] = [
+  { suffix: 'maj7', intervals: [0, 4, 7, 11], degrees: [0, 2, 4, 6], quality: 'major' },
+  { suffix: 'maj9', intervals: [0, 4, 7, 11, 14], degrees: [0, 2, 4, 6, 1], quality: 'major' },
+  { suffix: 'maj11', intervals: [0, 4, 7, 11, 14, 17], degrees: [0, 2, 4, 6, 1, 3], quality: 'major' },
+  { suffix: 'maj9#11', intervals: [0, 4, 7, 11, 14, 18], degrees: [0, 2, 4, 6, 1, 3], quality: 'major' },
+  { suffix: 'maj7b9', intervals: [0, 4, 7, 11, 13], degrees: [0, 2, 4, 6, 1], quality: 'major' },
+  { suffix: 'maj6', intervals: [0, 4, 7, 9], degrees: [0, 2, 4, 5], quality: 'major' },
+  { suffix: '6/9', intervals: [0, 4, 7, 9, 14], degrees: [0, 2, 4, 5, 1], quality: 'major' },
+  { suffix: 'add9', intervals: [0, 4, 7, 14], degrees: [0, 2, 4, 1], quality: 'major' },
+  { suffix: 'm', intervals: [0, 3, 7], degrees: [0, 2, 4], quality: 'minor' },
+  { suffix: 'm7', intervals: [0, 3, 7, 10], degrees: [0, 2, 4, 6], quality: 'minor' },
+  { suffix: 'm9', intervals: [0, 3, 7, 10, 14], degrees: [0, 2, 4, 6, 1], quality: 'minor' },
+  { suffix: 'm11', intervals: [0, 3, 7, 10, 14, 17], degrees: [0, 2, 4, 6, 1, 3], quality: 'minor' },
+  { suffix: 'm6', intervals: [0, 3, 7, 9], degrees: [0, 2, 4, 5], quality: 'minor' },
+  { suffix: 'madd9', intervals: [0, 3, 7, 14], degrees: [0, 2, 4, 1], quality: 'minor' },
+  { suffix: 'mMaj7', intervals: [0, 3, 7, 11], degrees: [0, 2, 4, 6], quality: 'minor' },
+  { suffix: '7', intervals: [0, 4, 7, 10], degrees: [0, 2, 4, 6], quality: 'dominant' },
+  { suffix: '9', intervals: [0, 4, 7, 10, 14], degrees: [0, 2, 4, 6, 1], quality: 'dominant' },
+  { suffix: '11', intervals: [0, 4, 7, 10, 14, 17], degrees: [0, 2, 4, 6, 1, 3], quality: 'dominant' },
+  { suffix: '13', intervals: [0, 4, 7, 10, 21], degrees: [0, 2, 4, 6, 5], quality: 'dominant' },
+  { suffix: '7sus4', intervals: [0, 5, 7, 10], degrees: [0, 3, 4, 6], quality: 'suspended' },
+  { suffix: '7b9', intervals: [0, 4, 7, 10, 13], degrees: [0, 2, 4, 6, 1], quality: 'dominant' },
+  { suffix: '7#9', intervals: [0, 4, 7, 10, 15], degrees: [0, 2, 4, 6, 1], quality: 'dominant' },
+  { suffix: '7b5', intervals: [0, 4, 6, 10], degrees: [0, 2, 4, 6], quality: 'dominant' },
+  { suffix: '7#5', intervals: [0, 4, 8, 10], degrees: [0, 2, 4, 6], quality: 'dominant' },
+  { suffix: '7b13', intervals: [0, 4, 7, 10, 20], degrees: [0, 2, 4, 6, 5], quality: 'dominant' },
+  { suffix: 'm7b5', intervals: [0, 3, 6, 10], degrees: [0, 2, 4, 6], quality: 'diminished' },
+  { suffix: 'm7b5b9', intervals: [0, 3, 6, 10, 13], degrees: [0, 2, 4, 6, 1], quality: 'diminished' },
+  { suffix: 'dim', intervals: [0, 3, 6], degrees: [0, 2, 4], quality: 'diminished' },
+  { suffix: 'dim7', intervals: [0, 3, 6, 9], degrees: [0, 2, 4, 6], quality: 'diminished' },
+  { suffix: 'aug', intervals: [0, 4, 8], degrees: [0, 2, 4], quality: 'augmented' },
+  { suffix: 'sus2', intervals: [0, 2, 7], degrees: [0, 1, 4], quality: 'suspended' },
+  { suffix: 'sus4', intervals: [0, 5, 7], degrees: [0, 3, 4], quality: 'suspended' },
+];
+
+const LETTERS = 'CDEFGAB';
+const NATURAL_PITCH_CLASSES: Record<string, number> = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+
+for (const root of CHORD_ROOTS) {
+  const rootLetter = root[0];
+  const rootLetterIndex = LETTERS.indexOf(rootLetter);
+  const rootAccidental = root.slice(1);
+  const rootPitchClass = (NATURAL_PITCH_CLASSES[rootLetter] + (rootAccidental === '#' ? 1 : rootAccidental === 'b' ? -1 : 0) + 12) % 12;
+
+  for (const family of CHORD_FAMILIES) {
+    const name = `${root}${family.suffix}`;
+    if (CHORD_LIBRARY[name]) continue;
+
+    const notes = family.intervals.map((interval, index) => {
+      const letter = LETTERS[(rootLetterIndex + family.degrees[index]) % LETTERS.length];
+      const targetPitchClass = (rootPitchClass + interval) % 12;
+      let accidental = (targetPitchClass - NATURAL_PITCH_CLASSES[letter] + 12) % 12;
+      if (accidental > 6) accidental -= 12;
+      return `${letter}${'#'.repeat(Math.max(0, accidental))}${'b'.repeat(Math.max(0, -accidental))}`;
+    });
+
+    CHORD_LIBRARY[name] = {
+      name,
+      notes,
+      intervals: [...family.intervals],
+      quality: family.quality,
+    };
+  }
+}
+
 // ==========================================
 // ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 // ==========================================
